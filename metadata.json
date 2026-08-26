@@ -1,0 +1,6 @@
+{
+  "name": "Al Wassit 777 - Immobilier au Maroc",
+  "description": "Portail immobilier de référence au Maroc avec espace juridique, gestion des annonces, messagerie directe et recherche avancée.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

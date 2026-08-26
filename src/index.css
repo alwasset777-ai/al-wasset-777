@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+  
+  [dir="rtl"] body, [dir="rtl"] * {
+    font-family: 'Tajawal', 'Inter', sans-serif;
+  }
+}
+
+.custom-map-price-marker {
+  background: transparent;
+  border: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #fff8f7;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #e8d5d3;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ff6f61;
+}
