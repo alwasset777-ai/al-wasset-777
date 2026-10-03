@@ -1,0 +1,20 @@
+rules_version = '2';
+// Fichiers du registre : réservés au gérant.
+// Visuels publicitaires (ads/) : écriture réservée au gérant, lecture publique
+// car Instagram doit pouvoir télécharger l'image pour la publier.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email in ['REMPLACER_PAR_VOTRE_EMAIL@exemple.com'];
+    }
+    match /registry/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+    match /ads/{file} {
+      allow read: if true;
+      allow write: if isAdmin() && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
+    }
+  }
+}

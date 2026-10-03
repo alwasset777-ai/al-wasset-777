@@ -206,6 +206,7 @@ export interface AdDraft {
   source: 'ia' | 'modèle';
   scheduledAt?: string; // ISO
   publishedAt?: string; // ISO
+  externalId?: string; // identifiant du post sur la plateforme (publication automatique)
   createdAt: string; // ISO
   stats: AdStats;
 }
@@ -213,10 +214,12 @@ export interface AdDraft {
 // ---- Registre des biens (fiche bureau) ----
 
 export interface StoredFileRef {
-  id: string; // clé IndexedDB
+  id: string; // clé IndexedDB (mode local) ou identifiant du fichier
   name: string;
   type: string;
   size: number;
+  path?: string; // chemin Firebase Storage (mode en ligne)
+  url?: string; // lien de téléchargement Firebase (mode en ligne)
 }
 
 export interface RegistryProperty {

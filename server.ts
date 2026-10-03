@@ -4,11 +4,33 @@
 import 'dotenv/config';
 import express from 'express';
 import { GoogleGenAI } from '@google/genai';
+import { initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { metaStatus, publishFacebook, publishInstagram } from './meta';
 
 const PORT = Number(process.env.API_PORT || 3001);
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const apiKey = process.env.GEMINI_API_KEY;
 const ai = apiKey && apiKey !== 'MY_GEMINI_API_KEY' ? new GoogleGenAI({ apiKey }) : null;
+
+// Vérification de l'identité du gérant (jeton Firebase envoyé par l'application).
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+const adminAuth = FIREBASE_PROJECT_ID ? getAuth(initializeApp({ projectId: FIREBASE_PROJECT_ID })) : null;
+
+async function isAdmin(req: express.Request): Promise<boolean> {
+  if (!adminAuth) return false;
+  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
+  if (!token) return false;
+  try {
+    const decoded = await adminAuth.verifyIdToken(token);
+    const email = (decoded.email || '').toLowerCase();
+    // Liste obligatoire : sans ADMIN_EMAILS, personne n'est autorisé (évite qu'un compte inconnu publie).
+    return Boolean(email && ADMIN_EMAILS.includes(email));
+  } catch {
+    return false;
+  }
+}
 
 // Exemple réel de la façon d'écrire de M. Mounir Radoui : l'IA s'en inspire pour le ton.
 const STYLE_SAMPLE = `السلام عليكم ورحمة الله تعالى وبركاته
@@ -37,13 +59,18 @@ Règles :
 - Réponds uniquement en JSON : {"text": string, "hashtags": string[]}. Les hashtags commencent par #.`;
 
 const app = express();
-app.use(express.json({ limit: '200kb' }));
+app.use(express.json({ limit: '12mb' }));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, ai: Boolean(ai) });
+  res.json({ ok: true, ai: Boolean(ai), auth: Boolean(adminAuth), meta: metaStatus });
 });
 
 app.post('/api/ads/generate', async (req, res) => {
+  // Quand Firebase est configuré, seule l'équipe connectée peut consommer le quota IA.
+  if (adminAuth && !(await isAdmin(req))) {
+    res.status(401).json({ error: 'Connexion requise' });
+    return;
+  }
   if (!ai) {
     res.status(503).json({ error: 'GEMINI_API_KEY non configurée' });
     return;
@@ -71,6 +98,31 @@ ${JSON.stringify(property)}`;
   } catch (err) {
     console.error('Erreur Gemini :', err);
     res.status(502).json({ error: 'Génération IA impossible' });
+  }
+});
+
+// Publication automatique sur Facebook / Instagram (annonce déjà validée par le gérant).
+app.post('/api/meta/publish', async (req, res) => {
+  if (!(await isAdmin(req))) {
+    res.status(401).json({ error: 'Connexion du gérant requise' });
+    return;
+  }
+  const { platform, caption, imageUrl, jpegBase64 } = req.body || {};
+  if (typeof caption !== 'string' || !caption.trim() || (platform !== 'facebook' && platform !== 'instagram')) {
+    res.status(400).json({ error: 'Paramètres invalides' });
+    return;
+  }
+  try {
+    const id =
+      platform === 'facebook'
+        ? await publishFacebook(caption, { url: imageUrl, jpegBase64 })
+        : imageUrl
+        ? await publishInstagram(caption, imageUrl)
+        : (() => { throw new Error("Instagram exige une image en ligne (Firebase Storage)"); })();
+    res.json({ id });
+  } catch (err) {
+    console.error('Erreur publication Meta :', err);
+    res.status(502).json({ error: (err as Error).message });
   }
 });
 

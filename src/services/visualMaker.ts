@@ -139,7 +139,7 @@ async function loadPhotos(p: Property): Promise<HTMLImageElement[]> {
   return results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
 }
 
-export async function renderPoster(p: Property, format: VisualFormat): Promise<Blob> {
+export async function renderPoster(p: Property, format: VisualFormat, type: 'image/png' | 'image/jpeg' = 'image/png'): Promise<Blob> {
   const [w, h] = FORMAT_SIZE[format];
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -149,7 +149,7 @@ export async function renderPoster(p: Property, format: VisualFormat): Promise<B
   const [first] = await loadPhotos(p);
   drawFrame(ctx, p, first || null, format);
   return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Export PNG impossible'))), 'image/png')
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Export image impossible'))), type, 0.92)
   );
 }
 
