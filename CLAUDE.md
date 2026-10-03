@@ -10,5 +10,5 @@
 - معلومات المكتب في `src/data/agencyProfile.ts`، ودليل الإعداد بالعربية في `docs/SETUP-AR.md`.
 
 ## أوامر
-- `npm run dev` لتشغيل الموقع، `npm run server` لتشغيل الخادم (الذكاء الاصطناعي والنشر)، `npm run lint` للتحقق.
+- خادم واحد `server.ts` يشغّل الموقع والـ API معاً: `npm run dev` للتطوير، `npm run build && npm start` للإنتاج (Cloud Run / AI Studio)، `npm run lint` للتحقق.
 - الحزم تُدار بـ `bun` (ملف `bun.lock`).

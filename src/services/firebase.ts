@@ -13,7 +13,12 @@ import {
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
-const env: Partial<ImportMetaEnv> = import.meta.env ?? {};
+// Valeurs injectées par le serveur à l'exécution (secrets AI Studio / Cloud Run), sinon celles de la construction.
+const runtime: Record<string, unknown> = (typeof window !== 'undefined' && (window as any).__APP_CONFIG__) || {};
+const env: Partial<ImportMetaEnv> = {
+  ...(import.meta.env ?? {}),
+  ...Object.fromEntries(Object.entries(runtime).filter(([, v]) => typeof v === 'string' && v !== '')),
+};
 
 const config = {
   apiKey: env.VITE_FIREBASE_API_KEY,

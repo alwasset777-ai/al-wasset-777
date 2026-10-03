@@ -1,14 +1,18 @@
-// Petit serveur API pour l'agent publicitaire IA.
-// Garde GEMINI_API_KEY côté serveur (jamais envoyée au navigateur).
-// Lancement : `npm run server` (port 3001), Vite redirige /api vers ce serveur.
+// Serveur unique de l'application (compatible Google AI Studio / Cloud Run) :
+// - API de l'agent publicitaire (/api/...) avec les clés gardées côté serveur ;
+// - le site lui-même : Vite en développement, fichiers construits (dist/) en production.
+// Lancement : `npm run dev` (développement) ou `npm run build && npm start` (production).
 import 'dotenv/config';
+import fs from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import { GoogleGenAI } from '@google/genai';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { metaStatus, publishFacebook, publishInstagram } from './meta';
 
-const PORT = Number(process.env.API_PORT || 3001);
+const PORT = Number(process.env.PORT || 3000);
+const IS_PROD = process.env.NODE_ENV === 'production';
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const apiKey = process.env.GEMINI_API_KEY;
 const ai = apiKey && apiKey !== 'MY_GEMINI_API_KEY' ? new GoogleGenAI({ apiKey }) : null;
@@ -174,6 +178,39 @@ app.post('/api/meta/publish', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`API agent publicitaire sur http://localhost:${PORT} (IA ${ai ? 'activée' : 'désactivée : modèles locaux'})`);
-});
+// Configuration publique (non secrète) injectée dans la page au moment de l'exécution,
+// pour que les valeurs Firebase définies dans les secrets fonctionnent sans reconstruire le site.
+function publicConfigScript(): string {
+  const cfg = {
+    VITE_FIREBASE_API_KEY: process.env.VITE_FIREBASE_API_KEY,
+    VITE_FIREBASE_AUTH_DOMAIN: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+    VITE_FIREBASE_PROJECT_ID: process.env.VITE_FIREBASE_PROJECT_ID,
+    VITE_FIREBASE_STORAGE_BUCKET: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+    VITE_FIREBASE_APP_ID: process.env.VITE_FIREBASE_APP_ID,
+  };
+  return `<script>window.__APP_CONFIG__=${JSON.stringify(cfg).replace(/</g, '\\u003c')}</script>`;
+}
+
+async function start() {
+  app.use('/api', (_req, res) => res.status(404).json({ error: 'Route inconnue' }));
+
+  if (IS_PROD) {
+    const dist = path.resolve(process.cwd(), 'dist');
+    const indexHtml = fs.readFileSync(path.join(dist, 'index.html'), 'utf8').replace('<head>', `<head>${publicConfigScript()}`);
+    app.use(express.static(dist, { index: false, maxAge: '1h' }));
+    app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.type('html').send(indexHtml);
+    });
+  } else {
+    const { createServer } = await import('vite');
+    const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });
+    app.use(vite.middlewares);
+  }
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Al Wassit 777 sur http://localhost:${PORT} (${IS_PROD ? 'production' : 'développement'}, IA ${ai ? 'activée' : 'désactivée : modèles locaux'})`);
+  });
+}
+
+start();
