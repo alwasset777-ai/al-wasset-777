@@ -21,17 +21,14 @@ import { AdDraft, AdLanguage, AdPlatform, AdStats, Language, Property } from '..
 import {
   AD_LANGUAGES,
   PLATFORMS,
-  buildHashtags,
-  fitToPlatform,
   fullPostText,
-  generateTemplateText,
   localDayKey,
   planSchedule,
   platformSpec,
-  propertyTitle,
   shareUrl,
 } from '../services/adGenerator';
-import { AUTO_PLATFORMS, ServerStatus, fetchServerStatus, generateAdWithAI, publishToMeta } from '../services/adsApi';
+import { AUTO_PLATFORMS, ServerStatus, fetchServerStatus, publishToMeta } from '../services/adsApi';
+import { EMPTY_STATS, generateDrafts, makeDraft, useAdDrafts } from '../services/adsStore';
 import { isFirebaseEnabled } from '../services/firebase';
 import { LoginCard, SignOutButton, useAuthUser } from './AuthGate';
 import { canRecordVideo, downloadBlob, recordSlideshow, renderPoster } from '../services/visualMaker';
@@ -44,10 +41,7 @@ interface AdsAgentViewProps {
 
 type SubTab = 'create' | 'review' | 'calendar' | 'results';
 
-const DRAFTS_KEY = 'alwassit777.ads.drafts.v1';
 const SETTINGS_KEY = 'alwassit777.ads.settings.v1';
-
-const EMPTY_STATS: AdStats = { views: 0, likes: 0, comments: 0, shares: 0, messages: 0, leads: 0 };
 
 const STAT_LABELS: { key: keyof AdStats; fr: string; ar: string; en: string }[] = [
   { key: 'views', fr: 'Vues', ar: 'مشاهدات', en: 'Views' },
@@ -72,7 +66,7 @@ export const AdsAgentView: React.FC<AdsAgentViewProps> = ({ properties, language
   const t = (fr: string, ar: string, en: string) => (isAr ? ar : isEn ? en : fr);
 
   const [tab, setTab] = useState<SubTab>('create');
-  const [drafts, setDrafts] = useState<AdDraft[]>(() => loadJSON<AdDraft[]>(DRAFTS_KEY, []));
+  const [drafts, setDrafts] = useAdDrafts();
   const [settings, setSettings] = useState(() => ({ perDay: 6, autoPublish: false, ...loadJSON<{ perDay?: number; autoPublish?: boolean }>(SETTINGS_KEY, {}) }));
   const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null);
   const [publishing, setPublishing] = useState<string | null>(null);
@@ -87,7 +81,6 @@ export const AdsAgentView: React.FC<AdsAgentViewProps> = ({ properties, language
   const [toast, setToast] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  useEffect(() => saveJSON(DRAFTS_KEY, drafts), [drafts]);
   useEffect(() => saveJSON(SETTINGS_KEY, settings), [settings]);
   useEffect(() => {
     fetchServerStatus().then(setServerStatus);
@@ -118,38 +111,10 @@ export const AdsAgentView: React.FC<AdsAgentViewProps> = ({ properties, language
   const dueNow = scheduled.filter((d) => new Date(d.scheduledAt!).getTime() <= now);
 
   // ---------- Génération ----------
-  const makeDraft = async (p: Property, platform: AdPlatform, lang: AdLanguage): Promise<AdDraft> => {
-    const ai = await generateAdWithAI(p, platform, lang);
-    const hashtags = ai?.hashtags.length ? ai.hashtags : buildHashtags(p, platform, lang);
-    const text = ai ? fitToPlatform(ai.text, platform, hashtags) : fitToPlatform(generateTemplateText(p, platform, lang), platform, hashtags);
-    return {
-      id: `ad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      propertyId: p.id,
-      propertyTitle: propertyTitle(p),
-      platform,
-      language: lang,
-      text,
-      hashtags,
-      status: 'brouillon',
-      source: ai ? 'ia' : 'modèle',
-      createdAt: new Date().toISOString(),
-      stats: { ...EMPTY_STATS },
-    };
-  };
-
   const handleGenerate = async () => {
     const p = selectedPropId != null ? propertyById(selectedPropId) : undefined;
     if (!p || !platforms.length || !languages.length) return;
-    const combos = platforms.flatMap((pl) => languages.map((lg) => [pl, lg] as const));
-    setGenerating({ done: 0, total: combos.length });
-    const created: AdDraft[] = [];
-    // Par petits lots pour ne pas saturer l'API IA.
-    for (let i = 0; i < combos.length; i += 4) {
-      const batch = await Promise.all(combos.slice(i, i + 4).map(([pl, lg]) => makeDraft(p, pl, lg)));
-      created.push(...batch);
-      setGenerating({ done: created.length, total: combos.length });
-    }
-    setDrafts((prev) => [...created, ...prev]);
+    const created = await generateDrafts(p, platforms, languages, (done, total) => setGenerating({ done, total }));
     setGenerating(null);
     const aiCount = created.filter((d) => d.source === 'ia').length;
     setToast(

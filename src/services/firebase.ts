@@ -13,7 +13,7 @@ import {
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getStorage, type FirebaseStorage } from 'firebase/storage';
 
-const env = import.meta.env;
+const env: Partial<ImportMetaEnv> = import.meta.env ?? {};
 
 const config = {
   apiKey: env.VITE_FIREBASE_API_KEY,

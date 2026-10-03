@@ -101,6 +101,54 @@ ${JSON.stringify(property)}`;
   }
 });
 
+// Assistant de discussion : le gérant parle à l'agent (darija, arabe, français).
+// L'agent répond et peut proposer UNE action que l'application exécute (jamais de publication directe).
+const CHAT_SYSTEM = `Tu es « وكيل الوسيط 777 », l'assistant IA de M. Mounir Radoui, gérant de l'agence immobilière "مكتب الوسيط 777 للخدمات العقارية" à Meknès (Avenue de Paris, Immeuble Select, 1er étage, N°52 ; tél. 0777777848 / 0777777959 ; signature « التجربة دليل الكفاءة »).
+Tu l'aides à organiser ses publicités immobilières : rédiger des annonces, planifier, suivre les résultats, conseiller sur le marketing immobilier au Maroc.
+Réponds TOUJOURS dans la langue du dernier message (darija marocaine en lettres arabes, arabe classique ou français), de façon courte, chaleureuse et respectueuse.
+Tu reçois en contexte la liste des biens (id, titre, ville…) et l'état des annonces. N'invente jamais un bien ni un chiffre.
+Actions possibles (au plus une par réponse) :
+- {"type":"generate_ads","propertyId":<id>,"platforms":[...],"languages":[...]} pour préparer des annonces À VALIDER (plateformes : facebook, instagram, tiktok, whatsapp, snapchat, x, linkedin, threads, upscrolled, avito, mubawab, sarouty ; langues : ar, darija, fr). Si l'utilisateur ne précise pas, mets toutes les plateformes et les langues ar, darija, fr.
+- {"type":"open","tab":"ads"|"crm"|"home"} pour ouvrir une page.
+Si le bien demandé est ambigu, pose une question au lieu d'agir.
+Réponds uniquement en JSON : {"reply": string, "action": objet ou null}.`;
+
+app.post('/api/agent/chat', async (req, res) => {
+  if (adminAuth && !(await isAdmin(req))) {
+    res.status(401).json({ error: 'Connexion requise' });
+    return;
+  }
+  if (!ai) {
+    res.status(503).json({ error: 'GEMINI_API_KEY non configurée' });
+    return;
+  }
+  const { messages, context } = req.body || {};
+  if (!Array.isArray(messages) || messages.length === 0) {
+    res.status(400).json({ error: 'Messages manquants' });
+    return;
+  }
+  const history = messages.slice(-20).map((m: { role?: string; text?: unknown }) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: String(m.text ?? '').slice(0, 4000) }],
+  }));
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: history,
+      config: {
+        systemInstruction: `${CHAT_SYSTEM}\n\nContexte actuel (JSON) :\n${JSON.stringify(context ?? {}).slice(0, 20000)}`,
+        responseMimeType: 'application/json',
+        temperature: 0.6,
+      },
+    });
+    const parsed = JSON.parse(response.text || '{}');
+    res.json({ reply: String(parsed.reply || ''), action: parsed.action && typeof parsed.action === 'object' ? parsed.action : null });
+  } catch (err) {
+    console.error('Erreur assistant :', err);
+    res.status(502).json({ error: 'Assistant indisponible' });
+  }
+});
+
 // Publication automatique sur Facebook / Instagram (annonce déjà validée par le gérant).
 app.post('/api/meta/publish', async (req, res) => {
   if (!(await isAdmin(req))) {
