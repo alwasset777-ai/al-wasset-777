@@ -11,7 +11,8 @@ import {
   Briefcase, 
   Menu, 
   X,
-  Compass
+  Compass,
+  Megaphone
 } from 'lucide-react';
 import { Language } from '../types';
 
@@ -52,7 +53,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'louer', labelFr: 'Louer', labelAr: 'كراء', labelEn: 'Rent' },
     { id: 'neuf', labelFr: 'Neuf', labelAr: 'مشاريع جديدة', labelEn: 'New Projects' },
     { id: 'legal', labelFr: 'Espace Juridique', labelAr: 'الفضاء القانوني', labelEn: 'Legal & Contracts', icon: Scale },
-    { id: 'crm', labelFr: 'Agence & CRM', labelAr: 'إدارة الوكالة', labelEn: 'Agency CRM', icon: Briefcase }
+    { id: 'crm', labelFr: 'Agence & CRM', labelAr: 'إدارة الوكالة', labelEn: 'Agency CRM', icon: Briefcase },
+    { id: 'ads', labelFr: 'Publicités', labelAr: 'الإعلانات', labelEn: 'Ads Agent', icon: Megaphone }
   ];
 
   const getLinkLabel = (link: typeof navLinks[0]) => {

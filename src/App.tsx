@@ -21,6 +21,7 @@ import { LegalView } from './components/LegalView';
 import { DashboardView } from './components/DashboardView';
 import { MessagesView } from './components/MessagesView';
 import { CrmView } from './components/CrmView';
+import { AdsAgentView } from './components/AdsAgentView';
 import { PostAdModal } from './components/PostAdModal';
 import { DocumentModal } from './components/DocumentModal';
 import { ScheduleVisitModal } from './components/ScheduleVisitModal';
@@ -266,6 +267,10 @@ export const App: React.FC = () => {
                   if (prop) setSelectedProperty(prop);
                 }}
               />
+            )}
+
+            {currentTab === 'ads' && (
+              <AdsAgentView properties={properties} language={language} />
             )}
 
             {currentTab === 'crm' && (

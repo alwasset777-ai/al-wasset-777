@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Property, ClientLead, Language } from '../types';
 import { mockClientLeads } from '../data/mockData';
+import { PropertyRegistry } from './PropertyRegistry';
 
 interface CrmViewProps {
   properties: Property[];
@@ -36,7 +37,7 @@ export const CrmView: React.FC<CrmViewProps> = ({
   const isEn = language === 'en';
   
   const [clients, setClients] = useState<ClientLead[]>(mockClientLeads);
-  const [activeTab, setActiveTab] = useState<'matching' | 'clients' | 'addClient'>('matching');
+  const [activeTab, setActiveTab] = useState<'matching' | 'clients' | 'addClient' | 'registry'>('matching');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [clientSearch, setClientSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -225,7 +226,7 @@ export const CrmView: React.FC<CrmViewProps> = ({
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-[#f2e6e4] pb-4">
+      <div className="flex items-center gap-2 border-b border-[#f2e6e4] pb-4 overflow-x-auto">
         <button
           onClick={() => setActiveTab('matching')}
           className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
@@ -261,7 +262,21 @@ export const CrmView: React.FC<CrmViewProps> = ({
           <Plus className="w-4 h-4" />
           <span>{isAr ? 'إضافة زبون جديد' : isEn ? 'Add Lead' : 'Ajouter un prospect'}</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('registry')}
+          className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'registry'
+              ? 'bg-[#ff6f61] text-white shadow-md shadow-[#ff6f61]/25'
+              : 'text-[#7a5c58] hover:bg-white'
+          }`}
+        >
+          <Building2 className="w-4 h-4" />
+          <span>{isAr ? 'سجل العقارات و المالكين' : isEn ? 'Property Registry' : 'Registre des biens'}</span>
+        </button>
       </div>
+
+      {activeTab === 'registry' && <PropertyRegistry language={language} />}
 
       {/* Tab 1: Smart Matching */}
       {activeTab === 'matching' && (
