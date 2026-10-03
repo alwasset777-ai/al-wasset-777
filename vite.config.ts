@@ -17,6 +17,10 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      // L'agent publicitaire IA tourne sur server.ts (npm run server).
+      proxy: {
+        '/api': `http://localhost:${process.env.API_PORT || 3001}`,
+      },
     },
   };
 });

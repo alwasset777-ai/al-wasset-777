@@ -48,6 +48,7 @@ export interface Property {
   badge?: 'URGENT' | 'NOUVEAU' | 'EXCLUSIVITÉ' | 'COUP DE CŒUR';
   status: ListingStatus;
   images: string[];
+  videos?: string[];
   descriptionFr: string;
   descriptionAr: string;
   descriptionEn?: string;
@@ -162,4 +163,73 @@ export interface UserProfile {
   totalAds: number;
   totalViews: string;
   totalMessages: number;
+}
+
+// ---- Agent publicitaire ----
+
+export type AdPlatform =
+  | 'facebook'
+  | 'instagram'
+  | 'tiktok'
+  | 'whatsapp'
+  | 'snapchat'
+  | 'x'
+  | 'linkedin'
+  | 'threads'
+  | 'upscrolled'
+  | 'avito'
+  | 'mubawab'
+  | 'sarouty';
+
+export type AdLanguage = 'ar' | 'darija' | 'fr';
+
+export type AdStatus = 'brouillon' | 'approuvé' | 'programmé' | 'publié' | 'rejeté';
+
+export interface AdStats {
+  views: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  messages: number;
+  leads: number;
+}
+
+export interface AdDraft {
+  id: string;
+  propertyId: number;
+  propertyTitle: string;
+  platform: AdPlatform;
+  language: AdLanguage;
+  text: string;
+  hashtags: string[];
+  status: AdStatus;
+  source: 'ia' | 'modèle';
+  scheduledAt?: string; // ISO
+  publishedAt?: string; // ISO
+  createdAt: string; // ISO
+  stats: AdStats;
+}
+
+// ---- Registre des biens (fiche bureau) ----
+
+export interface StoredFileRef {
+  id: string; // clé IndexedDB
+  name: string;
+  type: string;
+  size: number;
+}
+
+export interface RegistryProperty {
+  id: string;
+  propertyType: string;
+  owner: string;
+  ownerPhone: string;
+  surface: string;
+  location: string;
+  price: string;
+  notes: string;
+  photos: StoredFileRef[];
+  videos: StoredFileRef[];
+  documents: StoredFileRef[];
+  createdAt: string;
 }
