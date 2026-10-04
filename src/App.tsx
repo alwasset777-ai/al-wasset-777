@@ -22,6 +22,7 @@ import { DashboardView } from './components/DashboardView';
 import { MessagesView } from './components/MessagesView';
 import { CrmView } from './components/CrmView';
 import { AdsAgentView } from './components/AdsAgentView';
+import { AgentChat } from './components/AgentChat';
 import { PostAdModal } from './components/PostAdModal';
 import { DocumentModal } from './components/DocumentModal';
 import { ScheduleVisitModal } from './components/ScheduleVisitModal';
@@ -301,6 +302,8 @@ export const App: React.FC = () => {
         onClose={() => setPreviewDocument(null)}
         language={language}
       />
+
+      <AgentChat properties={properties} language={language} onNavigate={(tab) => handleTabChange(tab)} />
 
       <ScheduleVisitModal
         property={visitScheduleProp}

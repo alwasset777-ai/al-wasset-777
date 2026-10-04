@@ -86,7 +86,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     777
                   </span>
                 </div>
-                <p className="text-[11px] text-[#7a5c58] font-medium tracking-wide">
+                <p className="hidden sm:block text-[11px] text-[#7a5c58] font-medium tracking-wide">
                   {isAr ? 'عقارات المغرب الموثوقة' : isEn ? 'Morocco Real Estate Platform' : 'Immobilier de Référence'}
                 </p>
               </div>
@@ -153,7 +153,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => onTabChange('favorites')}
               title={isAr ? 'مفضلاتي' : isEn ? 'Favorites' : 'Mes favoris'}
-              className={`relative p-2.5 rounded-xl border transition-colors cursor-pointer ${
+              className={`relative hidden sm:block p-2.5 rounded-xl border transition-colors cursor-pointer ${
                 currentTab === 'favorites'
                   ? 'bg-[#fff0ed] text-[#ff6f61] border-[#ffd8d2]'
                   : 'bg-[#fff8f7] text-[#5a4340] border-[#f0e4e2] hover:bg-[#fff0ed] hover:text-[#ff6f61]'
@@ -171,7 +171,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => onTabChange('messages')}
               title={isAr ? 'الرسائل والمحادثات' : isEn ? 'Messages' : 'Messagerie'}
-              className={`relative p-2.5 rounded-xl border transition-colors cursor-pointer ${
+              className={`relative hidden sm:block p-2.5 rounded-xl border transition-colors cursor-pointer ${
                 currentTab === 'messages'
                   ? 'bg-[#fff0ed] text-[#ff6f61] border-[#ffd8d2]'
                   : 'bg-[#fff8f7] text-[#5a4340] border-[#f0e4e2] hover:bg-[#fff0ed] hover:text-[#ff6f61]'
@@ -189,7 +189,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => onTabChange('dashboard')}
               title={isAr ? 'لوحة الحساب' : isEn ? 'Dashboard' : 'Mon compte'}
-              className={`flex items-center gap-2 p-1.5 sm:px-3 sm:py-2 rounded-xl border transition-colors cursor-pointer ${
+              className={`hidden sm:flex items-center gap-2 p-1.5 sm:px-3 sm:py-2 rounded-xl border transition-colors cursor-pointer ${
                 currentTab === 'dashboard'
                   ? 'bg-[#fff0ed] text-[#ff6f61] border-[#ffd8d2]'
                   : 'bg-[#fff8f7] text-[#5a4340] border-[#f0e4e2] hover:bg-[#fff0ed]'
@@ -206,7 +206,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Primary Action: Déposer une annonce */}
             <button
               onClick={onOpenPostAd}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#ff6f61] hover:bg-[#e8584a] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#ff6f61]/25 hover:shadow-lg transition-all duration-150 cursor-pointer active:scale-95"
+              className="hidden sm:flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#ff6f61] hover:bg-[#e8584a] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#ff6f61]/25 hover:shadow-lg transition-all duration-150 cursor-pointer active:scale-95"
             >
               <PlusCircle className="w-4 h-4" />
               <span className="hidden sm:inline">
@@ -260,6 +260,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               );
             })}
+            <div className="grid grid-cols-2 gap-2 pt-2 sm:hidden">
+              {[
+                { id: 'favorites', icon: Heart, label: isAr ? `مفضلاتي (${favoriteCount})` : isEn ? `Favorites (${favoriteCount})` : `Favoris (${favoriteCount})` },
+                { id: 'messages', icon: MessageSquare, label: isAr ? `الرسائل (${unreadMessagesCount})` : isEn ? `Messages (${unreadMessagesCount})` : `Messages (${unreadMessagesCount})` },
+                { id: 'dashboard', icon: User, label: isAr ? 'حسابي' : isEn ? 'Account' : 'Mon compte' },
+              ].map(({ id, icon: Icon, label }) => (
+                <button
+                  key={id}
+                  onClick={() => { onTabChange(id); setIsMobileMenuOpen(false); }}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-[#5a4340] bg-[#fff8f7] border border-[#f0e4e2] cursor-pointer"
+                >
+                  <Icon className="w-4 h-4" /> {label}
+                </button>
+              ))}
+              <button
+                onClick={() => { onOpenPostAd(); setIsMobileMenuOpen(false); }}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-white bg-[#ff6f61] cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" /> {isAr ? 'نشر إعلان' : isEn ? 'Post Listing' : 'Déposer une annonce'}
+              </button>
+            </div>
           </div>
         )}
 

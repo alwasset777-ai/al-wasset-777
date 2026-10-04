@@ -1,14 +1,40 @@
-// Petit serveur API pour l'agent publicitaire IA.
-// Garde GEMINI_API_KEY côté serveur (jamais envoyée au navigateur).
-// Lancement : `npm run server` (port 3001), Vite redirige /api vers ce serveur.
+// Serveur unique de l'application (compatible Google AI Studio / Cloud Run) :
+// - API de l'agent publicitaire (/api/...) avec les clés gardées côté serveur ;
+// - le site lui-même : Vite en développement, fichiers construits (dist/) en production.
+// Lancement : `npm run dev` (développement) ou `npm run build && npm start` (production).
 import 'dotenv/config';
+import fs from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import { GoogleGenAI } from '@google/genai';
+import { initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { metaStatus, publishFacebook, publishInstagram } from './meta';
 
-const PORT = Number(process.env.API_PORT || 3001);
+const PORT = Number(process.env.PORT || 3000);
+const IS_PROD = process.env.NODE_ENV === 'production';
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const apiKey = process.env.GEMINI_API_KEY;
 const ai = apiKey && apiKey !== 'MY_GEMINI_API_KEY' ? new GoogleGenAI({ apiKey }) : null;
+
+// Vérification de l'identité du gérant (jeton Firebase envoyé par l'application).
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+const adminAuth = FIREBASE_PROJECT_ID ? getAuth(initializeApp({ projectId: FIREBASE_PROJECT_ID })) : null;
+
+async function isAdmin(req: express.Request): Promise<boolean> {
+  if (!adminAuth) return false;
+  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
+  if (!token) return false;
+  try {
+    const decoded = await adminAuth.verifyIdToken(token);
+    const email = (decoded.email || '').toLowerCase();
+    // Liste obligatoire : sans ADMIN_EMAILS, personne n'est autorisé (évite qu'un compte inconnu publie).
+    return Boolean(email && ADMIN_EMAILS.includes(email));
+  } catch {
+    return false;
+  }
+}
 
 // Exemple réel de la façon d'écrire de M. Mounir Radoui : l'IA s'en inspire pour le ton.
 const STYLE_SAMPLE = `السلام عليكم ورحمة الله تعالى وبركاته
@@ -37,13 +63,18 @@ Règles :
 - Réponds uniquement en JSON : {"text": string, "hashtags": string[]}. Les hashtags commencent par #.`;
 
 const app = express();
-app.use(express.json({ limit: '200kb' }));
+app.use(express.json({ limit: '12mb' }));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, ai: Boolean(ai) });
+  res.json({ ok: true, ai: Boolean(ai), auth: Boolean(adminAuth), meta: metaStatus });
 });
 
 app.post('/api/ads/generate', async (req, res) => {
+  // Quand Firebase est configuré, seule l'équipe connectée peut consommer le quota IA.
+  if (adminAuth && !(await isAdmin(req))) {
+    res.status(401).json({ error: 'Connexion requise' });
+    return;
+  }
   if (!ai) {
     res.status(503).json({ error: 'GEMINI_API_KEY non configurée' });
     return;
@@ -74,6 +105,112 @@ ${JSON.stringify(property)}`;
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`API agent publicitaire sur http://localhost:${PORT} (IA ${ai ? 'activée' : 'désactivée : modèles locaux'})`);
+// Assistant de discussion : le gérant parle à l'agent (darija, arabe, français).
+// L'agent répond et peut proposer UNE action que l'application exécute (jamais de publication directe).
+const CHAT_SYSTEM = `Tu es « وكيل الوسيط 777 », l'assistant IA de M. Mounir Radoui, gérant de l'agence immobilière "مكتب الوسيط 777 للخدمات العقارية" à Meknès (Avenue de Paris, Immeuble Select, 1er étage, N°52 ; tél. 0777777848 / 0777777959 ; signature « التجربة دليل الكفاءة »).
+Tu l'aides à organiser ses publicités immobilières : rédiger des annonces, planifier, suivre les résultats, conseiller sur le marketing immobilier au Maroc.
+Réponds TOUJOURS dans la langue du dernier message (darija marocaine en lettres arabes, arabe classique ou français), de façon courte, chaleureuse et respectueuse.
+Tu reçois en contexte la liste des biens (id, titre, ville…) et l'état des annonces. N'invente jamais un bien ni un chiffre.
+Actions possibles (au plus une par réponse) :
+- {"type":"generate_ads","propertyId":<id>,"platforms":[...],"languages":[...]} pour préparer des annonces À VALIDER (plateformes : facebook, instagram, tiktok, whatsapp, snapchat, x, linkedin, threads, upscrolled, avito, mubawab, sarouty ; langues : ar, darija, fr). Si l'utilisateur ne précise pas, mets toutes les plateformes et les langues ar, darija, fr.
+- {"type":"open","tab":"ads"|"crm"|"home"} pour ouvrir une page.
+Si le bien demandé est ambigu, pose une question au lieu d'agir.
+Réponds uniquement en JSON : {"reply": string, "action": objet ou null}.`;
+
+app.post('/api/agent/chat', async (req, res) => {
+  if (adminAuth && !(await isAdmin(req))) {
+    res.status(401).json({ error: 'Connexion requise' });
+    return;
+  }
+  if (!ai) {
+    res.status(503).json({ error: 'GEMINI_API_KEY non configurée' });
+    return;
+  }
+  const { messages, context } = req.body || {};
+  if (!Array.isArray(messages) || messages.length === 0) {
+    res.status(400).json({ error: 'Messages manquants' });
+    return;
+  }
+  const history = messages.slice(-20).map((m: { role?: string; text?: unknown }) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: String(m.text ?? '').slice(0, 4000) }],
+  }));
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: history,
+      config: {
+        systemInstruction: `${CHAT_SYSTEM}\n\nContexte actuel (JSON) :\n${JSON.stringify(context ?? {}).slice(0, 20000)}`,
+        responseMimeType: 'application/json',
+        temperature: 0.6,
+      },
+    });
+    const parsed = JSON.parse(response.text || '{}');
+    res.json({ reply: String(parsed.reply || ''), action: parsed.action && typeof parsed.action === 'object' ? parsed.action : null });
+  } catch (err) {
+    console.error('Erreur assistant :', err);
+    res.status(502).json({ error: 'Assistant indisponible' });
+  }
 });
+
+// Publication automatique sur Facebook / Instagram (annonce déjà validée par le gérant).
+app.post('/api/meta/publish', async (req, res) => {
+  if (!(await isAdmin(req))) {
+    res.status(401).json({ error: 'Connexion du gérant requise' });
+    return;
+  }
+  const { platform, caption, imageUrl, jpegBase64 } = req.body || {};
+  if (typeof caption !== 'string' || !caption.trim() || (platform !== 'facebook' && platform !== 'instagram')) {
+    res.status(400).json({ error: 'Paramètres invalides' });
+    return;
+  }
+  try {
+    const id =
+      platform === 'facebook'
+        ? await publishFacebook(caption, { url: imageUrl, jpegBase64 })
+        : imageUrl
+        ? await publishInstagram(caption, imageUrl)
+        : (() => { throw new Error("Instagram exige une image en ligne (Firebase Storage)"); })();
+    res.json({ id });
+  } catch (err) {
+    console.error('Erreur publication Meta :', err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
+// Configuration publique (non secrète) injectée dans la page au moment de l'exécution,
+// pour que les valeurs Firebase définies dans les secrets fonctionnent sans reconstruire le site.
+function publicConfigScript(): string {
+  const cfg = {
+    VITE_FIREBASE_API_KEY: process.env.VITE_FIREBASE_API_KEY,
+    VITE_FIREBASE_AUTH_DOMAIN: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+    VITE_FIREBASE_PROJECT_ID: process.env.VITE_FIREBASE_PROJECT_ID,
+    VITE_FIREBASE_STORAGE_BUCKET: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+    VITE_FIREBASE_APP_ID: process.env.VITE_FIREBASE_APP_ID,
+  };
+  return `<script>window.__APP_CONFIG__=${JSON.stringify(cfg).replace(/</g, '\\u003c')}</script>`;
+}
+
+async function start() {
+  app.use('/api', (_req, res) => res.status(404).json({ error: 'Route inconnue' }));
+
+  if (IS_PROD) {
+    const dist = path.resolve(process.cwd(), 'dist');
+    const indexHtml = fs.readFileSync(path.join(dist, 'index.html'), 'utf8').replace('<head>', `<head>${publicConfigScript()}`);
+    app.use(express.static(dist, { index: false, maxAge: '1h' }));
+    app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.type('html').send(indexHtml);
+    });
+  } else {
+    const { createServer } = await import('vite');
+    const vite = await createServer({ server: { middlewareMode: true }, appType: 'spa' });
+    app.use(vite.middlewares);
+  }
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Al Wassit 777 sur http://localhost:${PORT} (${IS_PROD ? 'production' : 'développement'}, IA ${ai ? 'activée' : 'désactivée : modèles locaux'})`);
+  });
+}
+
+start();

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Megaphone,
   Sparkles,
@@ -21,17 +21,16 @@ import { AdDraft, AdLanguage, AdPlatform, AdStats, Language, Property } from '..
 import {
   AD_LANGUAGES,
   PLATFORMS,
-  buildHashtags,
-  fitToPlatform,
   fullPostText,
-  generateTemplateText,
   localDayKey,
   planSchedule,
   platformSpec,
-  propertyTitle,
   shareUrl,
 } from '../services/adGenerator';
-import { generateAdWithAI } from '../services/adsApi';
+import { AUTO_PLATFORMS, ServerStatus, fetchServerStatus, publishToMeta } from '../services/adsApi';
+import { EMPTY_STATS, generateDrafts, makeDraft, useAdDrafts } from '../services/adsStore';
+import { isFirebaseEnabled } from '../services/firebase';
+import { LoginCard, SignOutButton, useAuthUser } from './AuthGate';
 import { canRecordVideo, downloadBlob, recordSlideshow, renderPoster } from '../services/visualMaker';
 import { loadJSON, saveJSON } from '../services/storage';
 
@@ -42,10 +41,7 @@ interface AdsAgentViewProps {
 
 type SubTab = 'create' | 'review' | 'calendar' | 'results';
 
-const DRAFTS_KEY = 'alwassit777.ads.drafts.v1';
 const SETTINGS_KEY = 'alwassit777.ads.settings.v1';
-
-const EMPTY_STATS: AdStats = { views: 0, likes: 0, comments: 0, shares: 0, messages: 0, leads: 0 };
 
 const STAT_LABELS: { key: keyof AdStats; fr: string; ar: string; en: string }[] = [
   { key: 'views', fr: 'Vues', ar: 'مشاهدات', en: 'Views' },
@@ -70,8 +66,13 @@ export const AdsAgentView: React.FC<AdsAgentViewProps> = ({ properties, language
   const t = (fr: string, ar: string, en: string) => (isAr ? ar : isEn ? en : fr);
 
   const [tab, setTab] = useState<SubTab>('create');
-  const [drafts, setDrafts] = useState<AdDraft[]>(() => loadJSON<AdDraft[]>(DRAFTS_KEY, []));
-  const [settings, setSettings] = useState(() => loadJSON(SETTINGS_KEY, { perDay: 6 }));
+  const [drafts, setDrafts] = useAdDrafts();
+  const [settings, setSettings] = useState(() => ({ perDay: 6, autoPublish: false, ...loadJSON<{ perDay?: number; autoPublish?: boolean }>(SETTINGS_KEY, {}) }));
+  const [serverStatus, setServerStatus] = useState<ServerStatus | null>(null);
+  const [publishing, setPublishing] = useState<string | null>(null);
+  const inFlight = useRef(new Set<string>());
+  const autoFailed = useRef(new Set<string>()); // pas de nouvel essai automatique après un échec
+  const user = useAuthUser();
   const [selectedPropId, setSelectedPropId] = useState<number | null>(properties[0]?.id ?? null);
   const [platforms, setPlatforms] = useState<AdPlatform[]>(PLATFORMS.map((p) => p.id));
   const [languages, setLanguages] = useState<AdLanguage[]>(['ar', 'darija', 'fr']);
@@ -80,8 +81,10 @@ export const AdsAgentView: React.FC<AdsAgentViewProps> = ({ properties, language
   const [toast, setToast] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  useEffect(() => saveJSON(DRAFTS_KEY, drafts), [drafts]);
   useEffect(() => saveJSON(SETTINGS_KEY, settings), [settings]);
+  useEffect(() => {
+    fetchServerStatus().then(setServerStatus);
+  }, [user]);
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(id);
@@ -108,38 +111,10 @@ export const AdsAgentView: React.FC<AdsAgentViewProps> = ({ properties, language
   const dueNow = scheduled.filter((d) => new Date(d.scheduledAt!).getTime() <= now);
 
   // ---------- Génération ----------
-  const makeDraft = async (p: Property, platform: AdPlatform, lang: AdLanguage): Promise<AdDraft> => {
-    const ai = await generateAdWithAI(p, platform, lang);
-    const hashtags = ai?.hashtags.length ? ai.hashtags : buildHashtags(p, platform, lang);
-    const text = ai ? fitToPlatform(ai.text, platform, hashtags) : fitToPlatform(generateTemplateText(p, platform, lang), platform, hashtags);
-    return {
-      id: `ad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      propertyId: p.id,
-      propertyTitle: propertyTitle(p),
-      platform,
-      language: lang,
-      text,
-      hashtags,
-      status: 'brouillon',
-      source: ai ? 'ia' : 'modèle',
-      createdAt: new Date().toISOString(),
-      stats: { ...EMPTY_STATS },
-    };
-  };
-
   const handleGenerate = async () => {
     const p = selectedPropId != null ? propertyById(selectedPropId) : undefined;
     if (!p || !platforms.length || !languages.length) return;
-    const combos = platforms.flatMap((pl) => languages.map((lg) => [pl, lg] as const));
-    setGenerating({ done: 0, total: combos.length });
-    const created: AdDraft[] = [];
-    // Par petits lots pour ne pas saturer l'API IA.
-    for (let i = 0; i < combos.length; i += 4) {
-      const batch = await Promise.all(combos.slice(i, i + 4).map(([pl, lg]) => makeDraft(p, pl, lg)));
-      created.push(...batch);
-      setGenerating({ done: created.length, total: combos.length });
-    }
-    setDrafts((prev) => [...created, ...prev]);
+    const created = await generateDrafts(p, platforms, languages, (done, total) => setGenerating({ done, total }));
     setGenerating(null);
     const aiCount = created.filter((d) => d.source === 'ia').length;
     setToast(
@@ -176,7 +151,38 @@ export const AdsAgentView: React.FC<AdsAgentViewProps> = ({ properties, language
     }
   };
 
+  // Publication directe possible : plateforme Meta configurée sur le serveur + gérant connecté.
+  const canAutoPublish = (platform: AdPlatform) =>
+    AUTO_PLATFORMS.includes(platform) && !!user && !!serverStatus?.meta[platform as 'facebook' | 'instagram'];
+
+  const publishDirect = async (d: AdDraft) => {
+    const p = propertyById(d.propertyId);
+    if (!p || inFlight.current.has(d.id)) return;
+    inFlight.current.add(d.id);
+    setPublishing(d.id);
+    try {
+      const externalId = await publishToMeta(d, p);
+      update(d.id, { status: 'publié', publishedAt: new Date().toISOString(), externalId });
+      setToast(t(`Publié sur ${platformSpec(d.platform).label} ✅`, `تم النشر على ${platformSpec(d.platform).label} ✅`, `Published on ${platformSpec(d.platform).label} ✅`));
+    } catch (e) {
+      autoFailed.current.add(d.id);
+      setToast(t(`Échec de publication : ${(e as Error).message}`, `فشل النشر: ${(e as Error).message}`, `Publish failed: ${(e as Error).message}`));
+    } finally {
+      inFlight.current.delete(d.id);
+      setPublishing(null);
+    }
+  };
+
+  // Publication automatique à l'heure prévue (annonces déjà approuvées), tant que l'application est ouverte.
+  useEffect(() => {
+    if (!settings.autoPublish) return;
+    const next = dueNow.find((d) => canAutoPublish(d.platform) && !inFlight.current.has(d.id) && !autoFailed.current.has(d.id));
+    if (next) publishDirect(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [now, settings.autoPublish, serverStatus, user, drafts]);
+
   const handlePublish = async (d: AdDraft) => {
+    if (canAutoPublish(d.platform)) return publishDirect(d);
     await copyText(d);
     const url = shareUrl(d.platform, fullPostText(d));
     if (url) window.open(url, '_blank', 'noopener');
@@ -456,6 +462,40 @@ export const AdsAgentView: React.FC<AdsAgentViewProps> = ({ properties, language
       {/* ---------- Calendrier ---------- */}
       {tab === 'calendar' && (
         <div className="space-y-4">
+          {/* Connexion Facebook / Instagram */}
+          <div className="bg-white rounded-3xl p-5 border border-[#f0e4e2] space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-sm font-extrabold me-auto">{t('Publication automatique', 'النشر التلقائي', 'Automatic publishing')}</h2>
+              {(['facebook', 'instagram'] as const).map((pl) => (
+                <span key={pl} className={`px-2 py-1 rounded-lg text-[11px] font-bold ${serverStatus?.meta[pl] ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {platformSpec(pl).label} : {serverStatus?.meta[pl] ? t('connecté', 'مربوط', 'connected') : t('non connecté', 'غير مربوط', 'not connected')}
+                </span>
+              ))}
+              {user && <SignOutButton user={user} />}
+            </div>
+            {isFirebaseEnabled && user === null && <LoginCard title={t('Connexion du gérant', 'دخول المدير', 'Manager sign-in')} />}
+            <label className="flex items-center gap-2 text-sm font-bold">
+              <input
+                type="checkbox"
+                checked={settings.autoPublish}
+                onChange={(e) => setSettings({ ...settings, autoPublish: e.target.checked })}
+                className="w-4 h-4 accent-[#ff6f61]"
+              />
+              {t(
+                'Publier automatiquement sur Facebook et Instagram à l’heure prévue',
+                'النشر تلقائياً على فيسبوك وإنستغرام في الوقت المبرمج',
+                'Auto-publish to Facebook and Instagram at the scheduled time'
+              )}
+            </label>
+            <p className="text-[11px] text-[#99807d]">
+              {t(
+                'Seules les annonces que vous avez approuvées sont publiées. L’application doit rester ouverte (ordinateur ou téléphone) pour publier à l’heure. Les autres réseaux restent en « copier + ouvrir ».',
+                'لا يُنشر إلا ما وافقت عليه. يجب أن يبقى التطبيق مفتوحاً (حاسوب أو هاتف) لينشر في الوقت. باقي المنصات تبقى بطريقة «نسخ وفتح».',
+                'Only approved ads are published. Keep the app open to publish on time. Other networks remain copy + open.'
+              )}
+            </p>
+          </div>
+
           <div className="bg-white rounded-3xl p-5 border border-[#f0e4e2] flex flex-col sm:flex-row sm:items-center gap-3">
             <label className="text-sm font-bold flex items-center gap-2">
               {t('Publications par jour', 'عدد المنشورات في اليوم', 'Posts per day')}
@@ -516,10 +556,12 @@ export const AdsAgentView: React.FC<AdsAgentViewProps> = ({ properties, language
                         </IconBtn>
                         <button
                           onClick={() => handlePublish(d)}
+                          disabled={publishing === d.id}
                           className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer ${due ? 'bg-[#ff6f61] text-white' : 'bg-[#fff0ed] text-[#ff6f61]'}`}
                         >
-                          <Send className="w-3.5 h-3.5" /> {t('Publier', 'نشر', 'Publish')}
-                          <ExternalLink className="w-3 h-3 opacity-70" />
+                          {publishing === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                          {canAutoPublish(d.platform) ? t('Publier maintenant', 'انشر الآن', 'Publish now') : t('Publier', 'نشر', 'Publish')}
+                          {!canAutoPublish(d.platform) && <ExternalLink className="w-3 h-3 opacity-70" />}
                         </button>
                       </div>
                     </div>
@@ -530,9 +572,9 @@ export const AdsAgentView: React.FC<AdsAgentViewProps> = ({ properties, language
           )}
           <p className="text-[11px] text-[#99807d]">
             {t(
-              '« Publier » copie le texte, ouvre la plateforme et marque l’annonce comme publiée. Téléchargez l’affiche ou la vidéo pour l’ajouter au post. La publication 100 % automatique nécessitera de connecter les comptes pro (API Meta, TikTok, LinkedIn…).',
-              '«نشر» ينسخ النص ويفتح المنصة ويسجل الإعلان كمنشور. حمّل الصورة أو الفيديو لإضافتها. النشر التلقائي الكامل يتطلب ربط الحسابات المهنية.',
-              '“Publish” copies the text, opens the platform and marks the ad as published. Fully automatic posting requires connecting the business accounts (Meta, TikTok, LinkedIn APIs…).'
+              'Facebook et Instagram (une fois connectés) : publication directe avec l’affiche. Autres réseaux : « Publier » copie le texte et ouvre la plateforme ; téléchargez l’affiche ou la vidéo pour l’ajouter au post.',
+              'فيسبوك وإنستغرام (بعد الربط): نشر مباشر مع الصورة. باقي المنصات: «نشر» ينسخ النص ويفتح المنصة، وحمّل الصورة أو الفيديو لإضافتها.',
+              'Facebook and Instagram (once connected): direct publishing with the poster. Other networks: “Publish” copies the text and opens the platform.'
             )}
           </p>
         </div>

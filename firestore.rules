@@ -1,0 +1,17 @@
+rules_version = '2';
+// Seuls les comptes du gérant (liste ci-dessous) peuvent lire et modifier le registre.
+// Remplacez l'adresse par l'email du compte créé dans Firebase > Authentication.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email in ['REMPLACER_PAR_VOTRE_EMAIL@exemple.com'];
+    }
+    match /registry/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

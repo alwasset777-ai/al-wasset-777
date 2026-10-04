@@ -2,11 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Building2, Phone, MapPin, Search, Plus, Trash2, FileText, Image as ImageIcon, Video, Download, X } from 'lucide-react';
 import { Language, RegistryProperty, StoredFileRef } from '../types';
 import { agencyProfile as A } from '../data/agencyProfile';
-import { loadJSON, saveJSON } from '../services/storage';
-import { deleteFile, getFile, putFile } from '../services/fileStore';
+import { registryStore } from '../services/registryStore';
 import { downloadBlob } from '../services/visualMaker';
-
-const KEY = 'alwassit777.registry.v1';
+import { LoginCard, SignOutButton, useAuthUser } from './AuthGate';
 
 const PROPERTY_TYPES = ['شقة', 'فيلا', 'منزل', 'أرض', 'محل تجاري', 'مكتب', 'عمارة', 'رياض', 'ضيعة'];
 
@@ -22,7 +20,9 @@ export const PropertyRegistry: React.FC<Props> = ({ language }) => {
   const isEn = language === 'en';
   const t = (fr: string, ar: string, en: string) => (isAr ? ar : isEn ? en : fr);
 
-  const [items, setItems] = useState<RegistryProperty[]>(() => loadJSON<RegistryProperty[]>(KEY, []));
+  const user = useAuthUser();
+  const [items, setItems] = useState<RegistryProperty[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [files, setFiles] = useState<{ photos: File[]; videos: File[]; documents: File[] }>({ photos: [], videos: [], documents: [] });
   const [query, setQuery] = useState('');
@@ -31,7 +31,15 @@ export const PropertyRegistry: React.FC<Props> = ({ language }) => {
   const [preview, setPreview] = useState<{ url: string; type: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => saveJSON(KEY, items), [items]);
+  const canUse = !registryStore.online || !!user;
+
+  useEffect(() => {
+    if (!canUse) return;
+    return registryStore.subscribe(setItems, () =>
+      setLoadError(t('Accès refusé : ce compte n’est pas autorisé.', 'تعذر الوصول: هذا الحساب غير مسموح له.', 'Access denied for this account.'))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canUse]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -42,26 +50,17 @@ export const PropertyRegistry: React.FC<Props> = ({ language }) => {
     );
   }, [items, query, typeFilter]);
 
-  const storeFiles = async (list: File[]): Promise<StoredFileRef[]> =>
-    Promise.all(
-      list.map(async (f) => {
-        const id = `file-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        await putFile(id, f);
-        return { id, name: f.name, type: f.type, size: f.size };
-      })
-    );
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.owner.trim() || !form.location.trim()) return;
     setSaving(true);
     try {
-      const [photos, videos, documents] = await Promise.all([storeFiles(files.photos), storeFiles(files.videos), storeFiles(files.documents)]);
-      const entry: RegistryProperty = { id: `reg-${Date.now()}`, ...form, photos, videos, documents, createdAt: new Date().toISOString() };
-      setItems((prev) => [entry, ...prev]);
+      await registryStore.add(form, files);
       setForm(emptyForm);
       setFiles({ photos: [], videos: [], documents: [] });
       setShowForm(false);
+    } catch {
+      window.alert(t('Enregistrement impossible. Vérifiez la connexion.', 'تعذر الحفظ. تحقق من الاتصال.', 'Save failed. Check your connection.'));
     } finally {
       setSaving(false);
     }
@@ -69,12 +68,16 @@ export const PropertyRegistry: React.FC<Props> = ({ language }) => {
 
   const handleDelete = async (it: RegistryProperty) => {
     if (!window.confirm(t('Supprimer cette fiche ?', 'حذف هذه البطاقة؟', 'Delete this record?'))) return;
-    await Promise.all([...it.photos, ...it.videos, ...it.documents].map((f) => deleteFile(f.id).catch(() => undefined)));
-    setItems((prev) => prev.filter((x) => x.id !== it.id));
+    await registryStore.remove(it);
   };
 
   const openFile = async (ref: StoredFileRef) => {
-    const blob = await getFile(ref.id).catch(() => undefined);
+    const blob = await registryStore.open(ref).catch(() => undefined);
+    if (typeof blob === 'string') {
+      if (ref.type.startsWith('image/') || ref.type.startsWith('video/')) setPreview({ url: blob, type: ref.type });
+      else window.open(blob, '_blank', 'noopener');
+      return;
+    }
     if (!blob) return window.alert(t('Fichier introuvable sur cet appareil', 'الملف غير موجود على هذا الجهاز', 'File not found on this device'));
     if (ref.type.startsWith('image/') || ref.type.startsWith('video/')) {
       setPreview({ url: URL.createObjectURL(blob), type: ref.type });
@@ -84,7 +87,7 @@ export const PropertyRegistry: React.FC<Props> = ({ language }) => {
   };
 
   const closePreview = () => {
-    if (preview) URL.revokeObjectURL(preview.url);
+    if (preview?.url.startsWith('blob:')) URL.revokeObjectURL(preview.url);
     setPreview(null);
   };
 
@@ -111,8 +114,14 @@ export const PropertyRegistry: React.FC<Props> = ({ language }) => {
       </button>
     ));
 
+  if (registryStore.online && user === undefined) {
+    return <div className="py-12 text-center text-xs text-[#7a5c58]">…</div>;
+  }
+  if (!canUse) return <LoginCard title="سجل العقارات و المالكين" />;
+
   return (
     <div className="space-y-5">
+      {loadError && <div className="p-3 rounded-2xl bg-red-50 text-red-700 text-xs font-bold">{loadError}</div>}
       {/* 1/ معلومات المكتب */}
       <div className="bg-white rounded-3xl p-5 border border-[#f0e4e2] flex flex-col sm:flex-row sm:items-center gap-4" dir="rtl">
         <div className="w-12 h-12 rounded-2xl bg-[#ff6f61] text-white flex items-center justify-center shrink-0">
@@ -230,13 +239,22 @@ export const PropertyRegistry: React.FC<Props> = ({ language }) => {
         </div>
       )}
 
-      <p className="text-[11px] text-[#99807d]">
-        {t(
-          'Les fiches et fichiers sont enregistrés sur cet appareil (navigateur). Pour les partager entre plusieurs téléphones/ordinateurs, il faudra ajouter une base de données en ligne.',
-          'البطاقات والملفات محفوظة على هذا الجهاز (المتصفح). لمشاركتها بين عدة أجهزة يلزم ربط قاعدة بيانات على الإنترنت.',
-          'Records and files are stored on this device (browser). Sharing across devices will require an online database.'
-        )}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#99807d]">
+        <p>
+          {registryStore.online
+            ? t(
+                'Données enregistrées en ligne (Firebase) : accessibles depuis tous vos appareils après connexion.',
+                'البيانات محفوظة على الإنترنت (Firebase): تجدها في كل أجهزتك بعد تسجيل الدخول.',
+                'Data saved online (Firebase): available on all your devices after sign-in.'
+              )
+            : t(
+                'Mode local : les fiches sont enregistrées sur cet appareil seulement. Configurez Firebase pour les retrouver partout.',
+                'الوضع المحلي: البطاقات محفوظة على هذا الجهاز فقط. اربط Firebase لتجدها في كل أجهزتك.',
+                'Local mode: records are stored on this device only. Configure Firebase to sync them.'
+              )}
+        </p>
+        {user && <SignOutButton user={user} />}
+      </div>
 
       {preview && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={closePreview}>
