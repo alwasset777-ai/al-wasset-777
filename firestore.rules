@@ -20,6 +20,17 @@ service cloud.firestore {
         && request.resource.data.message is string && request.resource.data.message.size() <= 1000;
       allow read, delete: if isAdmin();
     }
+    // وكيل الوسيط 777 : clients, rendez-vous, réglages / mémoire / conversation de l'agent.
+    match /clients/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /appointments/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /agent_state/{key} {
+      allow read, write: if isAdmin();
+    }
+    // wa_threads et agent_tasks : écrits et lus uniquement par le serveur (compte de service).
     match /{document=**} {
       allow read, write: if false;
     }

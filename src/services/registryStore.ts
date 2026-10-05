@@ -25,6 +25,7 @@ export interface RegistryStore {
   online: boolean;
   subscribe(cb: (items: RegistryProperty[]) => void, onError?: (e: Error) => void): () => void;
   add(fields: RegistryFields, files: NewFiles): Promise<void>;
+  update(item: RegistryProperty, fields: Partial<RegistryFields>): Promise<void>;
   remove(item: RegistryProperty): Promise<void>;
   open(file: StoredFileRef): Promise<Blob | string | undefined>; // Blob (local) ou URL (en ligne)
   getAll(): Promise<RegistryProperty[]>; // lecture ponctuelle (utilisée par l'agent)
@@ -58,6 +59,10 @@ function createLocalStore(): RegistryStore {
     async add(fields, files) {
       const [photos, videos, documents] = await Promise.all([storeFiles(files.photos), storeFiles(files.videos), storeFiles(files.documents)]);
       items = [{ id: newId('reg'), ...fields, photos, videos, documents, createdAt: new Date().toISOString() }, ...items];
+      emit();
+    },
+    async update(item, fields) {
+      items = items.map((x) => (x.id === item.id ? { ...x, ...fields } : x));
       emit();
     },
     async remove(item) {
@@ -97,6 +102,9 @@ function createFirebaseStore(): RegistryStore {
       const id = newId('reg');
       const [photos, videos, documents] = await Promise.all([uploadAll(id, files.photos), uploadAll(id, files.videos), uploadAll(id, files.documents)]);
       await setDoc(doc(requireDb(), COLLECTION, id), { ...fields, photos, videos, documents, createdAt: new Date().toISOString() });
+    },
+    async update(item, fields) {
+      await setDoc(doc(requireDb(), COLLECTION, item.id), fields, { merge: true });
     },
     async remove(item) {
       await Promise.all(

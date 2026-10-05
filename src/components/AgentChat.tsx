@@ -8,11 +8,16 @@ import { loadJSON, saveJSON } from '../services/storage';
 import { canInstallApp, onInstallAvailable, promptInstall, isStandalone } from '../services/pwa';
 import { useManagerAccess } from '../services/managerAccess';
 import { LoginCard } from './AuthGate';
+import { settingsStore, useStore } from '../agent/stores';
+import { tasksLive, waLive } from '../agent/live';
+import { AgentAvatar } from './agent/Avatar';
+import { AgentConversation } from './agent/AgentConversation';
 
 interface AgentChatProps {
   properties: Property[];
   language: Language;
   onNavigate: (tab: string) => void;
+  hideBubble?: boolean; // le gérant est déjà sur la page « الوكيل »
 }
 
 type VoiceLang = 'ar-MA' | 'fr-FR';
@@ -52,7 +57,7 @@ const SpeechRecognitionImpl: any =
   typeof window !== 'undefined' ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition : undefined;
 
 // Bulle « وكيل الوسيط 777 » : assistant des clients du site, et assistant personnel du gérant (mode gérant).
-export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNavigate }) => {
+export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNavigate, hideBubble = false }) => {
   const isAr = language === 'ar';
   const isEn = language === 'en';
   const t = (fr: string, ar: string, en: string) => (isAr ? ar : isEn ? en : fr);
@@ -60,6 +65,9 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
   const access = useManagerAccess();
   const [wantManager, setWantManager] = useState<boolean>(() => loadJSON(MODE_KEY, false));
   const mode: AgentMode = wantManager && access.isManager ? 'manager' : 'customer';
+  const avatarSettings = useStore(settingsStore);
+  const wa = useStore(waLive);
+  const pendingTasks = useStore(tasksLive).filter((x) => x.status === 'pending').length;
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<UiMessage[]>([]);
@@ -91,6 +99,12 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
   }, [contents, mode, loadedMode]);
   useEffect(() => saveJSON(VOICE_KEY, voice), [voice]);
   useEffect(() => saveJSON(MODE_KEY, wantManager), [wantManager]);
+  // Déverrouillé ailleurs (page « الوكيل », connexion) : la bulle passe aussi au personnage du gérant.
+  const wasManager = useRef(access.isManager);
+  useEffect(() => {
+    if (access.isManager && !wasManager.current) setWantManager(true);
+    wasManager.current = access.isManager;
+  }, [access.isManager]);
   useEffect(() => onInstallAvailable(() => setInstallable(true)), []);
   useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages, open, busy]);
 
@@ -180,14 +194,63 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
     else setShowUnlock(true);
   };
 
-  const suggestions =
-    mode === 'manager'
-      ? ['شنو عندي من مواعيد هاد السيمانة؟', 'قلب ليا على فرص للزبناء ديالي', 'زيد زبون جديد: كريم، 0661000000، كيقلب على شقة ف حمرية ب 900000', 'وجد إعلانات للعقار رقم 3', 'كتب رسالة واتساب لمحمد التازي نقترح عليه شقة المعاريف']
-      : [
-          t('Je cherche un appartement à Meknès', 'كنقلب على شقة ف مكناس', 'Looking for an apartment in Meknes'),
-          t('Villas avec piscine à vendre ?', 'واش عندكم فيلا فيها مسبح للبيع؟', 'Villas with a pool for sale?'),
-          t('Je veux visiter un bien', 'بغيت نزور شي عقار', 'I want to visit a property'),
-        ];
+  const suggestions = [
+    t('Je cherche un appartement à Meknès', 'كنقلب على شقة ف مكناس', 'Looking for an apartment in Meknes'),
+    t('Villas avec piscine à vendre ?', 'واش عندكم فيلا فيها مسبح للبيع؟', 'Villas with a pool for sale?'),
+    t('Je veux visiter un bien', 'بغيت نزور شي عقار', 'I want to visit a property'),
+  ];
+
+  if (hideBubble) return null;
+
+  // Mode gérant : la bulle devient le personnage (avatar) qui parle et travaille pour le gérant.
+  if (mode === 'manager') {
+    const badge = wa.threads.filter((x) => x.unread).length + pendingTasks;
+    return (
+      <>
+        {!open && (
+          <button
+            onClick={() => setOpen(true)}
+            className="fixed bottom-5 end-5 z-50 flex items-center gap-2 ps-1.5 pe-4 py-1.5 rounded-full text-white shadow-2xl hover:scale-105 transition-transform cursor-pointer"
+            style={{ background: avatarSettings.colors.primary }}
+            aria-label={avatarSettings.name}
+          >
+            <span className="relative">
+              <AgentAvatar settings={avatarSettings} size={44} />
+              {badge > 0 && (
+                <span className="absolute -top-1 -end-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-[10px] font-black flex items-center justify-center">{badge}</span>
+              )}
+            </span>
+            <span className="text-sm font-extrabold">كلّم الوكيل</span>
+          </button>
+        )}
+        {open && (
+          <div className="fixed z-50 inset-0 sm:inset-auto sm:bottom-5 sm:end-5 sm:w-[420px] sm:h-[680px] sm:max-h-[88vh] bg-white sm:rounded-3xl shadow-2xl border border-[#f0e4e2] flex flex-col overflow-hidden">
+            {installable && !isStandalone() && (
+              <button
+                onClick={async () => setInstallable(!(await promptInstall()))}
+                className="flex items-center justify-center gap-2 py-2 bg-[#fff0ed] text-[#ff6f61] text-xs font-extrabold cursor-pointer"
+              >
+                <Download className="w-4 h-4" /> ثبّت التطبيق على هذا الهاتف
+              </button>
+            )}
+            <div className="flex-1 min-h-0">
+              <AgentConversation
+                properties={properties}
+                onNavigate={goTo}
+                variant="panel"
+                onClose={() => setOpen(false)}
+                headerExtra={
+                  <button onClick={toggleManager} className="p-2 rounded-xl hover:bg-white/10 text-green-300 cursor-pointer" title="الخروج من وضع المدير">
+                    <Unlock className="w-4 h-4" />
+                  </button>
+                }
+              />
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <>
@@ -207,16 +270,16 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
       {open && (
         <div className="fixed z-50 inset-0 sm:inset-auto sm:bottom-5 sm:end-5 sm:w-[420px] sm:h-[660px] sm:max-h-[88vh] bg-white sm:rounded-3xl shadow-2xl border border-[#f0e4e2] flex flex-col overflow-hidden">
           {/* En-tête */}
-          <div className={`text-white px-4 py-3 flex items-center gap-2 ${mode === 'manager' ? 'bg-gradient-to-br from-[#1f3a2e] to-[#281715]' : 'bg-gradient-to-br from-[#281715] to-[#4a2a26]'}`}>
+          <div className="text-white px-4 py-3 flex items-center gap-2 bg-gradient-to-br from-[#281715] to-[#4a2a26]">
             <span className="w-10 h-10 rounded-full bg-[#ff6f61] flex items-center justify-center shrink-0">
               <Megaphone className="w-5 h-5" />
             </span>
             <div className="flex-1 min-w-0" dir="rtl">
               <div className="text-sm font-black">وكيل الوسيط 777</div>
-              <div className="text-[11px] text-white/75">{mode === 'manager' ? 'وضع المدير: مساعدك الشخصي' : 'مساعد الزبائن'}</div>
+              <div className="text-[11px] text-white/75">مساعد الزبائن</div>
             </div>
-            <button onClick={toggleManager} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${mode === 'manager' ? 'text-green-300' : ''}`} title={mode === 'manager' ? 'الخروج من وضع المدير' : 'وضع المدير'}>
-              {mode === 'manager' ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+            <button onClick={toggleManager} className="p-2 rounded-xl hover:bg-white/10 cursor-pointer" title="وضع المدير">
+              <Lock className="w-4 h-4" />
             </button>
             <button onClick={() => setVoice({ ...voice, speak: !voice.speak })} className="p-2 rounded-xl hover:bg-white/10 cursor-pointer" title="الرد بالصوت">
               {voice.speak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
@@ -278,11 +341,9 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#fff8f7]">
             {messages.length === 0 && (
               <div className="text-center space-y-3 pt-6" dir="rtl">
-                <div className="text-sm font-extrabold">{mode === 'manager' ? 'السلام عليكم السي منير 👋 أنا رهن إشارتك' : 'مرحباً بك في الوسيط 777 👋'}</div>
+                <div className="text-sm font-extrabold">مرحباً بك في الوسيط 777 👋</div>
                 <p className="text-xs text-[#7a5c58]">
-                  {mode === 'manager'
-                    ? 'أستطيع تسيير الزبائن والمواعيد، تحضير الإعلانات، البحث عن الفرص، وكتابة رسائل واتساب.'
-                    : 'أساعدك تلقى العقار المناسب وتطلب زيارة. اكتب أو اضغط على الميكروفون.'}
+                  أساعدك تلقى العقار المناسب وتطلب زيارة. اكتب أو اضغط على الميكروفون.
                 </p>
                 <div className="flex flex-col gap-2 items-center">
                   {suggestions.map((s) => (

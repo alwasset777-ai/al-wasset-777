@@ -78,7 +78,7 @@ async function searchProperties(args: any, ctx: ToolContext) {
   return { siteListings: site, ...(ctx.mode === 'manager' ? { officeRegistry: registry } : {}), total: site.length + registry.length };
 }
 
-const clientMatchesProperty = (c: ClientLead, p: Property) => {
+export const clientMatchesProperty = (c: ClientLead, p: Property) => {
   let score = 0;
   if (TYPE_AR[c.propType] === p.type) score += 40;
   const rentWanted = c.requestType === 'كراء';

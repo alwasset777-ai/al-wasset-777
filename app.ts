@@ -1,38 +1,14 @@
-// API de l'agent publicitaire (/api/...), clés gardées côté serveur.
+// API de l'agent publicitaire et du وكيل الوسيط 777 (/api/...), clés gardées côté serveur.
 // Utilisée par server.ts (AI Studio / Cloud Run / local) et par api/index.ts (Vercel).
 import 'dotenv/config';
 import express from 'express';
-import { GoogleGenAI } from '@google/genai';
-import { initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
 import { metaStatus, publishFacebook, publishInstagram } from './meta.js';
+import { adminAuth, isAdmin } from './backend/firebaseAdmin.js';
+import { MODEL, ai } from './backend/gemini.js';
+import agentRoutes, { cronEnabled } from './backend/routes.js';
+import { store } from './backend/store.js';
+import { waStatus } from './backend/whatsapp.js';
 import { toolsForMode, type AgentMode } from './src/agent/toolDefs.js';
-
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const apiKey = process.env.GEMINI_API_KEY;
-const ai =
-  apiKey && apiKey !== 'MY_GEMINI_API_KEY'
-    ? new GoogleGenAI({ apiKey, ...(process.env.GEMINI_BASE_URL ? { httpOptions: { baseUrl: process.env.GEMINI_BASE_URL } } : {}) })
-    : null;
-
-// Vérification de l'identité du gérant (jeton Firebase envoyé par l'application).
-const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-const adminAuth = FIREBASE_PROJECT_ID ? getAuth(initializeApp({ projectId: FIREBASE_PROJECT_ID })) : null;
-
-async function isAdmin(req: express.Request): Promise<boolean> {
-  if (!adminAuth) return false;
-  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
-  if (!token) return false;
-  try {
-    const decoded = await adminAuth.verifyIdToken(token);
-    const email = (decoded.email || '').toLowerCase();
-    // Liste obligatoire : sans ADMIN_EMAILS, personne n'est autorisé (évite qu'un compte inconnu publie).
-    return Boolean(email && ADMIN_EMAILS.includes(email));
-  } catch {
-    return false;
-  }
-}
 
 // Exemple réel de la façon d'écrire de M. Mounir Radoui : l'IA s'en inspire pour le ton.
 const STYLE_SAMPLE = `السلام عليكم ورحمة الله تعالى وبركاته
@@ -61,10 +37,19 @@ Règles :
 - Réponds uniquement en JSON : {"text": string, "hashtags": string[]}. Les hashtags commencent par #.`;
 
 const app = express();
-app.use(express.json({ limit: '12mb' }));
+// Le corps brut est gardé pour vérifier la signature des messages WhatsApp envoyés par Meta.
+app.use(express.json({ limit: '20mb', verify: (req, _res, buf) => ((req as any).rawBody = buf) }));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, ai: Boolean(ai), auth: Boolean(adminAuth), meta: metaStatus });
+  res.json({
+    ok: true,
+    ai: Boolean(ai),
+    auth: Boolean(adminAuth),
+    meta: metaStatus,
+    whatsapp: waStatus,
+    store: store.kind,
+    cron: cronEnabled,
+  });
 });
 
 app.post('/api/ads/generate', async (req, res) => {
@@ -203,6 +188,9 @@ app.post('/api/agent/chat', async (req, res) => {
     res.status(502).json({ error: 'Agent indisponible' });
   }
 });
+
+// Assistant « وكيل الوسيط 777 » : conversation, recherche, documents, WhatsApp, rappels.
+app.use('/api', agentRoutes);
 
 // Publication automatique sur Facebook / Instagram (annonce déjà validée par le gérant).
 app.post('/api/meta/publish', async (req, res) => {

@@ -1,9 +1,5 @@
-// Données du bureau partagées entre l'interface et l'agent : clients (prospects) et rendez-vous.
-import { Appointment, ClientLead } from '../types';
-import { mockClientLeads } from '../data/mockData';
-import { createStore } from './createStore';
-
-export const clientsStore = createStore<ClientLead[]>('alwassit777.clients.v1', mockClientLeads);
-export const appointmentsStore = createStore<Appointment[]>('alwassit777.appointments.v1', []);
+// Données du bureau partagées entre l'interface et les agents : clients (prospects) et rendez-vous.
+// En ligne (Firebase) quand il est configuré, sinon sur l'appareil — voir src/agent/stores.ts.
+export { appointmentsStore, clientsStore } from '../agent/stores';
 
 export const newAppointmentId = () => `rdv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;

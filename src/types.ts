@@ -150,6 +150,10 @@ export interface ClientLead {
   notes: string;
   linkedPropIds: number[];
   dateAdded: string;
+  score?: 'جاد' | 'متوسط' | 'ضعيف'; // évaluation du sérieux (agent / WhatsApp)
+  source?: 'manuel' | 'agent' | 'whatsapp';
+  createdAt?: string; // ISO
+  updatedAt?: string; // ISO
 }
 
 export interface UserProfile {
@@ -249,6 +253,11 @@ export interface Appointment {
   at: string; // ISO
   notes: string;
   status: 'demandé' | 'confirmé' | 'fait' | 'annulé';
-  source: 'site' | 'agent' | 'manuel';
+  source: 'site' | 'agent' | 'manuel' | 'whatsapp';
   createdAt: string;
+  // Détails ajoutés par le وكيل الوسيط 777 (optionnels).
+  kind?: 'زيارة' | 'اجتماع' | 'توقيع' | 'مكالمة' | 'أخرى';
+  place?: string;
+  durationMin?: number;
+  remindBeforeMin?: number; // rappel avant le rendez-vous (minutes)
 }
