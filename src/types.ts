@@ -150,6 +150,10 @@ export interface ClientLead {
   notes: string;
   linkedPropIds: number[];
   dateAdded: string;
+  score?: 'جاد' | 'متوسط' | 'ضعيف'; // évaluation du sérieux (agent / WhatsApp)
+  source?: 'manuel' | 'agent' | 'whatsapp';
+  createdAt?: string; // ISO
+  updatedAt?: string; // ISO
 }
 
 export interface UserProfile {

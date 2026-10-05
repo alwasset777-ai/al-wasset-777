@@ -1,5 +1,5 @@
 rules_version = '2';
-// Fichiers du registre : réservés au gérant.
+// Fichiers du registre et photos de l'agent : réservés au gérant.
 // Visuels publicitaires (ads/) : écriture réservée au gérant, lecture publique
 // car Instagram doit pouvoir télécharger l'image pour la publier.
 service firebase.storage {
@@ -10,6 +10,12 @@ service firebase.storage {
     }
     match /registry/{allPaths=**} {
       allow read, write: if isAdmin();
+    }
+    // Photos du personnage (avatar) : réservées au gérant.
+    match /agent/{allPaths=**} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isAdmin() && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType == 'image/jpeg';
     }
     match /ads/{file} {
       allow read: if true;

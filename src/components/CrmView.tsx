@@ -19,7 +19,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { Property, ClientLead, Language } from '../types';
-import { mockClientLeads } from '../data/mockData';
+import { clientsStore, useStore } from '../agent/stores';
 import { PropertyRegistry } from './PropertyRegistry';
 
 interface CrmViewProps {
@@ -36,7 +36,8 @@ export const CrmView: React.FC<CrmViewProps> = ({
   const isAr = language === 'ar';
   const isEn = language === 'en';
   
-  const [clients, setClients] = useState<ClientLead[]>(mockClientLeads);
+  // Clients enregistrés (en ligne avec Firebase, sinon sur l'appareil) ; l'agent peut aussi en ajouter.
+  const clients = useStore(clientsStore);
   const [activeTab, setActiveTab] = useState<'matching' | 'clients' | 'addClient' | 'registry'>('matching');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [clientSearch, setClientSearch] = useState('');
@@ -88,10 +89,12 @@ export const CrmView: React.FC<CrmViewProps> = ({
       status: 'نشط',
       notes: newClientNotes,
       linkedPropIds: [],
-      dateAdded: new Date().toISOString().split('T')[0]
+      dateAdded: new Date().toISOString().split('T')[0],
+      source: 'manuel',
+      createdAt: new Date().toISOString()
     };
 
-    setClients([newLead, ...clients]);
+    clientsStore.put(newLead).catch(() => window.alert(isAr ? 'تعذر الحفظ' : 'Enregistrement impossible'));
     playNotificationChime();
     setActiveTab('clients');
 
@@ -104,7 +107,7 @@ export const CrmView: React.FC<CrmViewProps> = ({
   };
 
   const handleDeleteClient = (id: number) => {
-    setClients(clients.filter((c) => c.id !== id));
+    clientsStore.remove(id).catch(() => undefined);
   };
 
   // Smart Matching Computation

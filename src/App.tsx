@@ -26,6 +26,10 @@ import { AgentChat } from './components/AgentChat';
 import { PostAdModal } from './components/PostAdModal';
 import { DocumentModal } from './components/DocumentModal';
 import { ScheduleVisitModal } from './components/ScheduleVisitModal';
+import { AgentStudioView, type StudioSection } from './components/agent/AgentStudioView';
+import { useAuthUser } from './components/AuthGate';
+import { isFirebaseEnabled } from './services/firebase';
+import { useAgentRuntime } from './agent/runtime';
 
 export const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>('fr');
@@ -42,6 +46,12 @@ export const App: React.FC = () => {
   const [isPostAdOpen, setIsPostAdOpen] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<LegalDocument | null>(null);
   const [visitScheduleProp, setVisitScheduleProp] = useState<Property | null>(null);
+  const [agentSection, setAgentSection] = useState<StudioSection>('chat');
+
+  // Le وكيل الوسيط 777 est réservé au gérant connecté (ou à l'ordinateur local sans Firebase).
+  const user = useAuthUser();
+  const agentAllowed = !isFirebaseEnabled || !!user;
+  useAgentRuntime(agentAllowed, properties);
 
   // Sync RTL / LTR document direction with language
   useEffect(() => {
@@ -274,6 +284,15 @@ export const App: React.FC = () => {
               <AdsAgentView properties={properties} language={language} />
             )}
 
+            {currentTab === 'agent' && (
+              <AgentStudioView
+                properties={properties}
+                onNavigate={(tab) => handleTabChange(tab)}
+                section={agentSection}
+                onSectionChange={setAgentSection}
+              />
+            )}
+
             {currentTab === 'crm' && (
               <CrmView
                 properties={properties}
@@ -303,7 +322,17 @@ export const App: React.FC = () => {
         language={language}
       />
 
-      <AgentChat properties={properties} language={language} onNavigate={(tab) => handleTabChange(tab)} />
+      {agentAllowed && (
+        <AgentChat
+          properties={properties}
+          onNavigate={(tab) => handleTabChange(tab)}
+          onOpenSection={(s) => {
+            setAgentSection(s as StudioSection);
+            handleTabChange('agent');
+          }}
+          hideBubble={currentTab === 'agent' && !selectedProperty}
+        />
+      )}
 
       <ScheduleVisitModal
         property={visitScheduleProp}

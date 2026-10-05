@@ -1,34 +1,13 @@
-// API de l'agent publicitaire (/api/...), clés gardées côté serveur.
+// API de l'agent publicitaire et du وكيل الوسيط 777 (/api/...), clés gardées côté serveur.
 // Utilisée par server.ts (AI Studio / Cloud Run / local) et par api/index.ts (Vercel).
 import 'dotenv/config';
 import express from 'express';
-import { GoogleGenAI } from '@google/genai';
-import { initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
 import { metaStatus, publishFacebook, publishInstagram } from './meta.js';
-
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const apiKey = process.env.GEMINI_API_KEY;
-const ai = apiKey && apiKey !== 'MY_GEMINI_API_KEY' ? new GoogleGenAI({ apiKey }) : null;
-
-// Vérification de l'identité du gérant (jeton Firebase envoyé par l'application).
-const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-const adminAuth = FIREBASE_PROJECT_ID ? getAuth(initializeApp({ projectId: FIREBASE_PROJECT_ID })) : null;
-
-async function isAdmin(req: express.Request): Promise<boolean> {
-  if (!adminAuth) return false;
-  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
-  if (!token) return false;
-  try {
-    const decoded = await adminAuth.verifyIdToken(token);
-    const email = (decoded.email || '').toLowerCase();
-    // Liste obligatoire : sans ADMIN_EMAILS, personne n'est autorisé (évite qu'un compte inconnu publie).
-    return Boolean(email && ADMIN_EMAILS.includes(email));
-  } catch {
-    return false;
-  }
-}
+import { adminAuth, isAdmin } from './backend/firebaseAdmin.js';
+import { MODEL, ai } from './backend/gemini.js';
+import agentRoutes, { cronEnabled } from './backend/routes.js';
+import { store } from './backend/store.js';
+import { waStatus } from './backend/whatsapp.js';
 
 // Exemple réel de la façon d'écrire de M. Mounir Radoui : l'IA s'en inspire pour le ton.
 const STYLE_SAMPLE = `السلام عليكم ورحمة الله تعالى وبركاته
@@ -57,10 +36,19 @@ Règles :
 - Réponds uniquement en JSON : {"text": string, "hashtags": string[]}. Les hashtags commencent par #.`;
 
 const app = express();
-app.use(express.json({ limit: '12mb' }));
+// Le corps brut est gardé pour vérifier la signature des messages WhatsApp envoyés par Meta.
+app.use(express.json({ limit: '20mb', verify: (req, _res, buf) => ((req as any).rawBody = buf) }));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, ai: Boolean(ai), auth: Boolean(adminAuth), meta: metaStatus });
+  res.json({
+    ok: true,
+    ai: Boolean(ai),
+    auth: Boolean(adminAuth),
+    meta: metaStatus,
+    whatsapp: waStatus,
+    store: store.kind,
+    cron: cronEnabled,
+  });
 });
 
 app.post('/api/ads/generate', async (req, res) => {
@@ -99,53 +87,8 @@ ${JSON.stringify(property)}`;
   }
 });
 
-// Assistant de discussion : le gérant parle à l'agent (darija, arabe, français).
-// L'agent répond et peut proposer UNE action que l'application exécute (jamais de publication directe).
-const CHAT_SYSTEM = `Tu es « وكيل الوسيط 777 », l'assistant IA de M. Mounir Radoui, gérant de l'agence immobilière "مكتب الوسيط 777 للخدمات العقارية" à Meknès (Avenue de Paris, Immeuble Select, 1er étage, N°52 ; tél. 0777777848 / 0777777959 ; signature « التجربة دليل الكفاءة »).
-Tu l'aides à organiser ses publicités immobilières : rédiger des annonces, planifier, suivre les résultats, conseiller sur le marketing immobilier au Maroc.
-Réponds TOUJOURS dans la langue du dernier message (darija marocaine en lettres arabes, arabe classique ou français), de façon courte, chaleureuse et respectueuse.
-Tu reçois en contexte la liste des biens (id, titre, ville…) et l'état des annonces. N'invente jamais un bien ni un chiffre.
-Actions possibles (au plus une par réponse) :
-- {"type":"generate_ads","propertyId":<id>,"platforms":[...],"languages":[...]} pour préparer des annonces À VALIDER (plateformes : facebook, instagram, tiktok, whatsapp, snapchat, x, linkedin, threads, upscrolled, avito, mubawab, sarouty ; langues : ar, darija, fr). Si l'utilisateur ne précise pas, mets toutes les plateformes et les langues ar, darija, fr.
-- {"type":"open","tab":"ads"|"crm"|"home"} pour ouvrir une page.
-Si le bien demandé est ambigu, pose une question au lieu d'agir.
-Réponds uniquement en JSON : {"reply": string, "action": objet ou null}.`;
-
-app.post('/api/agent/chat', async (req, res) => {
-  if (adminAuth && !(await isAdmin(req))) {
-    res.status(401).json({ error: 'Connexion requise' });
-    return;
-  }
-  if (!ai) {
-    res.status(503).json({ error: 'GEMINI_API_KEY non configurée' });
-    return;
-  }
-  const { messages, context } = req.body || {};
-  if (!Array.isArray(messages) || messages.length === 0) {
-    res.status(400).json({ error: 'Messages manquants' });
-    return;
-  }
-  const history = messages.slice(-20).map((m: { role?: string; text?: unknown }) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: String(m.text ?? '').slice(0, 4000) }],
-  }));
-  try {
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: history,
-      config: {
-        systemInstruction: `${CHAT_SYSTEM}\n\nContexte actuel (JSON) :\n${JSON.stringify(context ?? {}).slice(0, 20000)}`,
-        responseMimeType: 'application/json',
-        temperature: 0.6,
-      },
-    });
-    const parsed = JSON.parse(response.text || '{}');
-    res.json({ reply: String(parsed.reply || ''), action: parsed.action && typeof parsed.action === 'object' ? parsed.action : null });
-  } catch (err) {
-    console.error('Erreur assistant :', err);
-    res.status(502).json({ error: 'Assistant indisponible' });
-  }
-});
+// Assistant « وكيل الوسيط 777 » : conversation, recherche, documents, WhatsApp, rappels.
+app.use('/api', agentRoutes);
 
 // Publication automatique sur Facebook / Instagram (annonce déjà validée par le gérant).
 app.post('/api/meta/publish', async (req, res) => {

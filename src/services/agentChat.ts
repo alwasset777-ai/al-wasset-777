@@ -1,14 +1,6 @@
-// Conversation avec l'agent : IA (server.ts → Gemini) si disponible, sinon compréhension simple par mots-clés.
+// Compréhension simple par mots-clés : utilisée par le وكيل الوسيط 777 quand l'IA (Gemini) n'est pas disponible.
 import { AdDraft, AdLanguage, AdPlatform, Property } from '../types';
 import { PLATFORMS } from './adGenerator';
-import { getIdToken } from './firebase';
-
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  text: string;
-  at: string;
-}
 
 export type AgentAction =
   | { type: 'generate_ads'; propertyId: number; platforms?: AdPlatform[]; languages?: AdLanguage[] }
@@ -42,39 +34,6 @@ export function buildContext(properties: Property[], drafts: AdDraft[]) {
       views: drafts.reduce((a, d) => a + (d.stats?.views || 0), 0),
     },
   };
-}
-
-function sanitizeAction(raw: any, properties: Property[]): AgentAction | null {
-  if (!raw || typeof raw !== 'object') return null;
-  if (raw.type === 'generate_ads') {
-    const id = Number(raw.propertyId);
-    if (!properties.some((p) => p.id === id)) return null;
-    const platforms = Array.isArray(raw.platforms) ? raw.platforms.filter((x: string) => ALL_PLATFORMS.includes(x as AdPlatform)) : [];
-    const languages = Array.isArray(raw.languages) ? raw.languages.filter((x: string) => ['ar', 'darija', 'fr'].includes(x)) : [];
-    return { type: 'generate_ads', propertyId: id, platforms: platforms.length ? platforms : ALL_PLATFORMS, languages: languages.length ? languages : DEFAULT_LANGS };
-  }
-  if (raw.type === 'open' && ['ads', 'crm', 'home'].includes(raw.tab)) return { type: 'open', tab: raw.tab };
-  return null;
-}
-
-export async function askAgent(history: ChatMessage[], properties: Property[], drafts: AdDraft[]): Promise<AgentReply> {
-  try {
-    const token = await getIdToken().catch(() => null);
-    const res = await fetch('/api/agent/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ messages: history.map(({ role, text }) => ({ role, text })), context: buildContext(properties, drafts) }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (typeof data.reply === 'string' && data.reply.trim()) {
-        return { reply: data.reply.trim(), action: sanitizeAction(data.action, properties), source: 'ia' };
-      }
-    }
-  } catch {
-    // serveur indisponible : mode simple ci-dessous
-  }
-  return localAgent(history[history.length - 1]?.text || '', properties, drafts);
 }
 
 // ---------- Mode simple (sans IA) ----------
