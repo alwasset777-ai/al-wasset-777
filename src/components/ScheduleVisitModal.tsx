@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { appointmentsStore, newAppointmentId } from '../services/officeStores';
+import { sendToAgency } from '../services/inbox';
 import { X, Calendar, Clock, User, Phone, CheckCircle2, Sparkles } from 'lucide-react';
 import { Property, Language } from '../types';
 
@@ -22,16 +24,48 @@ export const ScheduleVisitModal: React.FC<ScheduleVisitModalProps> = ({
   const [visitorName, setVisitorName] = useState('Ahmed Mansouri');
   const [visitorPhone, setVisitorPhone] = useState('+212 6 61 23 45 67');
   const [isSuccess, setIsSuccess] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState<string | null>(null);
 
   if (!isOpen || !property) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const at = selectedDate ? new Date(`${selectedDate}T${selectedTime}`).toISOString() : new Date().toISOString();
+    const title = isAr ? property.titleAr : property.titleFr;
+    // Trace locale (visible dans « Rendez-vous ») + envoi au bureau (en ligne ou WhatsApp).
+    appointmentsStore.set((prev) => [
+      {
+        id: newAppointmentId(),
+        title: `Visite – ${title}`,
+        clientName: visitorName,
+        clientPhone: visitorPhone,
+        propertyId: property.id,
+        propertyTitle: title,
+        at,
+        notes: '',
+        status: 'demandé',
+        source: 'site',
+        createdAt: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
+    const res = await sendToAgency({
+      kind: 'visite',
+      name: visitorName,
+      phone: visitorPhone,
+      message: '',
+      propertyId: property.id,
+      propertyTitle: title,
+      preferredAt: at,
+    });
+    setWhatsappUrl(res.sent ? null : res.whatsappUrl);
     setIsSuccess(true);
-    setTimeout(() => {
-      setIsSuccess(false);
-      onClose();
-    }, 2000);
+    if (res.sent) {
+      setTimeout(() => {
+        setIsSuccess(false);
+        onClose();
+      }, 2500);
+    }
   };
 
   const timeSlots = ['10:00', '11:30', '14:00', '15:00', '16:30', '18:00'];
@@ -75,6 +109,17 @@ export const ScheduleVisitModal: React.FC<ScheduleVisitModalProps> = ({
                 ? 'The agent will contact you shortly via WhatsApp to confirm the appointment slot.'
                 : 'L’agent vous contactera très rapidement pour confirmer le créneau.'}
             </p>
+            {whatsappUrl && (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setTimeout(() => { setIsSuccess(false); onClose(); }, 500)}
+                className="inline-block mt-2 px-4 py-2.5 rounded-xl bg-[#25d366] text-white text-xs font-extrabold"
+              >
+                {isAr ? 'أرسل الطلب عبر واتساب' : isEn ? 'Send via WhatsApp' : 'Envoyer via WhatsApp'}
+              </a>
+            )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">

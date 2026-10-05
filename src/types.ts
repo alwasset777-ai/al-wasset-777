@@ -236,3 +236,19 @@ export interface RegistryProperty {
   documents: StoredFileRef[];
   createdAt: string;
 }
+
+// ---- Rendez-vous (visites, rappels) ----
+
+export interface Appointment {
+  id: string;
+  title: string;
+  clientName: string;
+  clientPhone: string;
+  propertyId?: number;
+  propertyTitle?: string;
+  at: string; // ISO
+  notes: string;
+  status: 'demandé' | 'confirmé' | 'fait' | 'annulé';
+  source: 'site' | 'agent' | 'manuel';
+  createdAt: string;
+}

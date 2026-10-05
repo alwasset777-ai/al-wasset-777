@@ -16,11 +16,13 @@ import {
   TrendingUp,
   FileSpreadsheet,
   Filter,
-  Trash2
+  Trash2,
+  CalendarDays
 } from 'lucide-react';
 import { Property, ClientLead, Language } from '../types';
-import { mockClientLeads } from '../data/mockData';
+import { clientsStore } from '../services/officeStores';
 import { PropertyRegistry } from './PropertyRegistry';
+import { AppointmentsPanel } from './AppointmentsPanel';
 
 interface CrmViewProps {
   properties: Property[];
@@ -36,9 +38,19 @@ export const CrmView: React.FC<CrmViewProps> = ({
   const isAr = language === 'ar';
   const isEn = language === 'en';
   
-  const [clients, setClients] = useState<ClientLead[]>(mockClientLeads);
-  const [activeTab, setActiveTab] = useState<'matching' | 'clients' | 'addClient' | 'registry'>('matching');
+  const [clients, setClients] = clientsStore.use();
+  const [activeTab, setActiveTab] = useState<'matching' | 'clients' | 'addClient' | 'registry' | 'appointments'>('matching');
   const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // L'agent peut ouvrir directement un onglet (ex. « Rendez-vous » après avoir ajouté un rendez-vous).
+  React.useEffect(() => {
+    const onTab = (e: Event) => {
+      const tab = (e as CustomEvent).detail;
+      if (['matching', 'clients', 'addClient', 'registry', 'appointments'].includes(tab)) setActiveTab(tab);
+    };
+    window.addEventListener('alwassit:crm-tab', onTab);
+    return () => window.removeEventListener('alwassit:crm-tab', onTab);
+  }, []);
   const [clientSearch, setClientSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -274,9 +286,22 @@ export const CrmView: React.FC<CrmViewProps> = ({
           <Building2 className="w-4 h-4" />
           <span>{isAr ? 'سجل العقارات و المالكين' : isEn ? 'Property Registry' : 'Registre des biens'}</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('appointments')}
+          className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'appointments'
+              ? 'bg-[#ff6f61] text-white shadow-md shadow-[#ff6f61]/25'
+              : 'text-[#7a5c58] hover:bg-white'
+          }`}
+        >
+          <CalendarDays className="w-4 h-4" />
+          <span>{isAr ? 'المواعيد' : isEn ? 'Appointments' : 'Rendez-vous'}</span>
+        </button>
       </div>
 
       {activeTab === 'registry' && <PropertyRegistry language={language} />}
+      {activeTab === 'appointments' && <AppointmentsPanel />}
 
       {/* Tab 1: Smart Matching */}
       {activeTab === 'matching' && (

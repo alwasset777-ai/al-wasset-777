@@ -10,6 +10,16 @@ service cloud.firestore {
     match /registry/{id} {
       allow read, write: if isAdmin();
     }
+    // Demandes des clients du site : tout visiteur peut en créer une (champs limités),
+    // seul le gérant peut les lire ou les supprimer.
+    match /inbox/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['kind', 'name', 'phone', 'message', 'propertyId', 'propertyTitle', 'preferredAt', 'createdAt'])
+        && request.resource.data.kind in ['visite', 'rappel', 'recherche']
+        && request.resource.data.name is string && request.resource.data.name.size() <= 80
+        && request.resource.data.phone is string && request.resource.data.phone.size() <= 30
+        && request.resource.data.message is string && request.resource.data.message.size() <= 1000;
+      allow read, delete: if isAdmin();
+    }
     match /{document=**} {
       allow read, write: if false;
     }
