@@ -6,7 +6,8 @@ import { appointmentChanges, clientChanges, isValidDate, makeAppointment, makeCl
 import { buildDailyReport } from './report';
 import { AGENCY_TZ, fmtDayTime, zoned } from './time';
 import { appointmentsStore, clientsStore, memoryStore, settingsStore } from './stores';
-import { registryLive, tasksLive, waLive, upsertThread } from './live';
+import { inboxLive, registryLive, tasksLive, waLive, upsertThread } from './live';
+import { clientMatchesProperty } from './executor';
 import { draftDocument, searchWeb, sendWhatsApp } from './api';
 import { registryStore } from '../services/registryStore';
 import { generateDrafts, getDrafts } from '../services/adsStore';
@@ -55,6 +56,19 @@ export function buildContext(properties: Property[]): AgentContext {
         phone: t.phone, name: t.name, score: t.lead?.score, last: t.messages[t.messages.length - 1]?.text.slice(0, 200), suggestion: t.suggestion?.slice(0, 300),
       })),
     },
+    // Demandes envoyées par les clients du site (bulle « مساعد الزبائن », formulaire de visite).
+    siteRequests: inboxLive.get().slice(0, 15).map((r) => ({
+      kind: r.kind, name: r.name, phone: r.phone, message: r.message.slice(0, 200), property: r.propertyTitle, preferredAt: r.preferredAt, at: r.createdAt,
+    })),
+    // Correspondances clients ↔ biens (type, budget, quartier) : les « opportunités » du bureau.
+    opportunities: clientsStore
+      .get()
+      .filter((c) => c.status === 'نشط' || c.status === 'في المتابعة')
+      .flatMap((c) => properties.map((p) => ({ c, p, score: clientMatchesProperty(c, p) })))
+      .filter((m) => m.score >= 50)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10)
+      .map((m) => ({ clientId: String(m.c.id), client: m.c.name, propertyId: m.p.id, property: m.p.titleAr || m.p.titleFr, price: m.p.priceFormattedFr, score: m.score })),
     memory: memoryStore.get().map((m) => ({ id: m.id, text: m.text })),
     outfits: settings.photos.map((p) => p.label),
   };
@@ -180,6 +194,7 @@ export function reportNow(): { title: string; text: string } {
     registry: registryLive.get(),
     threads: waLive.get().loaded && !waLive.get().error ? waLive.get().threads : undefined,
     tasks: tasksLive.get(),
+    siteRequests: inboxLive.get(),
     ads: {
       toReview: drafts.filter((d) => d.status === 'brouillon').length,
       scheduledToday: drafts.filter((d) => d.status === 'programmé' && d.scheduledAt && zoned(new Date(d.scheduledAt)).date === today).length,

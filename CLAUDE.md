@@ -7,9 +7,12 @@
 ## عن المشروع
 - موقع وتطبيق مكتب **الوسيط 777 للخدمات العقارية** بمكناس (React + Vite + Tailwind، خادم `server.ts` بـ Express).
 - الأقسام المضافة: «الإعلانات» (وكيل إعلانات ذكي)، «سجل العقارات و المالكين»، المساعد «وكيل الوسيط 777» (محادثة نصية وصوتية)، والتطبيق قابل للتثبيت على الهاتف (PWA).
-- قسم «الوكيل» (`src/components/agent/`، منطق `src/agent/`): أفاتار قابل للتخصيص (صورة المدير أو شخصية مرسومة)، مكالمة صوتية، مهام بموافقة المدير، المواعيد، صندوق واتساب، التقرير اليومي، الذاكرة.
+- قسم «الوكيل» (`src/components/agent/`، منطق `src/agent/`): أفاتار قابل للتخصيص (صورة المدير أو شخصية مرسومة)، مكالمة صوتية، مهام بموافقة المدير، المواعيد، صندوق واتساب، التقرير اليومي، الذاكرة. خاص بالمدير (`useManagerAccess`: حساب Firebase أو رمز PIN)، وفي وضع المدير تصبح فقاعة «كلّم الوكيل» هي الأفاتار (`/api/agent/avatar`).
 - الخادم: `app.ts` + مجلد `backend/` (Gemini، واتساب Cloud API، التذكيرات `/api/cron/tick`، تخزين Firestore عبر حساب الخدمة أو الذاكرة).
 - معلومات المكتب في `src/data/agencyProfile.ts`، ودليل الإعداد بالعربية في `docs/SETUP-AR.md`.
+- مساعد زبائن الموقع (الفقاعة، وضع `customer`): أدواته في `src/agent/toolDefs.ts` وتُنفّذ في المتصفح عبر `src/agent/executor.ts`، والخادم (`app.ts` ← `/api/agent/chat`) يمرّرها إلى Gemini.
+- الزبائن والمواعيد: مخزن واحد `src/agent/stores.ts` (Firebase أو الجهاز)، يُستورد أيضاً عبر `src/services/officeStores.ts`؛ نوع الموعد `Appointment` في `src/types.ts`.
+- الموقع منشور على Vercel: https://al-wasset-777.vercel.app (كل دمج في `main` يُنشر تلقائياً).
 
 ## أوامر
 - خادم واحد `server.ts` يشغّل الموقع والـ API معاً: `npm run dev` للتطوير، `npm run build && npm start` للإنتاج (Cloud Run / AI Studio)، `npm run lint` للتحقق.

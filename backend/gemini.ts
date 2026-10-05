@@ -3,7 +3,10 @@ import { GoogleGenAI, type Content, type Part } from '@google/genai';
 
 export const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const apiKey = process.env.GEMINI_API_KEY;
-export const ai = apiKey && apiKey !== 'MY_GEMINI_API_KEY' ? new GoogleGenAI({ apiKey }) : null;
+export const ai =
+  apiKey && apiKey !== 'MY_GEMINI_API_KEY'
+    ? new GoogleGenAI({ apiKey, ...(process.env.GEMINI_BASE_URL ? { httpOptions: { baseUrl: process.env.GEMINI_BASE_URL } } : {}) })
+    : null;
 export const aiEnabled = Boolean(ai);
 
 export type { Content, Part };

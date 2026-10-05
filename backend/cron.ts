@@ -1,6 +1,7 @@
 // Tâches programmées : rappels de rendez-vous et rapport du matin envoyés au gérant sur WhatsApp.
 // Appelé toutes les 5 à 10 minutes par un service gratuit (cron-job.org, Cloud Scheduler) : /api/cron/tick?key=CRON_SECRET
-import type { AgentSettings, Appointment } from '../src/agent/types.js';
+import type { Appointment } from '../src/types.js';
+import type { AgentSettings } from '../src/agent/types.js';
 import { fmtDayTime, zoned } from '../src/agent/time.js';
 import { loadReportText } from './ownerChannel.js';
 import { store } from './store.js';
@@ -27,12 +28,12 @@ export async function cronTick(now = new Date()) {
     );
     for (const a of appointments) {
       const at = Date.parse(a.at);
-      if (a.status !== 'مبرمج' || !Number.isFinite(at) || at < t - 10 * 60 * 1000) continue;
+      if (a.status !== 'confirmé' || !Number.isFinite(at) || at < t - 10 * 60 * 1000) continue;
       const before = (a.remindBeforeMin || settings.reminders?.beforeMin || 60) * 60 * 1000;
       const key = `${a.id}@${a.at}`;
       if (t >= at - before && !state.sent[key]) {
         await notifyOwners(
-          `⏰ تذكير: ${a.kind} — ${a.title}\n🕒 ${fmtDayTime(a.at)}${a.clientName ? `\n👤 ${a.clientName}${a.clientPhone ? ` (${a.clientPhone})` : ''}` : ''}${a.place ? `\n📍 ${a.place}` : ''}${a.notes ? `\n📝 ${a.notes}` : ''}`
+          `⏰ تذكير: ${a.kind || 'موعد'} — ${a.title}\n🕒 ${fmtDayTime(a.at)}${a.clientName ? `\n👤 ${a.clientName}${a.clientPhone ? ` (${a.clientPhone})` : ''}` : ''}${a.place ? `\n📍 ${a.place}` : ''}${a.notes ? `\n📝 ${a.notes}` : ''}`
         );
         state.sent[key] = t;
         reminders++;

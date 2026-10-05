@@ -1,6 +1,7 @@
 // Rapport quotidien (même texte dans l'application, à voix haute et sur WhatsApp).
-import type { ClientLead } from '../types';
-import type { AgentTask, Appointment, WaThread } from './types';
+import type { Appointment, ClientLead } from '../types';
+import type { AgentTask, WaThread } from './types';
+import { isActiveAppointment } from './normalize.js';
 import { fmtTime, localDay, zoned } from './time.js';
 
 export interface ReportData {
@@ -9,6 +10,7 @@ export interface ReportData {
   registry?: Array<{ createdAt?: string; propertyType?: string; location?: string }>;
   threads?: WaThread[];
   tasks?: AgentTask[];
+  siteRequests?: Array<{ createdAt: string }>; // demandes envoyées depuis le site
   ads?: { toReview: number; scheduledToday: number; published: number };
   now?: Date;
 }
@@ -28,7 +30,7 @@ export function buildDailyReport(d: ReportData): DailyReport {
   const since = now.getTime() - DAY;
   const created = (x: { createdAt?: string; dateAdded?: string }) => Date.parse(x.createdAt || x.dateAdded || '') || 0;
 
-  const active = d.appointments.filter((a) => a.status === 'مبرمج').sort((a, b) => (a.at < b.at ? -1 : 1));
+  const active = d.appointments.filter(isActiveAppointment).sort((a, b) => (a.at < b.at ? -1 : 1));
   const today = active.filter((a) => localDay(a.at) === z.date);
   const tmrw = active.filter((a) => localDay(a.at) === tomorrow);
   const newClients = d.clients.filter((c) => created(c) >= since);
@@ -45,7 +47,8 @@ export function buildDailyReport(d: ReportData): DailyReport {
   const registryNew = (d.registry || []).filter((r) => (Date.parse(r.createdAt || '') || 0) >= since);
   const tasks = (d.tasks || []).filter((t) => t.status === 'pending');
 
-  const line = (a: Appointment) => ` • ${fmtTime(a.at)} — ${a.kind} — ${a.title}${a.clientName ? ` (${a.clientName})` : ''}${a.place ? ` – ${a.place}` : ''}`;
+  const line = (a: Appointment) =>
+    ` • ${fmtTime(a.at)} — ${a.kind || 'موعد'} — ${a.title}${a.clientName ? ` (${a.clientName})` : ''}${a.place ? ` – ${a.place}` : ''}${a.status === 'demandé' ? ' — طلب من الموقع، خاصو التأكيد' : ''}`;
   const out: string[] = [];
   out.push(`📅 مواعيد اليوم: ${today.length}`);
   today.slice(0, 8).forEach((a) => out.push(line(a)));
@@ -58,6 +61,7 @@ export function buildDailyReport(d: ReportData): DailyReport {
     waOpen.slice(0, 5).forEach((t) => out.push(` • ${t.name}${t.lead ? ` (${t.lead.score})` : ''}: ${t.messages[t.messages.length - 1]?.text.slice(0, 80)}`));
   }
   out.push(`⭐ زبناء جادين خاصهم المتابعة: ${hot.length}`);
+  if (d.siteRequests) out.push(`📥 طلبات جديدة من الموقع (24 ساعة): ${d.siteRequests.filter((r) => Date.parse(r.createdAt) >= since).length}`);
   if (d.registry) out.push(`🗂️ عقارات جديدة فالسجل (24 ساعة): ${registryNew.length}`);
   if (d.ads) out.push(`📢 الإعلانات: ${d.ads.toReview} للمراجعة، ${d.ads.scheduledToday} مبرمجة اليوم، ${d.ads.published} منشورة`);
   if (d.tasks) out.push(`✅ مهام بانتظار موافقتك: ${tasks.length}`);

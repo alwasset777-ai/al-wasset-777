@@ -6,6 +6,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  getDocs,
   setDoc,
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
@@ -27,6 +28,7 @@ export interface RegistryStore {
   update(item: RegistryProperty, fields: Partial<RegistryFields>): Promise<void>;
   remove(item: RegistryProperty): Promise<void>;
   open(file: StoredFileRef): Promise<Blob | string | undefined>; // Blob (local) ou URL (en ligne)
+  getAll(): Promise<RegistryProperty[]>; // lecture ponctuelle (utilisée par l'agent)
 }
 
 const newId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -69,6 +71,7 @@ function createLocalStore(): RegistryStore {
       emit();
     },
     open: (file) => getFile(file.id),
+    getAll: async () => items,
   };
 }
 
@@ -112,6 +115,10 @@ function createFirebaseStore(): RegistryStore {
       await deleteDoc(doc(requireDb(), COLLECTION, item.id));
     },
     open: async (file) => file.url,
+    async getAll() {
+      const snap = await getDocs(query(collection(requireDb(), COLLECTION), orderBy('createdAt', 'desc')));
+      return snap.docs.map((d) => ({ ...(d.data() as Omit<RegistryProperty, 'id'>), id: d.id }));
+    },
   };
 }
 

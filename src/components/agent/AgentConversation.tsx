@@ -8,7 +8,7 @@ import { chatStore, settingsStore, useStore } from '../../agent/stores';
 import { healthLive } from '../../agent/live';
 import { ApiError, chatWithAgent } from '../../agent/api';
 import { actionMode, buildContext, describeAction, executeAction, validateAction } from '../../agent/engine';
-import { blobToBase64, prepareAttachment, type Attachment } from '../../agent/media';
+import { MAX_TOTAL_BASE64, blobToBase64, prepareAttachment, type Attachment } from '../../agent/media';
 import { BrowserRecognition, Microphone, isSpeaking, micSupported, onSpeakingChange, recognizeOnce, speak, stopSpeaking } from '../../agent/voice';
 import { localAgent } from '../../services/agentChat';
 import { getDrafts } from '../../services/adsStore';
@@ -20,6 +20,7 @@ interface Props {
   onNavigate: (tab: string) => void;
   variant: 'page' | 'panel';
   onClose?: () => void;
+  headerExtra?: React.ReactNode; // bouton en plus dans l'en-tête (ex. quitter le mode gérant)
 }
 
 const newId = (p: string) => `${p}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -35,7 +36,7 @@ const SUGGESTIONS = [
 ];
 
 // Conversation avec le personnage : texte, micro, appel mains libres, fichiers, et cartes d'accord.
-export const AgentConversation: React.FC<Props> = ({ properties, onNavigate, variant, onClose }) => {
+export const AgentConversation: React.FC<Props> = ({ properties, onNavigate, variant, onClose, headerExtra }) => {
   const settings = useStore(settingsStore);
   const messages = useStore(chatStore);
   const health = useStore(healthLive);
@@ -204,11 +205,18 @@ export const AgentConversation: React.FC<Props> = ({ properties, onNavigate, var
   const addFiles = async (list: FileList | null) => {
     if (!list) return;
     const added: Attachment[] = [];
+    let total = pendingRef.current.reduce((n, a) => n + a.data.length, 0);
     for (const f of Array.from(list).slice(0, 6)) {
       try {
-        added.push(await prepareAttachment(f));
+        const att = await prepareAttachment(f);
+        if (total + att.data.length > MAX_TOTAL_BASE64) {
+          setNotice('الملفات كبيرة بزاف مع بعض: صيفطهم واحد بواحد.');
+          break;
+        }
+        total += att.data.length;
+        added.push(att);
       } catch (err) {
-        setNotice((err as Error).message === 'too_big' ? `الملف «${f.name}» كبير بزاف (أكثر من 4 ميغا).` : `نوع الملف «${f.name}» غير مدعوم (صور أو PDF).`);
+        setNotice((err as Error).message === 'too_big' ? `الملف «${f.name}» كبير بزاف (أكثر من 3 ميغا).` : `نوع الملف «${f.name}» غير مدعوم (صور أو PDF).`);
       }
     }
     setPending((p) => [...p, ...added].slice(0, 6));
@@ -427,6 +435,7 @@ export const AgentConversation: React.FC<Props> = ({ properties, onNavigate, var
         >
           <Trash2 className="w-4 h-4" />
         </button>
+        {headerExtra}
         {onClose && (
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/10 cursor-pointer" aria-label="إغلاق">
             <X className="w-5 h-5" />

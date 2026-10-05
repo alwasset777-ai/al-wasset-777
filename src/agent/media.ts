@@ -6,7 +6,9 @@ export interface Attachment {
   blob: Blob; // original (rangé dans le registre si besoin)
 }
 
-export const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
+// Vercel refuse les requêtes de plus de 4,5 Mo (le base64 ajoute ~37 %) : 3 Mo par fichier au maximum.
+export const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+export const MAX_TOTAL_BASE64 = 4_000_000;
 
 export function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {

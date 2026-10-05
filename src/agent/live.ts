@@ -4,6 +4,7 @@ import type { AgentTask, WaThread } from './types';
 import { onUserChange } from '../services/firebase';
 import { registryStore } from '../services/registryStore';
 import { fetchHealth, fetchTasks, fetchThreads, type HealthStatus, type WaStatus } from './api';
+import { listInbox, type InboxItem } from '../services/inbox';
 
 type Listener = () => void;
 
@@ -80,6 +81,18 @@ export async function refreshTasks(): Promise<void> {
     tasksLive.set(await fetchTasks());
   } catch {
     // serveur sans Firebase en production, ou hors ligne
+  }
+}
+
+// ---- Demandes des clients du site (visite, rappel, recherche) ----
+
+export const inboxLive = createLive<InboxItem[]>([]);
+
+export async function refreshInbox(): Promise<void> {
+  try {
+    inboxLive.set(await listInbox());
+  } catch {
+    // lecture réservée au gérant connecté
   }
 }
 

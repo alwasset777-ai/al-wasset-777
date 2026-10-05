@@ -33,7 +33,7 @@ export function chatWithAgent(input: {
   files?: InlineFile[];
   audio?: InlineFile;
 }): Promise<AgentChatResponse> {
-  return call<AgentChatResponse>('/agent/chat', input).then((r) => ({
+  return call<AgentChatResponse>('/agent/avatar', input).then((r) => ({
     reply: String(r.reply || ''),
     transcript: r.transcript,
     actions: Array.isArray(r.actions) ? (r.actions as AgentAction[]) : [],

@@ -1,12 +1,12 @@
-import React from 'react';
-import { MessageCircle, CalendarDays, MessagesSquare, ClipboardList, BarChart3, Brain, Palette } from 'lucide-react';
+import React, { useState } from 'react';
+import { MessageCircle, CalendarDays, MessagesSquare, ClipboardList, BarChart3, Brain, Palette, Lock } from 'lucide-react';
 import type { Property } from '../../types';
-import { isFirebaseEnabled } from '../../services/firebase';
 import { tasksLive, waLive } from '../../agent/live';
 import { settingsStore, useStore } from '../../agent/stores';
 import { LoginCard, SignOutButton, useAuthUser } from '../AuthGate';
+import { useManagerAccess } from '../../services/managerAccess';
 import { AgentConversation } from './AgentConversation';
-import { AppointmentsPanel } from './AppointmentsPanel';
+import { AppointmentsPanel } from '../AppointmentsPanel';
 import { WhatsAppInbox } from './WhatsAppInbox';
 import { AvatarSettings } from './AvatarSettings';
 import { MemoryPanel, ReportPanel, TasksPanel } from './StudioPanels';
@@ -23,15 +23,16 @@ interface Props {
 // Page « الوكيل » : le personnage, ses tâches, l'agenda, WhatsApp, le rapport, la mémoire et la personnalisation.
 export const AgentStudioView: React.FC<Props> = ({ properties, onNavigate, section, onSectionChange }) => {
   const user = useAuthUser();
+  const access = useManagerAccess();
   const settings = useStore(settingsStore);
   const wa = useStore(waLive);
   const tasks = useStore(tasksLive);
 
-  if (isFirebaseEnabled && user === undefined) return <div className="py-12 text-center text-xs text-[#7a5c58]">…</div>;
-  if (isFirebaseEnabled && !user) {
+  if (access.usesFirebase && user === undefined) return <div className="py-12 text-center text-xs text-[#7a5c58]">…</div>;
+  if (!access.isManager) {
     return (
       <div className="py-10">
-        <LoginCard title={`${settings.name} – خاص بمدير المكتب`} />
+        {access.usesFirebase ? <LoginCard title={`${settings.name} – خاص بمدير المكتب`} /> : <PinCard access={access} title={settings.name} />}
       </div>
     );
   }
@@ -53,6 +54,11 @@ export const AgentStudioView: React.FC<Props> = ({ properties, onNavigate, secti
       <div className="flex items-center gap-2">
         <h1 className="text-xl sm:text-2xl font-black flex-1">{settings.name}</h1>
         {user && <SignOutButton user={user} />}
+        {!access.usesFirebase && (
+          <button onClick={access.lock} className="inline-flex items-center gap-1 text-[11px] font-bold text-[#99807d] hover:text-[#ff6f61] cursor-pointer">
+            <Lock className="w-3.5 h-3.5" /> قفل
+          </button>
+        )}
       </div>
 
       <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
@@ -79,5 +85,42 @@ export const AgentStudioView: React.FC<Props> = ({ properties, onNavigate, secti
       {section === 'memory' && <MemoryPanel />}
       {section === 'settings' && <AvatarSettings />}
     </div>
+  );
+};
+
+// Sans Firebase : le même code PIN que le « وضع المدير » de la bulle (choisi sur cet appareil).
+const PinCard: React.FC<{ access: ReturnType<typeof useManagerAccess>; title: string }> = ({ access, title }) => {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState(false);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin.length < 4) return setError(true);
+    if (access.needsSetup) await access.setupPin(pin);
+    else if (!(await access.unlock(pin))) return setError(true);
+    setPin('');
+  };
+  return (
+    <form onSubmit={submit} dir="rtl" className="max-w-sm mx-auto bg-white rounded-3xl p-6 border border-[#f0e4e2] space-y-3">
+      <div className="flex items-center gap-2 text-sm font-black">
+        <Lock className="w-4 h-4 text-[#ff6f61]" /> {title} – خاص بمدير المكتب
+      </div>
+      <p className="text-xs text-[#7a5c58]">
+        {access.needsSetup ? 'اختر رمزاً سرياً (4 أرقام على الأقل) لوضع المدير على هذا الجهاز:' : 'أدخل الرمز السري لوضع المدير:'}
+      </p>
+      <input
+        type="password"
+        inputMode="numeric"
+        autoFocus
+        value={pin}
+        onChange={(e) => {
+          setPin(e.target.value);
+          setError(false);
+        }}
+        className="w-full p-2.5 rounded-xl bg-[#fff8f7] border border-[#f0e4e2] text-sm text-center tracking-widest"
+        dir="ltr"
+      />
+      {error && <p className="text-xs text-red-600 font-bold">الرمز غير صحيح</p>}
+      <button type="submit" className="w-full py-2.5 rounded-xl bg-[#ff6f61] text-white text-sm font-bold cursor-pointer">دخول</button>
+    </form>
   );
 };

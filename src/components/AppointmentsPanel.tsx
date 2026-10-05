@@ -1,9 +1,20 @@
-import React, { useMemo, useState } from 'react';
-import { Plus, Phone, MessageCircle, Check, X, Trash2, MapPin } from 'lucide-react';
-import type { Appointment, AppointmentKind } from '../../agent/types';
-import { appointmentsStore, settingsStore, useStore } from '../../agent/stores';
-import { APPOINTMENT_KINDS, makeAppointment, toWaNumber } from '../../agent/normalize';
-import { fmtDayTime, fmtTime, localDay, zoned } from '../../agent/time';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Plus, Phone, MessageCircle, Check, X, Trash2, MapPin, Inbox, RefreshCw } from 'lucide-react';
+import type { Appointment } from '../types';
+import type { AppointmentKind } from '../agent/types';
+import { appointmentsStore, settingsStore, useStore } from '../agent/stores';
+import { APPOINTMENT_KINDS, isActiveAppointment, makeAppointment, toWaNumber } from '../agent/normalize';
+import { fmtDayTime, fmtTime, localDay, zoned } from '../agent/time';
+import { InboxItem, listInbox, removeInboxItem } from '../services/inbox';
+import { isFirebaseEnabled } from '../services/firebase';
+
+const STATUS_LABEL: Record<Appointment['status'], string> = { demandé: 'طلب جديد', confirmé: 'مؤكد', fait: 'تم', annulé: 'ملغى' };
+const STATUS_STYLE: Record<Appointment['status'], string> = {
+  demandé: 'bg-amber-50 text-amber-700',
+  confirmé: 'bg-sky-50 text-sky-700',
+  fait: 'bg-green-50 text-green-700',
+  annulé: 'bg-gray-100 text-gray-500',
+};
 
 const input = 'w-full p-2.5 rounded-xl bg-[#fff8f7] border border-[#f0e4e2] text-sm focus:outline-none focus:ring-2 focus:ring-[#ff6f61]';
 const emptyForm = { title: '', at: '', kind: 'زيارة' as AppointmentKind, clientName: '', clientPhone: '', place: '', notes: '' };
@@ -16,18 +27,28 @@ const dayLabel = (day: string) => {
   return new Intl.DateTimeFormat('ar-MA', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(`${day}T12:00:00`));
 };
 
-// Agenda de l'agence : rendez-vous ajoutés à la main, par l'agent (voix / texte) ou depuis WhatsApp.
+// Agenda du bureau : rendez-vous ajoutés à la main, par l'agent (voix / texte / WhatsApp)
+// ou demandés par les clients du site, + les demandes reçues depuis le site.
 export const AppointmentsPanel: React.FC = () => {
   const items = useStore(appointmentsStore);
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
   const [showPast, setShowPast] = useState(false);
+  const [inbox, setInbox] = useState<InboxItem[] | null>(null);
+  const [inboxError, setInboxError] = useState(false);
+
+  const loadInbox = () => {
+    if (!isFirebaseEnabled) return;
+    setInboxError(false);
+    listInbox().then(setInbox).catch(() => setInboxError(true));
+  };
+  useEffect(loadInbox, []);
 
   const { upcoming, past } = useMemo(() => {
     const limit = Date.now() - 2 * 3600 * 1000;
     return {
-      upcoming: items.filter((a) => Date.parse(a.at) >= limit && a.status === 'مبرمج'),
-      past: items.filter((a) => Date.parse(a.at) < limit || a.status !== 'مبرمج').reverse(),
+      upcoming: items.filter((a) => Date.parse(a.at) >= limit && isActiveAppointment(a)),
+      past: items.filter((a) => Date.parse(a.at) < limit || !isActiveAppointment(a)).reverse(),
     };
   }, [items]);
 
@@ -57,16 +78,19 @@ export const AppointmentsPanel: React.FC = () => {
 
   const card = (a: Appointment, muted = false) => (
     <div key={a.id} className={`p-3 rounded-2xl bg-white border border-[#f0e4e2] flex gap-3 ${muted ? 'opacity-60' : ''}`}>
-      <div className="text-center shrink-0 w-14">
+      <div className="text-center shrink-0 w-16 space-y-1">
         <div className="text-base font-black">{fmtTime(a.at)}</div>
-        <div className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#fff0ed] text-[#ff6f61]">{a.kind}</div>
+        <div className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#fff0ed] text-[#ff6f61]">{a.kind || 'موعد'}</div>
+        <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_STYLE[a.status]}`}>{STATUS_LABEL[a.status]}</div>
       </div>
       <div className="flex-1 min-w-0 space-y-1">
         <div className="text-sm font-extrabold">{a.title}</div>
         {(a.clientName || a.clientPhone) && <div className="text-xs text-[#5a4340]">👤 {a.clientName} {a.clientPhone && <span dir="ltr">{a.clientPhone}</span>}</div>}
-        {a.place && <div className="text-xs text-[#7a5c58] flex items-center gap-1"><MapPin className="w-3 h-3" /> {a.place}</div>}
+        {(a.place || a.propertyTitle) && (
+          <div className="text-xs text-[#7a5c58] flex items-center gap-1"><MapPin className="w-3 h-3" /> {[a.place, a.propertyTitle].filter(Boolean).join(' – ')}</div>
+        )}
         {a.notes && <div className="text-[11px] text-[#99807d]">{a.notes}</div>}
-        {muted && <div className="text-[11px] font-bold">{a.status === 'تم' ? '✅ تم' : a.status === 'ملغى' ? '❌ ملغى' : fmtDayTime(a.at)}</div>}
+        {muted && <div className="text-[11px] font-bold">{fmtDayTime(a.at)}</div>}
         <div className="flex flex-wrap gap-1 pt-1">
           {a.clientPhone && (
             <>
@@ -82,10 +106,13 @@ export const AppointmentsPanel: React.FC = () => {
               </a>
             </>
           )}
-          {a.status === 'مبرمج' && (
+          {a.status === 'demandé' && (
+            <button onClick={() => setStatus(a, 'confirmé')} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-sky-50 text-sky-700 text-[11px] font-bold cursor-pointer"><Check className="w-3 h-3" /> تأكيد</button>
+          )}
+          {isActiveAppointment(a) && (
             <>
-              <button onClick={() => setStatus(a, 'تم')} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-50 text-green-700 text-[11px] font-bold cursor-pointer"><Check className="w-3 h-3" /> تم</button>
-              <button onClick={() => setStatus(a, 'ملغى')} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#fff8f7] text-[11px] font-bold cursor-pointer"><X className="w-3 h-3" /> إلغاء</button>
+              <button onClick={() => setStatus(a, 'fait')} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-50 text-green-700 text-[11px] font-bold cursor-pointer"><Check className="w-3 h-3" /> تم</button>
+              <button onClick={() => setStatus(a, 'annulé')} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#fff8f7] text-[11px] font-bold cursor-pointer"><X className="w-3 h-3" /> إلغاء</button>
             </>
           )}
           <button onClick={() => remove(a)} className="p-1.5 rounded-lg bg-[#fff8f7] text-red-600 cursor-pointer" title="حذف"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -118,6 +145,28 @@ export const AppointmentsPanel: React.FC = () => {
         </form>
       )}
 
+      {isFirebaseEnabled && (
+        <div className="bg-white rounded-3xl p-4 border border-[#f0e4e2] space-y-2">
+          <div className="flex items-center gap-2 text-sm font-extrabold">
+            <Inbox className="w-4 h-4 text-[#ff6f61]" /> طلبات الزبائن من الموقع
+            <button onClick={loadInbox} className="ms-auto p-1.5 rounded-lg hover:bg-[#fff0ed] cursor-pointer" title="تحديث"><RefreshCw className="w-3.5 h-3.5" /></button>
+          </div>
+          {inboxError && <p className="text-xs text-red-600">سجّل الدخول كمدير لقراءة الطلبات.</p>}
+          {inbox && inbox.length === 0 && <p className="text-xs text-[#7a5c58]">لا توجد طلبات جديدة.</p>}
+          {inbox?.map((r) => (
+            <div key={r.id} className="p-3 rounded-2xl bg-[#fff8f7] text-xs flex gap-2">
+              <div className="flex-1">
+                <b>{r.name}</b> · <a href={`tel:${r.phone}`} dir="ltr">{r.phone}</a> · {r.kind === 'visite' ? 'زيارة' : r.kind === 'rappel' ? 'اتصال' : 'بحث'}
+                {r.propertyTitle && <> · {r.propertyTitle}</>}
+                {r.preferredAt && <> · {fmtDayTime(r.preferredAt)}</>}
+                {r.message && <div className="text-[#5a4340] mt-1">{r.message}</div>}
+              </div>
+              <button onClick={() => removeInboxItem(r.id).then(loadInbox)} className="text-[#99807d] hover:text-red-600 cursor-pointer" title="حذف"><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {groups.length === 0 && <div className="py-10 text-center text-sm text-[#99807d]">ما كاين حتى موعد مبرمج.</div>}
       {groups.map(([day, list]) => (
         <div key={day} className="space-y-2">
@@ -129,7 +178,7 @@ export const AppointmentsPanel: React.FC = () => {
       {past.length > 0 && (
         <div className="space-y-2">
           <button onClick={() => setShowPast(!showPast)} className="text-xs font-bold text-[#99807d] underline cursor-pointer">
-            {showPast ? 'خبّي' : 'بيّن'} المواعيد الفايتة ({past.length})
+            {showPast ? 'خبّي' : 'بيّن'} المواعيد الفايتة والملغاة ({past.length})
           </button>
           {showPast && past.slice(0, 50).map((a) => card(a, true))}
         </div>

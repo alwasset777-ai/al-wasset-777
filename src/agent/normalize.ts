@@ -1,7 +1,7 @@
 // Création de fiches propres (client, rendez-vous) à partir de ce que l'agent propose.
 // Utilisé par l'application et par le serveur (WhatsApp) : aucun import autre que des types.
-import type { ClientLead } from '../types';
-import type { Appointment, AppointmentFields, AppointmentKind, AppointmentStatus, ClientFields, LeadScore } from './types';
+import type { Appointment, ClientLead } from '../types';
+import type { AppointmentFields, AppointmentKind, AppointmentStatus, ClientFields, LeadScore } from './types';
 
 const str = (v: unknown, max = 500) => (typeof v === 'string' ? v.trim().slice(0, max) : typeof v === 'number' ? String(v) : '');
 const num = (v: unknown) => {
@@ -11,7 +11,9 @@ const num = (v: unknown) => {
 const oneOf = <T extends string>(v: unknown, list: readonly T[], fallback: T): T => (list.includes(v as T) ? (v as T) : fallback);
 
 export const APPOINTMENT_KINDS: readonly AppointmentKind[] = ['زيارة', 'اجتماع', 'توقيع', 'مكالمة', 'أخرى'];
-export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = ['مبرمج', 'تم', 'ملغى'];
+export const APPOINTMENT_STATUSES: readonly AppointmentStatus[] = ['demandé', 'confirmé', 'fait', 'annulé'];
+// Rendez-vous encore à venir (une visite demandée par un client du site compte aussi).
+export const isActiveAppointment = (a: Pick<Appointment, 'status'>) => a.status === 'confirmé' || a.status === 'demandé';
 export const LEAD_SCORES: readonly LeadScore[] = ['جاد', 'متوسط', 'ضعيف'];
 const CLIENT_STATUSES = ['نشط', 'في المتابعة', 'منجز', 'ملغى'] as const;
 
@@ -32,7 +34,7 @@ export function makeAppointment(
     clientPhone: str(f.clientPhone, 40),
     place: str(f.place, 200),
     notes: str(f.notes, 1000),
-    status: oneOf(f.status, APPOINTMENT_STATUSES, 'مبرمج'),
+    status: oneOf(f.status, APPOINTMENT_STATUSES, 'confirmé'),
     remindBeforeMin: opts.remindBeforeMin ?? 60,
     source: opts.source || 'agent',
     createdAt: new Date().toISOString(),
@@ -42,12 +44,10 @@ export function makeAppointment(
 export function appointmentChanges(changes: Partial<AppointmentFields>): Partial<Appointment> {
   const out: Partial<Appointment> = {};
   if (changes.title !== undefined) out.title = str(changes.title, 160);
-  if (changes.at !== undefined && isValidDate(changes.at)) {
-    out.at = new Date(changes.at).toISOString();
-    out.reminded = {};
-  }
+  // Les rappels déjà envoyés sont liés à l'heure : une nouvelle heure redéclenche le rappel.
+  if (changes.at !== undefined && isValidDate(changes.at)) out.at = new Date(changes.at).toISOString();
   if (changes.kind !== undefined) out.kind = oneOf(changes.kind, APPOINTMENT_KINDS, 'زيارة');
-  if (changes.status !== undefined) out.status = oneOf(changes.status, APPOINTMENT_STATUSES, 'مبرمج');
+  if (changes.status !== undefined) out.status = oneOf(changes.status, APPOINTMENT_STATUSES, 'confirmé');
   if (changes.durationMin !== undefined) out.durationMin = Math.round(num(changes.durationMin)) || 30;
   for (const k of ['clientName', 'clientPhone', 'place', 'notes'] as const) if (changes[k] !== undefined) out[k] = str(changes[k], 1000);
   return out;

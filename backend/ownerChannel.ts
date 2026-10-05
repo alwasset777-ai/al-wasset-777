@@ -1,8 +1,8 @@
 // Le gérant parle à son agent depuis WhatsApp (texte, vocal, photo).
 // Les actions simples sont faites tout de suite (si Firestore est relié) ; les actions sensibles
 // deviennent des « tâches » qu'il valide dans l'application.
-import type { ClientLead } from '../src/types.js';
-import type { AgentAction, AgentSettings, AgentTask, Appointment, MemoryItem } from '../src/agent/types.js';
+import type { Appointment, ClientLead } from '../src/types.js';
+import type { AgentAction, AgentSettings, AgentTask, MemoryItem } from '../src/agent/types.js';
 import { appointmentChanges, clientChanges, makeAppointment, makeClient } from '../src/agent/normalize.js';
 import { buildDailyReport } from '../src/agent/report.js';
 import { AGENCY_TZ, zoned } from '../src/agent/time.js';

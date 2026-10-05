@@ -27,8 +27,8 @@ import { PostAdModal } from './components/PostAdModal';
 import { DocumentModal } from './components/DocumentModal';
 import { ScheduleVisitModal } from './components/ScheduleVisitModal';
 import { AgentStudioView, type StudioSection } from './components/agent/AgentStudioView';
-import { useAuthUser } from './components/AuthGate';
-import { isFirebaseEnabled } from './services/firebase';
+import { AgentToasts } from './components/agent/AgentToasts';
+import { useManagerAccess } from './services/managerAccess';
 import { useAgentRuntime } from './agent/runtime';
 
 export const App: React.FC = () => {
@@ -48,10 +48,9 @@ export const App: React.FC = () => {
   const [visitScheduleProp, setVisitScheduleProp] = useState<Property | null>(null);
   const [agentSection, setAgentSection] = useState<StudioSection>('chat');
 
-  // Le وكيل الوسيط 777 est réservé au gérant connecté (ou à l'ordinateur local sans Firebase).
-  const user = useAuthUser();
-  const agentAllowed = !isFirebaseEnabled || !!user;
-  useAgentRuntime(agentAllowed, properties);
+  // Le personnage « الوكيل » est réservé au gérant (compte Firebase, ou code PIN sur l'appareil sans Firebase).
+  const { isManager } = useManagerAccess();
+  useAgentRuntime(isManager, properties);
 
   // Sync RTL / LTR document direction with language
   useEffect(() => {
@@ -322,15 +321,19 @@ export const App: React.FC = () => {
         language={language}
       />
 
-      {agentAllowed && (
-        <AgentChat
-          properties={properties}
-          onNavigate={(tab) => handleTabChange(tab)}
+      {/* Bulle : assistant des clients du site ; en mode gérant, le personnage du gérant. */}
+      <AgentChat
+        properties={properties}
+        language={language}
+        onNavigate={(tab) => handleTabChange(tab)}
+        hideBubble={currentTab === 'agent' && !selectedProperty}
+      />
+      {isManager && (
+        <AgentToasts
           onOpenSection={(s) => {
             setAgentSection(s as StudioSection);
             handleTabChange('agent');
           }}
-          hideBubble={currentTab === 'agent' && !selectedProperty}
         />
       )}
 

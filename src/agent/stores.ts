@@ -3,8 +3,8 @@
 import { useSyncExternalStore } from 'react';
 import { collection, deleteDoc, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import type { ClientLead, StoredFileRef } from '../types';
-import type { AgentMessage, AgentSettings, Appointment, MemoryItem } from './types';
+import type { Appointment, ClientLead, StoredFileRef } from '../types';
+import type { AgentMessage, AgentSettings, MemoryItem } from './types';
 import { isFirebaseEnabled, onUserChange, requireDb, requireStorage } from '../services/firebase';
 import { loadJSON, saveJSON } from '../services/storage';
 import { deleteFile, getFile, putFile } from '../services/fileStore';
@@ -74,25 +74,30 @@ function createDocStore<T>(key: string, fallback: T, normalize: (v: any) => T = 
 }
 
 // ---------- Liste de fiches (collection Firestore) ----------
+// Deux façons de modifier : put / patch / remove (une fiche), ou set / use (toute la liste, comme
+// l'ancien magasin local) ; set compare l'avant/après et n'écrit en ligne que les fiches changées.
 
 export interface ListStore<T extends { id: string | number }> {
   get(): T[];
   put(item: T): Promise<void>;
   patch(id: T['id'], changes: Partial<T>): Promise<void>;
   remove(id: T['id']): Promise<void>;
+  set(next: T[] | ((prev: T[]) => T[])): void;
+  use(): [T[], (next: T[] | ((prev: T[]) => T[])) => void];
   subscribe(l: Listener): () => void;
 }
 
 function createListStore<T extends { id: string | number }>(
   name: string,
+  localKey: string,
   sort: (a: T, b: T) => number,
   localSeed: T[] = []
 ): ListStore<T> {
   const listeners = new Set<Listener>();
-  let items: T[] = isFirebaseEnabled ? [] : loadJSON<T[]>(LOCAL_PREFIX + name, localSeed);
+  let items: T[] = isFirebaseEnabled ? [] : loadJSON<T[]>(localKey, localSeed);
   const emit = () => {
     items = [...items].sort(sort);
-    if (!isFirebaseEnabled) saveJSON(LOCAL_PREFIX + name, items);
+    if (!isFirebaseEnabled) saveJSON(localKey, items);
     listeners.forEach((l) => l());
   };
 
@@ -112,10 +117,27 @@ function createListStore<T extends { id: string | number }>(
         emit();
       }
     );
+  } else if (typeof window !== 'undefined') {
+    // Même liste dans tous les onglets ouverts.
+    window.addEventListener('storage', (e) => {
+      if (e.key !== localKey) return;
+      items = loadJSON<T[]>(localKey, localSeed);
+      listeners.forEach((l) => l());
+    });
   }
 
   const docRef = (id: T['id']) => doc(requireDb(), name, String(id));
-  return {
+  const set = (next: T[] | ((prev: T[]) => T[])) => {
+    const prev = items;
+    items = typeof next === 'function' ? (next as (p: T[]) => T[])(prev) : next;
+    emit();
+    if (!isFirebaseEnabled) return;
+    const before = new Map(prev.map((x) => [String(x.id), JSON.stringify(x)]));
+    const after = new Set(items.map((x) => String(x.id)));
+    items.filter((x) => before.get(String(x.id)) !== JSON.stringify(x)).forEach((x) => setDoc(docRef(x.id), clean(x)).catch(() => undefined));
+    [...before.keys()].filter((id) => !after.has(id)).forEach((id) => deleteDoc(doc(requireDb(), name, id)).catch(() => undefined));
+  };
+  const store: ListStore<T> = {
     get: () => items,
     async put(item) {
       items = [item, ...items.filter((x) => x.id !== item.id)];
@@ -135,11 +157,16 @@ function createListStore<T extends { id: string | number }>(
       emit();
       if (isFirebaseEnabled) await deleteDoc(docRef(id));
     },
+    set,
+    use() {
+      return [useSyncExternalStore(store.subscribe, store.get, store.get), set];
+    },
     subscribe(l) {
       listeners.add(l);
       return () => listeners.delete(l);
     },
   };
+  return store;
 }
 
 // ---------- Réglages par défaut ----------
@@ -179,12 +206,14 @@ export const settingsStore = createDocStore<AgentSettings>('settings', DEFAULT_S
 export const memoryStore = createDocStore<MemoryItem[]>('memory', [], (v) => (Array.isArray(v) ? v : []));
 export const chatStore = createDocStore<AgentMessage[]>('chat', [], (v) => (Array.isArray(v) ? v : []));
 
+// Clés locales identiques à l'ancien magasin : les données déjà saisies sur l'appareil sont gardées.
 export const clientsStore = createListStore<ClientLead>(
   'clients',
+  'alwassit777.clients.v1',
   (a, b) => ((b.createdAt || b.dateAdded) > (a.createdAt || a.dateAdded) ? 1 : -1),
   mockClientLeads // exemples affichés seulement en mode local, comme avant
 );
-export const appointmentsStore = createListStore<Appointment>('appointments', (a, b) => (a.at < b.at ? -1 : 1));
+export const appointmentsStore = createListStore<Appointment>('appointments', 'alwassit777.appointments.v1', (a, b) => (a.at < b.at ? -1 : 1));
 
 export function useStore<T>(s: { get(): T; subscribe(l: Listener): () => void }): T {
   return useSyncExternalStore(s.subscribe, s.get, s.get);

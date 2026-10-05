@@ -16,11 +16,13 @@ import {
   TrendingUp,
   FileSpreadsheet,
   Filter,
-  Trash2
+  Trash2,
+  CalendarDays
 } from 'lucide-react';
 import { Property, ClientLead, Language } from '../types';
-import { clientsStore, useStore } from '../agent/stores';
+import { clientsStore } from '../services/officeStores';
 import { PropertyRegistry } from './PropertyRegistry';
+import { AppointmentsPanel } from './AppointmentsPanel';
 
 interface CrmViewProps {
   properties: Property[];
@@ -36,10 +38,19 @@ export const CrmView: React.FC<CrmViewProps> = ({
   const isAr = language === 'ar';
   const isEn = language === 'en';
   
-  // Clients enregistrés (en ligne avec Firebase, sinon sur l'appareil) ; l'agent peut aussi en ajouter.
-  const clients = useStore(clientsStore);
-  const [activeTab, setActiveTab] = useState<'matching' | 'clients' | 'addClient' | 'registry'>('matching');
+  const [clients, setClients] = clientsStore.use();
+  const [activeTab, setActiveTab] = useState<'matching' | 'clients' | 'addClient' | 'registry' | 'appointments'>('matching');
   const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // L'agent peut ouvrir directement un onglet (ex. « Rendez-vous » après avoir ajouté un rendez-vous).
+  React.useEffect(() => {
+    const onTab = (e: Event) => {
+      const tab = (e as CustomEvent).detail;
+      if (['matching', 'clients', 'addClient', 'registry', 'appointments'].includes(tab)) setActiveTab(tab);
+    };
+    window.addEventListener('alwassit:crm-tab', onTab);
+    return () => window.removeEventListener('alwassit:crm-tab', onTab);
+  }, []);
   const [clientSearch, setClientSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -89,12 +100,10 @@ export const CrmView: React.FC<CrmViewProps> = ({
       status: 'نشط',
       notes: newClientNotes,
       linkedPropIds: [],
-      dateAdded: new Date().toISOString().split('T')[0],
-      source: 'manuel',
-      createdAt: new Date().toISOString()
+      dateAdded: new Date().toISOString().split('T')[0]
     };
 
-    clientsStore.put(newLead).catch(() => window.alert(isAr ? 'تعذر الحفظ' : 'Enregistrement impossible'));
+    setClients([newLead, ...clients]);
     playNotificationChime();
     setActiveTab('clients');
 
@@ -107,7 +116,7 @@ export const CrmView: React.FC<CrmViewProps> = ({
   };
 
   const handleDeleteClient = (id: number) => {
-    clientsStore.remove(id).catch(() => undefined);
+    setClients(clients.filter((c) => c.id !== id));
   };
 
   // Smart Matching Computation
@@ -277,9 +286,22 @@ export const CrmView: React.FC<CrmViewProps> = ({
           <Building2 className="w-4 h-4" />
           <span>{isAr ? 'سجل العقارات و المالكين' : isEn ? 'Property Registry' : 'Registre des biens'}</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('appointments')}
+          className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'appointments'
+              ? 'bg-[#ff6f61] text-white shadow-md shadow-[#ff6f61]/25'
+              : 'text-[#7a5c58] hover:bg-white'
+          }`}
+        >
+          <CalendarDays className="w-4 h-4" />
+          <span>{isAr ? 'المواعيد' : isEn ? 'Appointments' : 'Rendez-vous'}</span>
+        </button>
       </div>
 
       {activeTab === 'registry' && <PropertyRegistry language={language} />}
+      {activeTab === 'appointments' && <AppointmentsPanel />}
 
       {/* Tab 1: Smart Matching */}
       {activeTab === 'matching' && (

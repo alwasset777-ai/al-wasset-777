@@ -41,9 +41,10 @@ const fail = (res: express.Response, label: string, err: unknown, status = 502) 
   res.status(status).json({ error: (err as Error)?.message || label });
 };
 
-// ---- Conversation avec l'agent (application) ----
+// ---- Conversation avec le personnage (page « الوكيل ») ----
+// /api/agent/chat (app.ts) reste l'assistant à outils de la bulle (clients du site).
 
-router.post('/agent/chat', async (req, res) => {
+router.post('/agent/avatar', async (req, res) => {
   if (!(await allowAgent(req, res))) return;
   const { messages, context, persona, files, audio } = req.body || {};
   if (!Array.isArray(messages) || (messages.length === 0 && !audio)) {

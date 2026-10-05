@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import type { Property } from '../types';
 import { appointmentsStore, clientsStore, memoryStore, settingsStore } from './stores';
-import { healthLive, pushToast, refreshHealth, refreshTasks, refreshWhatsApp, registryLive, tasksLive, waLive } from './live';
+import { healthLive, pushToast, refreshHealth, refreshInbox, refreshTasks, refreshWhatsApp, registryLive, tasksLive, waLive } from './live';
 import { syncToServer } from './api';
 import { buildCatalog } from './engine';
 import { fmtTime, zoned } from './time';
@@ -39,12 +39,12 @@ function checkReminders() {
   const now = Date.now();
   for (const a of appointmentsStore.get()) {
     const at = Date.parse(a.at);
-    if (a.status !== 'مبرمج' || !Number.isFinite(at)) continue;
+    if (a.status !== 'confirmé' || !Number.isFinite(at)) continue;
     const before = (a.remindBeforeMin || s.reminders.beforeMin) * 60000;
     const kBefore = `${a.id}@${a.at}:before`;
     const kAt = `${a.id}@${a.at}:at`;
     if (now >= at - before && now < at && !notified[kBefore]) {
-      notify(`⏰ ${a.kind} مع ${fmtTime(a.at)}`, `${a.title}${a.clientName ? ` — ${a.clientName}` : ''}${a.place ? ` — ${a.place}` : ''}`, 'appointments');
+      notify(`⏰ ${a.kind || 'موعد'} مع ${fmtTime(a.at)}`, `${a.title}${a.clientName ? ` — ${a.clientName}` : ''}${a.place ? ` — ${a.place}` : ''}`, 'appointments');
       notified[kBefore] = now;
     }
     if (now >= at && now < at + 10 * 60000 && !notified[kAt]) {
@@ -98,7 +98,7 @@ export function useAgentRuntime(enabled: boolean, properties: Property[]) {
     refreshHealth();
     const poll = () => {
       if (document.visibilityState !== 'visible') return;
-      Promise.all([refreshWhatsApp(), refreshTasks()]).then(watchCounters);
+      Promise.all([refreshWhatsApp(), refreshTasks(), refreshInbox()]).then(watchCounters);
     };
     const tick = () => {
       checkReminders();

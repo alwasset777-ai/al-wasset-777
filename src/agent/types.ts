@@ -1,12 +1,14 @@
 // Types partagés du « وكيل الوسيط 777 » (application + serveur).
 // Uniquement des types : le serveur les importe avec `import type`, sans code exécuté.
-import type { AdLanguage, AdPlatform, StoredFileRef } from '../types';
+import type { AdLanguage, AdPlatform, Appointment, StoredFileRef } from '../types';
+
+export type { Appointment };
 
 export type AgentTab = 'ads' | 'crm' | 'home' | 'agent' | 'legal';
 export type LeadScore = 'جاد' | 'متوسط' | 'ضعيف';
 export type DocumentKind = 'كراء' | 'وعد_بالبيع' | 'تفويض_بالبيع' | 'تفويض_بالكراء' | 'محضر_زيارة' | 'رسالة' | 'أخرى';
-export type AppointmentKind = 'زيارة' | 'اجتماع' | 'توقيع' | 'مكالمة' | 'أخرى';
-export type AppointmentStatus = 'مبرمج' | 'تم' | 'ملغى';
+export type AppointmentKind = NonNullable<Appointment['kind']>;
+export type AppointmentStatus = Appointment['status'];
 
 // Fiche client (prospect) enregistrée par l'agent ou depuis le CRM.
 export interface ClientFields {
@@ -43,21 +45,6 @@ export interface AppointmentFields {
   place?: string;
   notes?: string;
   status?: AppointmentStatus;
-}
-
-export interface Appointment extends Required<Pick<AppointmentFields, 'title' | 'at'>> {
-  id: string;
-  kind: AppointmentKind;
-  durationMin: number;
-  clientName: string;
-  clientPhone: string;
-  place: string;
-  notes: string;
-  status: AppointmentStatus;
-  remindBeforeMin: number;
-  reminded?: { before?: boolean; at?: boolean };
-  source?: 'manuel' | 'agent' | 'whatsapp';
-  createdAt: string;
 }
 
 export interface MemoryItem {
@@ -161,6 +148,8 @@ export interface AgentContext {
   appointments: Array<Record<string, unknown>>;
   ads: Record<string, unknown>;
   whatsapp?: Record<string, unknown>;
+  siteRequests?: Array<Record<string, unknown>>;
+  opportunities?: Array<Record<string, unknown>>;
   memory: Array<{ id: string; text: string }>;
   outfits: string[];
 }
