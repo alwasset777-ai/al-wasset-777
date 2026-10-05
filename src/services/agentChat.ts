@@ -2,6 +2,9 @@
 import { AdDraft, AdLanguage, AdPlatform, Property } from '../types';
 import { PLATFORMS } from './adGenerator';
 import { getIdToken } from './firebase';
+import { getDrafts } from './adsStore';
+import { AgentMode } from '../agent/toolDefs';
+import { AgentEffect, runTool } from '../agent/executor';
 
 export interface ChatMessage {
   id: string;
@@ -44,37 +47,113 @@ export function buildContext(properties: Property[], drafts: AdDraft[]) {
   };
 }
 
-function sanitizeAction(raw: any, properties: Property[]): AgentAction | null {
-  if (!raw || typeof raw !== 'object') return null;
-  if (raw.type === 'generate_ads') {
-    const id = Number(raw.propertyId);
-    if (!properties.some((p) => p.id === id)) return null;
-    const platforms = Array.isArray(raw.platforms) ? raw.platforms.filter((x: string) => ALL_PLATFORMS.includes(x as AdPlatform)) : [];
-    const languages = Array.isArray(raw.languages) ? raw.languages.filter((x: string) => ['ar', 'darija', 'fr'].includes(x)) : [];
-    return { type: 'generate_ads', propertyId: id, platforms: platforms.length ? platforms : ALL_PLATFORMS, languages: languages.length ? languages : DEFAULT_LANGS };
-  }
-  if (raw.type === 'open' && ['ads', 'crm', 'home'].includes(raw.tab)) return { type: 'open', tab: raw.tab };
-  return null;
+// ---------- Agent IA avec outils ----------
+// Format de conversation Gemini, conservé tel quel pour les appels d'outils.
+export interface GeminiPart {
+  text?: string;
+  functionCall?: { id?: string; name: string; args?: Record<string, unknown> };
+  functionResponse?: { id?: string; name: string; response: Record<string, unknown> };
+  thoughtSignature?: string;
+}
+export interface GeminiContent {
+  role: 'user' | 'model';
+  parts: GeminiPart[];
 }
 
-export async function askAgent(history: ChatMessage[], properties: Property[], drafts: AdDraft[]): Promise<AgentReply> {
+export interface AgentTurn {
+  reply: string;
+  effects: AgentEffect[];
+  contents: GeminiContent[]; // conversation complète mise à jour (à conserver pour la suite)
+  source: 'ia' | 'local';
+  toolsUsed: string[];
+}
+
+const MAX_STEPS = 6;
+
+export async function runAgentTurn(
+  mode: AgentMode,
+  previous: GeminiContent[],
+  userText: string,
+  properties: Property[]
+): Promise<AgentTurn> {
+  const contents: GeminiContent[] = [...previous.slice(-40), { role: 'user', parts: [{ text: userText }] }];
+  const effects: AgentEffect[] = [];
+  const toolsUsed: string[] = [];
+  const ctx = { mode, properties };
   try {
     const token = await getIdToken().catch(() => null);
-    const res = await fetch('/api/agent/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ messages: history.map(({ role, text }) => ({ role, text })), context: buildContext(properties, drafts) }),
-    });
-    if (res.ok) {
+    for (let step = 0; step < MAX_STEPS; step++) {
+      const res = await fetch('/api/agent/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ mode, contents }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      if (typeof data.reply === 'string' && data.reply.trim()) {
-        return { reply: data.reply.trim(), action: sanitizeAction(data.action, properties), source: 'ia' };
+      const modelContent: GeminiContent = data.content && Array.isArray(data.content.parts) ? { role: 'model', parts: data.content.parts } : { role: 'model', parts: [{ text: data.text || '' }] };
+      contents.push(modelContent);
+      const calls: { id?: string; name: string; args: Record<string, unknown> }[] = Array.isArray(data.functionCalls) ? data.functionCalls : [];
+      if (calls.length === 0) {
+        const reply = String(data.text || '').trim();
+        return { reply: reply || '…', effects, contents, source: 'ia', toolsUsed };
       }
+      const responses: GeminiPart[] = [];
+      for (const call of calls) {
+        toolsUsed.push(call.name);
+        const outcome = await runTool(call.name, call.args || {}, ctx).catch((e) => ({ result: { error: String(e?.message || e) }, effects: [] as AgentEffect[] }));
+        effects.push(...outcome.effects);
+        responses.push({ functionResponse: { ...(call.id ? { id: call.id } : {}), name: call.name, response: { output: outcome.result } } });
+      }
+      contents.push({ role: 'user', parts: responses });
     }
+    return { reply: 'تم.', effects, contents, source: 'ia', toolsUsed };
   } catch {
-    // serveur indisponible : mode simple ci-dessous
+    // IA indisponible (pas de clé, hors ligne…) : mode simple par mots-clés.
+    const local = mode === 'manager' ? localAgent(userText, properties, getDrafts()) : localCustomerAgent(userText, properties);
+    if (local.action) {
+      const tool = local.action.type === 'generate_ads' ? 'create_ads' : 'open_page';
+      const args = local.action.type === 'generate_ads' ? { propertyId: local.action.propertyId } : { page: local.action.tab };
+      const outcome = await runTool(tool, args, ctx).catch(() => null);
+      if (outcome) effects.push(...outcome.effects);
+      toolsUsed.push(tool);
+    }
+    const fallbackContents: GeminiContent[] = [...contents, { role: 'model', parts: [{ text: local.reply }] }];
+    return { reply: local.reply, effects, contents: fallbackContents, source: 'local', toolsUsed };
   }
-  return localAgent(history[history.length - 1]?.text || '', properties, drafts);
+}
+
+// Assistant clients en mode simple : recherche par mots-clés + contact WhatsApp du bureau.
+export function localCustomerAgent(text: string, properties: Property[]): AgentReply {
+  const n = norm(text);
+  const lang: 'darija' | 'ar' | 'fr' = isArabic(text) ? (looksDarija(text) ? 'darija' : 'ar') : 'fr';
+  const say = (fr: string, ar: string, darija: string) => (lang === 'fr' ? fr : lang === 'ar' ? ar : darija);
+  const wantsRent = has(n, ['كراء', 'للكرا', 'louer', 'location', 'loyer']);
+  const words = n.split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 2);
+  const found = properties
+    .filter((p) => (wantsRent ? p.listingType === 'location' : true))
+    .map((p) => ({ p, score: words.filter((w) => norm(`${p.city} ${p.district} ${p.type} ${p.titleFr} ${p.titleAr}`).includes(w)).length }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(({ p }) => `#${p.id} ${lang === 'fr' ? p.titleFr : p.titleAr || p.titleFr} – ${p.city} – ${p.surface} m² – ${lang === 'fr' ? p.priceFormattedFr : p.priceFormattedAr}`);
+  if (found.length) {
+    return {
+      reply: say(
+        `Voici des biens qui peuvent vous intéresser :\n${found.join('\n')}\nPour une visite, contactez-nous au 0777777848 / 0777777959.`,
+        `هذه عقارات قد تهمك:\n${found.join('\n')}\nللزيارة تواصل معنا على 0777777848 / 0777777959.`,
+        `هادو عقارات يقدرو يعجبوك:\n${found.join('\n')}\nباش تزور، تاصل بينا: 0777777848 / 0777777959.`
+      ),
+      action: null, source: 'local',
+    };
+  }
+  return {
+    reply: say(
+      'Bienvenue chez Al Wassit 777 ! Dites-moi ce que vous cherchez (ville, quartier, achat ou location, budget) ou appelez-nous au 0777777848 / 0777777959.',
+      'مرحباً بك في الوسيط 777! أخبرني ماذا تبحث عنه (المدينة، الحي، شراء أو كراء، الميزانية) أو اتصل بنا على 0777777848 / 0777777959.',
+      'مرحبا بيك ف الوسيط 777! قول ليا شنو كتقلب عليه (المدينة، الحومة، شرا ولا كرا، الميزانية) ولا عيط لينا: 0777777848 / 0777777959.'
+    ),
+    action: null, source: 'local',
+  };
 }
 
 // ---------- Mode simple (sans IA) ----------

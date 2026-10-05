@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bot, Mic, MicOff, Send, X, Volume2, VolumeX, Trash2, Loader2, Megaphone, Download } from 'lucide-react';
+import { Bot, Mic, MicOff, Send, X, Volume2, VolumeX, Trash2, Loader2, Megaphone, Download, Lock, Unlock, MessageCircle, ExternalLink, Wrench } from 'lucide-react';
 import { Language, Property } from '../types';
-import { askAgent, AgentAction, ChatMessage } from '../services/agentChat';
-import { generateDrafts, getDrafts } from '../services/adsStore';
+import { ChatMessage, GeminiContent, runAgentTurn } from '../services/agentChat';
+import { AgentEffect } from '../agent/executor';
+import { AgentMode } from '../agent/toolDefs';
 import { loadJSON, saveJSON } from '../services/storage';
 import { canInstallApp, onInstallAvailable, promptInstall, isStandalone } from '../services/pwa';
+import { useManagerAccess } from '../services/managerAccess';
+import { LoginCard } from './AuthGate';
 
 interface AgentChatProps {
   properties: Property[];
@@ -13,40 +16,85 @@ interface AgentChatProps {
 }
 
 type VoiceLang = 'ar-MA' | 'fr-FR';
+type UiMessage = ChatMessage & { effects?: AgentEffect[]; tools?: string[] };
 
-const HISTORY_KEY = 'alwassit777.agent.chat.v1';
+const historyKey = (mode: AgentMode) => `alwassit777.agent.${mode}.messages.v2`;
+const contentsKey = (mode: AgentMode) => `alwassit777.agent.${mode}.contents.v2`;
 const VOICE_KEY = 'alwassit777.agent.voice.v1';
+const MODE_KEY = 'alwassit777.agent.mode.v1';
 
-const newMsg = (role: ChatMessage['role'], text: string): ChatMessage => ({
+const TOOL_LABELS: Record<string, string> = {
+  search_properties: 'بحث في العقارات',
+  get_property: 'تفاصيل عقار',
+  send_request_to_agency: 'إرسال الطلب للمكتب',
+  list_clients: 'قائمة الزبائن',
+  add_client: 'إضافة زبون',
+  update_client: 'تحديث زبون',
+  find_opportunities: 'البحث عن الفرص',
+  list_appointments: 'المواعيد',
+  add_appointment: 'إضافة موعد',
+  list_inbox: 'طلبات الموقع',
+  create_ads: 'تحضير الإعلانات',
+  ads_summary: 'نتائج الإعلانات',
+  prepare_whatsapp: 'رسالة واتساب',
+  open_page: 'فتح صفحة',
+};
+
+const newMsg = (role: ChatMessage['role'], text: string, extra: Partial<UiMessage> = {}): UiMessage => ({
   id: `m-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
   role,
   text,
   at: new Date().toISOString(),
+  ...extra,
 });
 
 const SpeechRecognitionImpl: any =
   typeof window !== 'undefined' ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition : undefined;
 
-// Bulle « وكيل الوسيط 777 » : discussion écrite ou vocale avec l'agent, sur toutes les pages.
+// Bulle « وكيل الوسيط 777 » : assistant des clients du site, et assistant personnel du gérant (mode gérant).
 export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNavigate }) => {
   const isAr = language === 'ar';
   const isEn = language === 'en';
   const t = (fr: string, ar: string, en: string) => (isAr ? ar : isEn ? en : fr);
 
+  const access = useManagerAccess();
+  const [wantManager, setWantManager] = useState<boolean>(() => loadJSON(MODE_KEY, false));
+  const mode: AgentMode = wantManager && access.isManager ? 'manager' : 'customer';
+
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>(() => loadJSON<ChatMessage[]>(HISTORY_KEY, []));
+  const [messages, setMessages] = useState<UiMessage[]>([]);
+  const [contents, setContents] = useState<GeminiContent[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const [voice, setVoice] = useState(() => loadJSON(VOICE_KEY, { speak: false, lang: 'ar-MA' as VoiceLang }));
   const [installable, setInstallable] = useState(canInstallApp());
+  const [showUnlock, setShowUnlock] = useState(false);
+  const [pin, setPin] = useState('');
+  const [pinError, setPinError] = useState(false);
   const recogRef = useRef<any>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => saveJSON(HISTORY_KEY, messages.slice(-60)), [messages]);
+  // Chaque mode a sa propre conversation (les clients ne voient jamais celle du gérant).
+  const [loadedMode, setLoadedMode] = useState<AgentMode | null>(null);
+  useEffect(() => {
+    setMessages(loadJSON<UiMessage[]>(historyKey(mode), []));
+    setContents(loadJSON<GeminiContent[]>(contentsKey(mode), []));
+    setLoadedMode(mode);
+  }, [mode]);
+  // N'enregistre qu'une fois la conversation du mode courant chargée (évite d'écraser l'autre mode).
+  useEffect(() => {
+    if (loadedMode === mode) saveJSON(historyKey(mode), messages.slice(-60));
+  }, [messages, mode, loadedMode]);
+  useEffect(() => {
+    if (loadedMode === mode) saveJSON(contentsKey(mode), contents.slice(-40));
+  }, [contents, mode, loadedMode]);
   useEffect(() => saveJSON(VOICE_KEY, voice), [voice]);
+  useEffect(() => saveJSON(MODE_KEY, wantManager), [wantManager]);
   useEffect(() => onInstallAvailable(() => setInstallable(true)), []);
   useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages, open, busy]);
+
+  const isPhone = () => window.innerWidth < 640;
 
   const speak = (text: string) => {
     if (!voice.speak || typeof speechSynthesis === 'undefined') return;
@@ -56,37 +104,27 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
     speechSynthesis.speak(u);
   };
 
-  const runAction = async (action: AgentAction, userText: string): Promise<string | null> => {
-    if (action.type === 'open') {
-      onNavigate(action.tab);
-      setOpen(window.innerWidth >= 640); // sur téléphone, on ferme pour voir la page
-      return null;
-    }
-    const p = properties.find((x) => x.id === action.propertyId);
-    if (!p) return null;
-    const created = await generateDrafts(p, action.platforms || [], action.languages || []);
-    // Même langue que le message de l'utilisateur.
-    return /[\u0600-\u06FF]/.test(userText)
-      ? `✅ ${created.length} إعلان جاهز للمراجعة في قسم «الإعلانات».`
-      : `✅ ${created.length} annonces prêtes à valider dans « Publicités ».`;
+  const goTo = (page: string) => {
+    const [tab, sub] = page.split(':');
+    onNavigate(tab);
+    if (sub) setTimeout(() => window.dispatchEvent(new CustomEvent('alwassit:crm-tab', { detail: sub })), 50);
+    if (isPhone()) setOpen(false);
   };
 
   const send = async (text: string) => {
     const clean = text.trim();
     if (!clean || busy) return;
-    const userMsg = newMsg('user', clean);
-    const history = [...messages, userMsg];
-    setMessages(history);
+    setMessages((prev) => [...prev, newMsg('user', clean)]);
     setInput('');
     setBusy(true);
     try {
-      const res = await askAgent(history.slice(-20), properties, getDrafts());
-      setMessages((prev) => [...prev, newMsg('assistant', res.reply)]);
-      speak(res.reply);
-      if (res.action) {
-        const followUp = await runAction(res.action, clean);
-        if (followUp) setMessages((prev) => [...prev, newMsg('assistant', followUp)]);
-      }
+      const turn = await runAgentTurn(mode, contents, clean, properties);
+      setContents(turn.contents);
+      const links = turn.effects.filter((e) => e.type === 'link');
+      setMessages((prev) => [...prev, newMsg('assistant', turn.reply, { effects: links, tools: [...new Set(turn.toolsUsed)] })]);
+      speak(turn.reply);
+      const nav = turn.effects.find((e) => e.type === 'navigate') as Extract<AgentEffect, { type: 'navigate' }> | undefined;
+      if (nav) goTo(nav.page);
     } finally {
       setBusy(false);
     }
@@ -122,11 +160,34 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
     r.start();
   };
 
-  const suggestions = [
-    t('Annonce pour le bien 1', 'دير إعلان للعقار رقم 1', 'Ad for property 1'),
-    t('Combien de clients cette semaine ?', 'شحال من كليان عندي؟', 'How many leads?'),
-    t('Ouvre le registre', 'حل ليا سجل العقارات', 'Open the registry'),
-  ];
+  const submitPin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin.length < 4) return setPinError(true);
+    if (access.needsSetup) await access.setupPin(pin);
+    else if (!(await access.unlock(pin))) return setPinError(true);
+    setPin('');
+    setPinError(false);
+    setShowUnlock(false);
+    setWantManager(true);
+  };
+
+  const toggleManager = () => {
+    if (mode === 'manager') {
+      setWantManager(false);
+      return;
+    }
+    if (access.isManager) setWantManager(true);
+    else setShowUnlock(true);
+  };
+
+  const suggestions =
+    mode === 'manager'
+      ? ['شنو عندي من مواعيد هاد السيمانة؟', 'قلب ليا على فرص للزبناء ديالي', 'زيد زبون جديد: كريم، 0661000000، كيقلب على شقة ف حمرية ب 900000', 'وجد إعلانات للعقار رقم 3', 'كتب رسالة واتساب لمحمد التازي نقترح عليه شقة المعاريف']
+      : [
+          t('Je cherche un appartement à Meknès', 'كنقلب على شقة ف مكناس', 'Looking for an apartment in Meknes'),
+          t('Villas avec piscine à vendre ?', 'واش عندكم فيلا فيها مسبح للبيع؟', 'Villas with a pool for sale?'),
+          t('Je veux visiter un bien', 'بغيت نزور شي عقار', 'I want to visit a property'),
+        ];
 
   return (
     <>
@@ -144,20 +205,30 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
       )}
 
       {open && (
-        <div className="fixed z-50 inset-0 sm:inset-auto sm:bottom-5 sm:end-5 sm:w-[400px] sm:h-[620px] sm:max-h-[85vh] bg-white sm:rounded-3xl shadow-2xl border border-[#f0e4e2] flex flex-col overflow-hidden">
+        <div className="fixed z-50 inset-0 sm:inset-auto sm:bottom-5 sm:end-5 sm:w-[420px] sm:h-[660px] sm:max-h-[88vh] bg-white sm:rounded-3xl shadow-2xl border border-[#f0e4e2] flex flex-col overflow-hidden">
           {/* En-tête */}
-          <div className="bg-gradient-to-br from-[#281715] to-[#4a2a26] text-white px-4 py-3 flex items-center gap-3">
+          <div className={`text-white px-4 py-3 flex items-center gap-2 ${mode === 'manager' ? 'bg-gradient-to-br from-[#1f3a2e] to-[#281715]' : 'bg-gradient-to-br from-[#281715] to-[#4a2a26]'}`}>
             <span className="w-10 h-10 rounded-full bg-[#ff6f61] flex items-center justify-center shrink-0">
               <Megaphone className="w-5 h-5" />
             </span>
             <div className="flex-1 min-w-0" dir="rtl">
               <div className="text-sm font-black">وكيل الوسيط 777</div>
-              <div className="text-[11px] text-white/70">{t('Votre assistant publicité', 'مساعدك في الإعلانات', 'Your ads assistant')}</div>
+              <div className="text-[11px] text-white/75">{mode === 'manager' ? 'وضع المدير: مساعدك الشخصي' : 'مساعد الزبائن'}</div>
             </div>
-            <button onClick={() => setVoice({ ...voice, speak: !voice.speak })} className="p-2 rounded-xl hover:bg-white/10 cursor-pointer" title={t('Réponse vocale', 'الرد بالصوت', 'Voice reply')}>
+            <button onClick={toggleManager} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${mode === 'manager' ? 'text-green-300' : ''}`} title={mode === 'manager' ? 'الخروج من وضع المدير' : 'وضع المدير'}>
+              {mode === 'manager' ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+            </button>
+            <button onClick={() => setVoice({ ...voice, speak: !voice.speak })} className="p-2 rounded-xl hover:bg-white/10 cursor-pointer" title="الرد بالصوت">
               {voice.speak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>
-            <button onClick={() => setMessages([])} className="p-2 rounded-xl hover:bg-white/10 cursor-pointer" title={t('Effacer', 'مسح المحادثة', 'Clear')}>
+            <button
+              onClick={() => {
+                setMessages([]);
+                setContents([]);
+              }}
+              className="p-2 rounded-xl hover:bg-white/10 cursor-pointer"
+              title="مسح المحادثة"
+            >
               <Trash2 className="w-4 h-4" />
             </button>
             <button onClick={() => setOpen(false)} className="p-2 rounded-xl hover:bg-white/10 cursor-pointer" aria-label="Fermer">
@@ -170,19 +241,52 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
               onClick={async () => setInstallable(!(await promptInstall()))}
               className="mx-3 mt-3 flex items-center justify-center gap-2 py-2 rounded-xl bg-[#fff0ed] text-[#ff6f61] text-xs font-extrabold cursor-pointer"
             >
-              <Download className="w-4 h-4" /> {t('Installer l’application sur ce téléphone', 'ثبّت التطبيق على هذا الهاتف', 'Install the app on this phone')}
+              <Download className="w-4 h-4" /> ثبّت التطبيق على هذا الهاتف
             </button>
+          )}
+
+          {/* Déverrouillage du mode gérant */}
+          {showUnlock && (
+            <div className="p-3 border-b border-[#f0e4e2] bg-[#fff8f7]" dir="rtl">
+              {access.usesFirebase ? (
+                <LoginCard title="دخول المدير" />
+              ) : (
+                <form onSubmit={submitPin} className="space-y-2">
+                  <div className="text-xs font-bold">
+                    {access.needsSetup ? 'اختر رمزاً سرياً (4 أرقام على الأقل) لوضع المدير على هذا الجهاز:' : 'أدخل الرمز السري لوضع المدير:'}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      autoFocus
+                      value={pin}
+                      onChange={(e) => { setPin(e.target.value); setPinError(false); }}
+                      className="flex-1 p-2 rounded-xl border border-[#f0e4e2] text-sm text-center tracking-widest"
+                      dir="ltr"
+                    />
+                    <button type="submit" className="px-4 rounded-xl bg-[#281715] text-white text-xs font-bold cursor-pointer">دخول</button>
+                    <button type="button" onClick={() => setShowUnlock(false)} className="px-3 rounded-xl border border-[#f0e4e2] text-xs cursor-pointer">إلغاء</button>
+                  </div>
+                  {pinError && <div className="text-[11px] text-red-600 font-bold">الرمز غير صحيح</div>}
+                </form>
+              )}
+            </div>
           )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#fff8f7]">
             {messages.length === 0 && (
               <div className="text-center space-y-3 pt-6" dir="rtl">
-                <div className="text-sm font-extrabold">السلام عليكم السي منير 👋</div>
-                <p className="text-xs text-[#7a5c58]">{t('Écrivez ou appuyez sur le micro pour parler.', 'اكتب أو اضغط على الميكروفون وتكلّم.', 'Type or tap the mic to speak.')}</p>
+                <div className="text-sm font-extrabold">{mode === 'manager' ? 'السلام عليكم السي منير 👋 أنا رهن إشارتك' : 'مرحباً بك في الوسيط 777 👋'}</div>
+                <p className="text-xs text-[#7a5c58]">
+                  {mode === 'manager'
+                    ? 'أستطيع تسيير الزبائن والمواعيد، تحضير الإعلانات، البحث عن الفرص، وكتابة رسائل واتساب.'
+                    : 'أساعدك تلقى العقار المناسب وتطلب زيارة. اكتب أو اضغط على الميكروفون.'}
+                </p>
                 <div className="flex flex-col gap-2 items-center">
                   {suggestions.map((s) => (
-                    <button key={s} onClick={() => send(s)} className="px-3 py-1.5 rounded-full bg-white border border-[#f0e4e2] text-xs font-bold text-[#5a4340] hover:text-[#ff6f61] cursor-pointer">
+                    <button key={s} onClick={() => send(s)} className="px-3 py-1.5 rounded-full bg-white border border-[#f0e4e2] text-xs font-bold text-[#5a4340] hover:text-[#ff6f61] cursor-pointer max-w-full truncate">
                       {s}
                     </button>
                   ))}
@@ -193,23 +297,40 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
               <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div
                   dir="auto"
-                  className={`max-w-[85%] whitespace-pre-wrap px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                  className={`max-w-[88%] whitespace-pre-wrap px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
                     m.role === 'user' ? 'bg-[#ff6f61] text-white rounded-ee-md' : 'bg-white border border-[#f0e4e2] text-[#281715] rounded-es-md'
                   }`}
                 >
+                  {m.tools && m.tools.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1.5" dir="rtl">
+                      {m.tools.map((tool) => (
+                        <span key={tool} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#f3ece9] text-[10px] font-bold text-[#7a5c58]">
+                          <Wrench className="w-2.5 h-2.5" /> {TOOL_LABELS[tool] || tool}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {m.text}
-                  {m.role === 'assistant' && m.text.startsWith('✅') && (
-                    <button onClick={() => { onNavigate('ads'); if (window.innerWidth < 640) setOpen(false); }} className="block mt-2 text-xs font-extrabold text-[#ff6f61] cursor-pointer">
-                      {t('Ouvrir « Publicités » →', 'افتح «الإعلانات» ←', 'Open “Ads” →')}
-                    </button>
+                  {m.effects?.map((e, i) =>
+                    e.type === 'link' ? (
+                      e.kind === 'ads' ? (
+                        <button key={i} onClick={() => goTo('ads')} className="mt-2 w-full flex items-center justify-center gap-1 py-2 rounded-xl bg-[#fff0ed] text-[#ff6f61] text-xs font-extrabold cursor-pointer">
+                          <ExternalLink className="w-3.5 h-3.5" /> {e.label}
+                        </button>
+                      ) : (
+                        <a key={i} href={e.url} target="_blank" rel="noopener noreferrer" className={`mt-2 w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-extrabold ${e.kind === 'whatsapp' ? 'bg-[#25d366] text-white' : 'bg-[#fff0ed] text-[#ff6f61]'}`}>
+                          <MessageCircle className="w-3.5 h-3.5" /> {e.label}
+                        </a>
+                      )
+                    ) : null
                   )}
                 </div>
               </div>
             ))}
             {busy && (
               <div className="flex justify-start">
-                <div className="px-3.5 py-2.5 rounded-2xl bg-white border border-[#f0e4e2]">
-                  <Loader2 className="w-4 h-4 animate-spin text-[#ff6f61]" />
+                <div className="px-3.5 py-2.5 rounded-2xl bg-white border border-[#f0e4e2] flex items-center gap-2 text-xs text-[#7a5c58]">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#ff6f61]" /> كيخدم…
                 </div>
               </div>
             )}
@@ -224,7 +345,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                   type="button"
                   onClick={toggleMic}
                   className={`w-11 h-11 rounded-full flex items-center justify-center cursor-pointer ${listening ? 'bg-red-500 text-white animate-pulse' : 'bg-[#fff0ed] text-[#ff6f61]'}`}
-                  title={t('Parler', 'تكلّم', 'Speak')}
+                  title="تكلّم"
                 >
                   {listening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>
@@ -232,7 +353,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                   type="button"
                   onClick={() => setVoice({ ...voice, lang: voice.lang === 'ar-MA' ? 'fr-FR' : 'ar-MA' })}
                   className="text-[10px] font-black text-[#99807d] cursor-pointer"
-                  title={t('Langue du micro', 'لغة الميكروفون', 'Mic language')}
+                  title="لغة الميكروفون"
                 >
                   {voice.lang === 'ar-MA' ? 'عربي' : 'FR'}
                 </button>
@@ -249,7 +370,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
               }}
               rows={1}
               dir="auto"
-              placeholder={t('Écrivez votre message…', 'اكتب رسالتك…', 'Type your message…')}
+              placeholder="اكتب رسالتك…"
               className="flex-1 resize-none max-h-28 p-3 rounded-2xl bg-[#fff8f7] border border-[#f0e4e2] text-sm focus:outline-none focus:ring-2 focus:ring-[#ff6f61]"
             />
             <button type="submit" disabled={!input.trim() || busy} className="w-11 h-11 rounded-full bg-[#ff6f61] text-white flex items-center justify-center disabled:opacity-40 cursor-pointer">

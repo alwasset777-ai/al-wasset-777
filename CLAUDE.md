@@ -8,6 +8,8 @@
 - موقع وتطبيق مكتب **الوسيط 777 للخدمات العقارية** بمكناس (React + Vite + Tailwind، خادم `server.ts` بـ Express).
 - الأقسام المضافة: «الإعلانات» (وكيل إعلانات ذكي)، «سجل العقارات و المالكين»، المساعد «وكيل الوسيط 777» (محادثة نصية وصوتية)، والتطبيق قابل للتثبيت على الهاتف (PWA).
 - معلومات المكتب في `src/data/agencyProfile.ts`، ودليل الإعداد بالعربية في `docs/SETUP-AR.md`.
+- الوكيل الذكي: أدواته معرّفة في `src/agent/toolDefs.ts` (وضعان: `manager` للمدير و`customer` لزبائن الموقع)، وتُنفّذ في المتصفح عبر `src/agent/executor.ts`، والخادم (`app.ts` ← `/api/agent/chat`) يمرّرها إلى Gemini.
+- الموقع منشور على Vercel: https://al-wasset-777.vercel.app (كل دمج في `main` يُنشر تلقائياً).
 
 ## أوامر
 - خادم واحد `server.ts` يشغّل الموقع والـ API معاً: `npm run dev` للتطوير، `npm run build && npm start` للإنتاج (Cloud Run / AI Studio)، `npm run lint` للتحقق.
