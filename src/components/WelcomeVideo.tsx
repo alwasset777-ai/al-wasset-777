@@ -52,7 +52,7 @@ export const WelcomeVideoSection: React.FC<{ language: Language }> = ({ language
             ? 'تعرّف على مكتبنا بمكناس، خدماتنا، وكيف تستعمل التطبيق: البحث عن العقارات، حجز الزيارات، المساعد الذكي «وكيل الوسيط 777» وتثبيت التطبيق على هاتفك.'
             : isEn
             ? 'Discover our Meknès office, our services and how to use the app: property search, visit booking, the “Al Wassit 777” smart assistant and installing the app on your phone.'
-            : 'Découvrez notre agence à Meknès, nos services et comment utiliser l’application : recherche de biens, réservation de visites, l’assistant « وكيل الوسيط 777 » et l’installation sur votre téléphone.'}
+            : 'Découvrez notre agence à Meknès, nos services et comment utiliser l’application : recherche de biens, réservation de visites, l’assistant intelligent « Al Wassit 777 » et l’installation sur votre téléphone.'}
         </p>
         <a
           href={welcomeVideoWhatsappUrl('')}
