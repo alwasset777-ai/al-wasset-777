@@ -6,7 +6,7 @@ export const WELCOME_VIDEO_PATH = '/videos/film-al-wasset-777.mp4'; // film comp
 export const WELCOME_VIDEO_SHORT_PATH = '/videos/film-al-wasset-777-court.mp4'; // version courte (ouverture + 7 scènes + fin)
 export const WELCOME_VIDEO_POSTER = '/videos/film-al-wasset-777.jpg';
 export const WELCOME_VIDEO_FILENAME = 'مجموعة-الوسيط-777.mp4';
-export const WELCOME_VIDEO_MINUTES = { full: 25, short: 3 }; // mis à jour après le rendu
+export const WELCOME_VIDEO_MINUTES = { full: 36, short: 5 };
 export const WELCOME_ANCHOR = 'bienvenue';
 
 // Lien public (toujours le site en ligne, même si le gérant travaille en local).
