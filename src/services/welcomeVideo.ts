@@ -26,7 +26,7 @@ export const WELCOME_VIDEOS: Record<Language, WelcomeVideo> = {
     short: '/videos/film-al-wasset-777-en-court.mp4',
     poster: '/videos/film-al-wasset-777-en.jpg',
     filename: 'Al-Wassit-777-Group.mp4',
-    minutes: { full: 36, short: 5 },
+    minutes: { full: 32, short: 4 },
   },
 };
 export const FILM_LANGUAGES: { code: Language; label: string }[] = [
