@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>فيلم مجموعة الوسيط 777</title>
+<!--
+  Film promotionnel et éducatif « مجموعة الوسيط 777 » (1080×1920), d'après le scénario PDF (34 scènes).
+  Les données (textes, timings de la voix off) viennent de build/timeline.js, produit par build.py.
+  Versions française et anglaise : même page, mise en page de gauche à droite (FILM.lang, FILM.ui).
+  La page ne bouge pas seule : render.mjs appelle window.renderAt(t) pour chaque image.
+  Aperçu animé dans un navigateur : film.html?play (ou ?play&t=120 pour commencer à 120 s).
+-->
+<style>
+@font-face { font-family: 'Cairo'; src: url(fonts/cairo-arabic.woff2) format('woff2'); font-weight: 200 1000;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+@font-face { font-family: 'Cairo'; src: url(fonts/cairo-latin.woff2) format('woff2'); font-weight: 200 1000;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+20AC, U+2122, U+2190-21FF, U+2212; }
+
+:root {
+  --bg0: #0b0506; --bg1: #1b0a0c; --maroon: #3a1013; --gold: #d9b25f; --gold2: #f4d88f; --gold3: #b8862f;
+  --red: #e0262d; --cream: #fbf3e2; --ink: #1b1210; --mute: #cdb9a6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+body { font-family: 'Cairo', 'Noto Color Emoji', sans-serif; color: #fff; }
+#stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: var(--bg0); }
+.seg { position: absolute; inset: 0; overflow: hidden; display: none; }
+.layer { position: absolute; inset: 0; }
+.a { will-change: transform, opacity; }
+.emoji { font-family: 'Noto Color Emoji', sans-serif; }
+.ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+
+/* Fonds selon le moment de la journée (indiqué dans l'en-tête de chaque scène) */
+.bg { position: absolute; inset: 0; }
+.tod-night   { background: radial-gradient(900px 700px at 70% 12%, #1c2340 0%, transparent 65%), linear-gradient(180deg, #070912 0%, #0b0506 100%); }
+.tod-dawn    { background: radial-gradient(1000px 650px at 50% 0%, #6a2c12 0%, transparent 70%), linear-gradient(180deg, #24100b 0%, #0b0506 70%); }
+.tod-morning { background: radial-gradient(1000px 700px at 80% 5%, #5a3a17 0%, transparent 65%), linear-gradient(180deg, #1d120b 0%, #0b0506 75%); }
+.tod-day     { background: radial-gradient(1000px 800px at 20% 0%, #4b1c18 0%, transparent 65%), radial-gradient(900px 700px at 100% 100%, #2a0d10 0%, transparent 60%), linear-gradient(180deg, #170809 0%, #0b0506 100%); }
+.tod-after   { background: radial-gradient(1000px 750px at 85% 8%, #5c2a10 0%, transparent 65%), linear-gradient(180deg, #1e0c08 0%, #0b0506 80%); }
+.tod-evening { background: radial-gradient(1000px 750px at 15% 8%, #3d1530 0%, transparent 65%), linear-gradient(180deg, #170812 0%, #0b0506 80%); }
+.grain { position: absolute; inset: 0; opacity: .05; background-image: radial-gradient(#fff 1px, transparent 1.2px); background-size: 7px 7px; }
+.gold-dust { position: absolute; inset: 0; opacity: .5;
+  background-image: radial-gradient(circle at 12% 18%, rgba(244,216,143,.5) 0 2px, transparent 3px), radial-gradient(circle at 78% 30%, rgba(244,216,143,.45) 0 2px, transparent 3px),
+  radial-gradient(circle at 30% 72%, rgba(244,216,143,.35) 0 2px, transparent 3px), radial-gradient(circle at 88% 82%, rgba(244,216,143,.4) 0 2px, transparent 3px),
+  radial-gradient(circle at 55% 45%, rgba(244,216,143,.3) 0 1.5px, transparent 2.5px), radial-gradient(circle at 8% 60%, rgba(244,216,143,.3) 0 1.5px, transparent 2.5px); }
+
+#topbar { position: absolute; top: 0; left: 0; right: 0; height: 12px; z-index: 50; background: linear-gradient(90deg, #b3121a, var(--gold) 50%, #b3121a); }
+#logochip { position: absolute; top: 34px; left: 40px; z-index: 50; width: 190px; padding: 8px 12px; border-radius: 18px; background: #fff; border: 3px solid var(--gold3); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+#logochip img { width: 100%; display: block; }
+
+/* En-tête de scène (clap + numéro + titre) */
+.slate { position: absolute; top: 160px; right: 64px; left: 64px; color: #ff4d55; font-size: 30px; font-weight: 800; display: flex; align-items: center; gap: 12px; }
+.head { position: absolute; top: 212px; right: 64px; left: 64px; display: flex; gap: 28px; align-items: center; }
+.badge { flex: none; width: 132px; height: 132px; border-radius: 30px; background: linear-gradient(160deg, #2a0a0c, #120506); border: 4px solid var(--gold); display: grid; place-items: center; font-size: 66px; font-weight: 900; color: var(--gold2); box-shadow: 0 16px 40px rgba(0,0,0,.5), inset 0 0 30px rgba(217,178,95,.2); }
+.head .t { font-size: 54px; font-weight: 900; line-height: 1.22; }
+.head .tg { font-size: 34px; font-weight: 800; color: var(--gold); margin-top: 6px; line-height: 1.35; }
+
+/* Téléphones */
+.phone { position: absolute; width: 410px; height: 888px; border-radius: 64px; background: #0c0c0e; padding: 13px; box-shadow: 0 40px 90px rgba(0,0,0,.65), 0 0 0 2px rgba(255,255,255,.08), 0 0 60px rgba(217,178,95,.12); }
+.phone img { width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 52px; display: block; }
+
+/* Nص الشاشة */
+.screen { position: absolute; left: 64px; right: 64px; text-align: center; font-size: 56px; font-weight: 900; line-height: 1.35; color: var(--gold2); text-shadow: 0 6px 30px rgba(0,0,0,.8); }
+.screen::before, .screen::after { content: ''; display: block; height: 3px; width: 200px; margin: 18px auto; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+
+/* Sous-titres de la voix off */
+.subs { position: absolute; left: 50px; right: 50px; bottom: 90px; min-height: 190px; }
+.sub { position: absolute; inset: 0; display: flex; align-items: center; gap: 20px; padding: 26px 34px; border-radius: 34px; background: rgba(12,6,7,.82); border: 2px solid rgba(217,178,95,.45); }
+.sub .mic { flex: none; font-size: 46px; }
+.sub .tx { font-size: 40px; font-weight: 700; line-height: 1.5; }
+.sub.guide { border-color: rgba(224,38,45,.6); }
+html[dir=ltr] .sub { top: auto; min-height: 190px; }
+html[dir=ltr] .sub .tx { font-size: 38px; line-height: 1.42; }
+html[dir=ltr] .ctitle .a2 { font-size: 54px; }
+html[dir=ltr] .sectitle { font-size: 48px; }
+html[dir=ltr] .part-title { font-size: 80px; }
+
+/* Étapes */
+.stephead { position: absolute; top: 1200px; right: 64px; left: 64px; display: flex; align-items: center; justify-content: space-between; }
+.stephead .h { font-size: 44px; font-weight: 900; color: var(--gold2); display: flex; align-items: center; gap: 14px; }
+.dots { display: flex; gap: 12px; }
+.dots span { width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,.18); }
+.dots span.on { background: var(--red); box-shadow: 0 0 14px rgba(224,38,45,.8); }
+.step { position: absolute; top: 1290px; right: 64px; left: 64px; display: flex; gap: 30px; align-items: flex-start; padding: 36px 36px; border-radius: 36px; background: rgba(255,248,240,.07); border: 2px solid rgba(217,178,95,.35); }
+.step .n { flex: none; width: 96px; height: 96px; border-radius: 50%; background: var(--red); color: #fff; font-size: 52px; font-weight: 900; display: grid; place-items: center; box-shadow: 0 10px 30px rgba(224,38,45,.45); }
+.step .x { font-size: 46px; font-weight: 700; line-height: 1.55; }
+.tip { position: absolute; top: 1240px; right: 64px; left: 64px; padding: 36px 40px; border-radius: 36px; background: var(--cream); color: var(--ink); border: 4px solid var(--gold); box-shadow: 0 30px 70px rgba(0,0,0,.5); }
+.tip .h { font-size: 44px; font-weight: 900; color: #a5741f; display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.tip .x { font-size: 42px; font-weight: 700; line-height: 1.55; }
+
+/* Ouvertures */
+.photo { position: absolute; inset: 0; background-size: cover; background-position: center; }
+.vignette { position: absolute; inset: 0; background: radial-gradient(1200px 1400px at 50% 40%, transparent 30%, rgba(0,0,0,.85) 100%), linear-gradient(180deg, rgba(0,0,0,.55) 0%, transparent 25%, transparent 50%, rgba(0,0,0,.92) 100%); }
+.bigtitle { position: absolute; right: 64px; left: 64px; font-size: 190px; font-weight: 1000; line-height: 1.05; text-shadow: 0 20px 60px rgba(0,0,0,.8); }
+.paper { position: absolute; width: 120px; height: 160px; background: linear-gradient(160deg, #fff, #e9e3d6); border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.paper::before { content: ''; position: absolute; inset: 22px 16px; background: repeating-linear-gradient(180deg, #b9b2a5 0 4px, transparent 4px 16px); opacity: .7; }
+.ring { position: absolute; font-size: 120px; }
+.glow777 { position: absolute; left: 0; right: 0; text-align: center; font-size: 300px; font-weight: 1000; color: var(--gold2); text-shadow: 0 0 40px rgba(244,216,143,.9), 0 0 120px rgba(217,178,95,.7), 0 0 220px rgba(217,178,95,.4); }
+.light { position: absolute; left: 540px; top: 860px; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: radial-gradient(circle, #fff6d6 0%, var(--gold2) 30%, rgba(217,178,95,0) 70%); }
+.spark { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--gold2); box-shadow: 0 0 14px var(--gold2); }
+
+/* Logo officiel */
+.logocard { position: absolute; left: 50%; width: 640px; margin-left: -320px; padding: 26px 34px; border-radius: 48px; background: #fff; border: 8px solid var(--gold3); box-shadow: 0 40px 120px rgba(0,0,0,.6), 0 0 80px rgba(217,178,95,.25); }
+.logocard img { width: 100%; display: block; }
+
+/* Titre (couverture) */
+.ctitle { position: absolute; left: 60px; right: 60px; text-align: center; }
+.ctitle .a1 { font-size: 110px; font-weight: 1000; color: var(--gold2); line-height: 1.1; }
+.ctitle .a2 { font-size: 72px; font-weight: 900; line-height: 1.25; margin-top: 10px; }
+.pill { position: absolute; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 22px 54px; border-radius: 999px; background: linear-gradient(90deg, #e9c46a, #c99a3c); color: #2b1606; font-size: 44px; font-weight: 900; box-shadow: 0 20px 50px rgba(217,178,95,.35); }
+.wa { position: absolute; left: 0; right: 0; text-align: center; font-size: 64px; font-weight: 800; }
+
+/* Pourquoi */
+.sectitle { position: absolute; top: 175px; left: 60px; right: 60px; text-align: center; font-size: 62px; font-weight: 1000; color: var(--gold2); line-height: 1.2; }
+.intro { position: absolute; top: 290px; left: 70px; right: 70px; text-align: center; font-size: 40px; font-weight: 700; line-height: 1.6; color: #f3e6d6; }
+.stat { position: absolute; width: 450px; height: 300px; border-radius: 40px; background: linear-gradient(160deg, #1d0b0d, #0d0506); border: 3px solid rgba(217,178,95,.55); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,.5); }
+.stat .num { font-size: 120px; font-weight: 1000; color: var(--gold2); line-height: 1.05; direction: ltr; }
+.stat .lb { font-size: 40px; font-weight: 800; margin-top: 6px; line-height: 1.3; }
+.stat .ex { font-size: 30px; font-weight: 700; color: var(--mute); margin-top: 4px; }
+.feat { position: absolute; left: 60px; right: 60px; height: 300px; display: flex; gap: 30px; align-items: center; padding: 30px 40px; border-radius: 40px; background: rgba(255,248,240,.06); border: 2px solid rgba(217,178,95,.35); }
+.feat .ic { flex: none; width: 150px; height: 150px; border-radius: 36px; background: linear-gradient(160deg, #3a1013, #160608); border: 3px solid var(--gold); display: grid; place-items: center; font-size: 84px; }
+.feat .ft { font-size: 52px; font-weight: 900; color: var(--gold2); }
+.feat .fx { font-size: 38px; font-weight: 700; line-height: 1.5; color: #f3e6d6; }
+
+/* Parties */
+.part-emoji { position: absolute; top: 250px; left: 0; right: 0; text-align: center; font-size: 200px; }
+.part-label { position: absolute; top: 510px; left: 0; right: 0; text-align: center; font-size: 46px; font-weight: 900; color: var(--gold); letter-spacing: 2px; }
+.part-title { position: absolute; top: 580px; left: 60px; right: 60px; text-align: center; font-size: 96px; font-weight: 1000; line-height: 1.2; }
+.plist { position: absolute; top: 830px; left: 90px; right: 90px; display: flex; flex-direction: column; gap: 6px; }
+.plist .r { display: flex; gap: 24px; align-items: center; font-size: 34px; font-weight: 700; color: #efe0cf; }
+.plist .r b { flex: none; width: 80px; text-align: center; color: var(--gold2); font-weight: 900; direction: ltr; }
+
+/* Clôture */
+.checks { position: absolute; left: 50px; right: 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.checks div { padding: 22px 24px; border-radius: 26px; border: 2px solid rgba(217,178,95,.55); background: rgba(10,5,6,.72); font-size: 32px; font-weight: 800; line-height: 1.45; }
+.flash { position: absolute; left: 50%; top: 50%; width: 640px; height: 1385px; margin: -692px 0 0 -320px; border-radius: 80px; overflow: hidden; border: 14px solid #0c0c0e; box-shadow: 0 0 120px rgba(217,178,95,.35); }
+.flash img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.white { position: absolute; inset: 0; background: #fff; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="segs"></div>
+  <div id="topbar"></div>
+  <div id="logochip"><img src="assets/logo.jpg" alt=""></div>
+</div>
+<script>document.write('<script src="build/' + (new URLSearchParams(location.search).get('tl') || 'timeline') + '.js"><\/script>');</script>
+<script>
+const F = window.FILM;
+const LTR = !!F.lang && F.lang !== 'ar'; // versions française et anglaise
+document.documentElement.lang = F.lang || 'ar';
+document.documentElement.dir = LTR ? 'ltr' : 'rtl';
+const UI = { steps: 'خطوة بخطوة', tip: 'نصيحة احترافية', whatsapp: 'واتساب', ...(F.ui || {}) };
+const IN = LTR ? 'left' : 'right'; // les cartes entrent par le début de la ligne
+const XF = 0.6; // fondu enchaîné entre segments
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Les chiffres et mots latins restent lisibles dans le texte arabe (et inversement les mots arabes dans le texte latin).
+const rich = LTR
+  ? (s) => esc(s).replace(/([\u0600-\u06FF][\u0600-\u06FF\s]*[\u0600-\u06FF]|[\u0600-\u06FF])/g, '<span dir="rtl">$1</span>')
+  : (s) => esc(s).replace(/([0-9A-Za-z][0-9A-Za-z .,+:/@%-]*[0-9A-Za-z%+]|[0-9])/g, '<span class="ltr">$1</span>');
+const emo = (s) => String(s).replace(/(\p{Extended_Pictographic}(️|‍\p{Extended_Pictographic})*)/gu, '<span class="emoji">$1</span>');
+
+// ---------- animations ----------
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const ease = (x) => 1 - Math.pow(1 - x, 3);
+const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const back = (x) => { const c1 = 1.4, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+
+function mk(parent, cls, html, style = '') {
+  const d = document.createElement('div');
+  d.className = cls;
+  if (html != null) d.innerHTML = html;
+  if (style) d.style.cssText = style;
+  parent.appendChild(d);
+  return d;
+}
+
+// Une animation : apparition à t (durée d), disparition optionnelle à out.
+function anim(list, el, t, fx = 'up', opts = {}) {
+  list.push({ el, t, fx, d: opts.d ?? 0.7, out: opts.out ?? null, outD: opts.outD ?? 0.5, outFx: opts.outFx ?? 'fade', base: opts.base ?? '' });
+  el.classList.add('a');
+  el.style.opacity = 0;
+}
+
+function applyAnim(a, lt) {
+  const pin = clamp((lt - a.t) / a.d);
+  let o = 1, tr = '';
+  const p = a.fx === 'pop' ? back(pin) : ease(pin);
+  switch (a.fx) {
+    case 'up': o = p; tr = `translateY(${(1 - p) * 60}px)`; break;
+    case 'down': o = p; tr = `translateY(${(p - 1) * 60}px)`; break;
+    case 'right': o = p; tr = `translateX(${(1 - p) * 120}px)`; break;
+    case 'left': o = p; tr = `translateX(${(p - 1) * 120}px)`; break;
+    case 'pop': o = clamp(pin * 2); tr = `scale(${0.5 + 0.5 * p})`; break;
+    case 'zoom': o = p; tr = `scale(${1.25 - 0.25 * p})`; break;
+    case 'none': o = 1; break;
+    default: o = p;
+  }
+  if (a.out != null && lt > a.out) {
+    const q = ease(clamp((lt - a.out) / a.outD));
+    o *= 1 - q;
+    if (a.outFx === 'left') tr += ` translateX(${-q * 120}px)`;
+    if (a.outFx === 'right') tr += ` translateX(${q * 120}px)`;
+    if (a.outFx === 'up') tr += ` translateY(${-q * 60}px)`;
+  }
+  if (lt < a.t) o = 0;
+  a.el.style.opacity = o.toFixed(3);
+  a.el.style.transform = (a.base ? a.base + ' ' : '') + tr;
+  return a.el.style.opacity + tr;
+}
+
+const TOD = (slate) => {
+  const s = slate || '';
+  if (/^tod-/.test(s)) return s; // versions traduites : moment de la journée déjà résolu (seg.tod)
+  if (/منتصف الليل|ليل/.test(s)) return 'tod-night';
+  if (/شروق/.test(s)) return 'tod-dawn';
+  if (/صباح/.test(s)) return 'tod-morning';
+  if (/عصر/.test(s)) return 'tod-after';
+  if (/مساء|غروب/.test(s)) return 'tod-evening';
+  return 'tod-day';
+};
+
+function background(root, slate) {
+  const bg = mk(root, 'bg ' + TOD(slate));
+  mk(bg, 'gold-dust');
+  mk(bg, 'grain');
+  return bg;
+}
+
+// Sous-titres de la voix off : chaque phrase s'affiche pendant qu'elle est dite.
+function subtitles(root, list, lines, guide = false) {
+  if (!lines || !lines.length) return;
+  const box = mk(root, 'subs');
+  for (const l of lines) {
+    const s = mk(box, 'sub' + (guide ? ' guide' : ''), `<span class="mic emoji">${guide ? '🗣️' : '🎙️'}</span><span class="tx">${rich(l.text)}</span>`);
+    anim(list, s, l.s, 'fade', { d: 0.25, out: l.e + 0.15, outD: 0.2 });
+  }
+}
+
+function phonesFor(imgs) {
+  return imgs.map((src) => `<img src="${esc(src)}" alt="">`);
+}
+
+// ---------- types de segments ----------
+const BUILD = {
+  opening(seg, root, L, M) {
+    if (seg.photo) {
+      const ph = mk(root, 'photo', null, `background-image:url('${seg.photo}')`);
+      M.push((lt) => { const k = 1.06 + 0.16 * clamp(lt / seg.dur); ph.style.transform = `scale(${k.toFixed(4)}) translate(${(-lt * 3).toFixed(1)}px, ${(lt * 2).toFixed(1)}px)`; return k; });
+      mk(root, 'vignette');
+      // feuilles qui volent (ralenti)
+      for (let i = 0; i < 11; i++) {
+        const p = mk(root, 'paper');
+        const x0 = (i * 97) % 1080, y0 = 1900 - (i * 173) % 900, sp = 40 + (i % 4) * 18, rot = (i % 2 ? 1 : -1) * (20 + i * 7);
+        M.push((lt) => {
+          const y = y0 - lt * sp * 2.2, x = x0 + Math.sin(lt * 0.6 + i) * 80;
+          p.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${(rot + lt * rot * 0.5).toFixed(1)}deg)`;
+          p.style.opacity = (0.85 * clamp(lt / 1.5)).toFixed(2);
+          return y;
+        });
+      }
+      const ring = mk(root, 'ring emoji', '📞', 'top:300px; left:90px');
+      M.push((lt) => { const k = Math.sin(lt * 40) * 8 * (Math.sin(lt * 3) > 0 ? 1 : 0); ring.style.transform = `rotate(${k.toFixed(1)}deg)`; ring.style.opacity = clamp((lt - 0.5) / 0.5).toFixed(2); return k; });
+    } else {
+      background(root, 'ليل');
+      // l'instant : noir → point de lumière dorée → étincelles qui convergent
+      const light = mk(root, 'light');
+      M.push((lt) => { const k = lt < 2 ? 0 : Math.min(60, Math.pow(lt - 2, 2) * 8); light.style.transform = `scale(${(1 + k).toFixed(2)})`; light.style.opacity = (lt < 2 ? 0 : clamp(1.3 - (lt - 2) / 6)).toFixed(2); return k; });
+      for (let i = 0; i < 26; i++) {
+        const s = mk(root, 'spark');
+        const ang = i * 2.4, r0 = 700 + (i % 5) * 90;
+        M.push((lt) => {
+          const p = easeInOut(clamp((lt - 2.5) / 3));
+          const r = r0 * (1 - p);
+          s.style.transform = `translate(${(540 + Math.cos(ang) * r).toFixed(1)}px, ${(860 + Math.sin(ang) * r).toFixed(1)}px)`;
+          s.style.opacity = (lt < 2.5 ? 0 : p < 1 ? 0.9 : 0).toFixed(2);
+          return r;
+        });
+      }
+      const g = mk(root, 'glow777', '777', 'top: 700px');
+      anim(L, g, 5.2, 'zoom', { d: 1.4 });
+    }
+    const sl = mk(root, 'slate', `<span class="emoji">🎬</span><span>${esc(seg.slate)}</span>`);
+    anim(L, sl, 0.4, 'fade');
+    const tt = mk(root, 'bigtitle', esc(seg.title), seg.photo ? 'top: 1010px' : 'top: 380px; text-align:center; color: var(--gold2)');
+    anim(L, tt, seg.photo ? 1.0 : 4.6, 'up', { d: 1.2 });
+    if (seg.screen) {
+      const sc = mk(root, 'screen', esc(seg.screen), `top: ${seg.photo ? 1260 : 1180}px`);
+      anim(L, sc, seg.screenAt, 'zoom', { d: 0.9 });
+    }
+    subtitles(root, L, seg.narr);
+  },
+
+  title(seg, root, L, M) {
+    background(root, 'ليل');
+    const lc = mk(root, 'logocard', `<img src="assets/logo.jpg" alt="">`, 'top: 170px');
+    anim(L, lc, 0.2, 'pop', { d: 1.0 });
+    const ct = mk(root, 'ctitle', `<div class="a1">${rich(seg.t1)}</div><div class="a2">${esc(seg.t2)}</div>`, 'top: 680px');
+    anim(L, ct, 1.0, 'up', { d: 1.0 });
+    seg.imgs.forEach((src, i) => {
+      const ph = mk(root, 'phone', `<img src="${esc(src)}" alt="">`, `left:${[90, 365, 640][i]}px; top: 960px; width: 300px; height: 650px; border-radius: 48px; z-index:${i === 1 ? 3 : 1}`);
+      anim(L, ph, 1.8 + i * 0.25, 'up', { d: 0.9, base: `rotate(${[-6, 0, 6][i]}deg)` });
+    });
+    subtitles(root, L, seg.narr);
+  },
+
+  why(seg, root, L) {
+    background(root, 'نهار');
+    const t = mk(root, 'sectitle', rich(seg.title));
+    anim(L, t, 0.2, 'up');
+    const it = mk(root, 'intro', rich(seg.intro));
+    anim(L, it, 0.8, 'up', { out: seg.featAt - 0.6 });
+    seg.stats.forEach((s, i) => {
+      const x = (i % 2 ? 60 : 570) + (LTR ? (i % 2 ? 510 : -510) : 0), y = 640 + Math.floor(i / 2) * 340;
+      const el = mk(root, 'stat', `<div class="num">${esc(s.num)}</div><div class="lb">${esc(s.label)}</div>${s.extra ? `<div class="ex">${emo(esc(s.extra))}</div>` : ''}`, `left:${x}px; top:${y}px`);
+      anim(L, el, s.at, 'pop', { d: 0.8, out: seg.featAt - 0.6 });
+    });
+    seg.feats.forEach((f, i) => {
+      const y = 330 + (i % 3) * 360;
+      const el = mk(root, 'feat', `<div class="ic emoji">${esc(f.icon)}</div><div><div class="ft">${esc(f.title)}</div><div class="fx">${rich(f.text)}</div></div>`, `top:${y}px`);
+      anim(L, el, f.at, IN, { d: 0.6, out: f.out });
+    });
+    subtitles(root, L, seg.narr, true);
+  },
+
+  part(seg, root, L) {
+    background(root, 'ليل');
+    const e = mk(root, 'part-emoji emoji', esc(seg.emoji));
+    anim(L, e, 0.2, 'pop', { d: 1.0 });
+    anim(L, mk(root, 'part-label', esc(seg.label)), 0.7, 'fade');
+    anim(L, mk(root, 'part-title', esc(seg.title)), 1.0, 'up', { d: 1.0 });
+    const pl = mk(root, 'plist');
+    seg.list.forEach((r, i) => anim(L, mk(pl, 'r', `<b>${esc(r.num)}</b><span>${rich(r.title)}</span>`), 1.6 + i * 0.18, IN, { d: 0.5 }));
+  },
+
+  scene(seg, root, L, M) {
+    background(root, seg.tod || seg.slate);
+    anim(L, mk(root, 'slate', `<span class="emoji">🎬</span><span>${rich(seg.slate)}</span>`), 0.15, 'fade');
+    const head = mk(root, 'head', `<div class="badge">${esc(seg.num)}</div><div><div class="t">${rich(seg.title)}</div>${seg.tagline ? `<div class="tg">✦ ${rich(seg.tagline)}</div>` : ''}</div>`);
+    anim(L, head, 0.3, IN, { d: 0.8 });
+
+    // Téléphones : grands pendant la voix off, puis plus petits en haut pendant les étapes.
+    const n = seg.imgs.length;
+    const phones = seg.imgs.map((src, i) => mk(root, 'phone', `<img src="${esc(src)}" alt="">`));
+    const A = n === 1 ? [{ x: 335, y: 480, r: 0, s: 1 }] : [{ x: 150, y: 500, r: -4, s: 1 }, { x: 520, y: 440, r: 5, s: 0.92 }];
+    const B = n === 1 ? [{ x: 375, y: 450, r: 0, s: 0.8 }] : [{ x: 170, y: 470, r: -3, s: 0.78 }, { x: 560, y: 440, r: 4, s: 0.72 }];
+    const swapAt = seg.swapAt ?? 1e9;
+    M.push((lt) => {
+      const pin = ease(clamp((lt - 0.6) / 0.9));
+      const pb = easeInOut(clamp((lt - seg.stepsAt + 0.2) / 1.0));
+      const sw = easeInOut(clamp((lt - swapAt) / 0.9));
+      let sig = '';
+      phones.forEach((ph, i) => {
+        const j = n === 2 && sw > 0 ? (i === 0 ? 1 : 0) : i; // permutation progressive avant/arrière
+        const a = A[i], b = B[i], a2 = A[j], b2 = B[j];
+        const lerp = (u, v, k) => u + (v - u) * k;
+        const pa = { x: lerp(a.x, a2.x, sw), y: lerp(a.y, a2.y, sw), r: lerp(a.r, a2.r, sw), s: lerp(a.s, a2.s, sw) };
+        const pbb = { x: lerp(b.x, b2.x, sw), y: lerp(b.y, b2.y, sw), r: lerp(b.r, b2.r, sw), s: lerp(b.s, b2.s, sw) };
+        // lente poussée de caméra pendant la voix off (s'arrête quand les étapes commencent)
+        const push = clamp(lt / Math.max(1, seg.stepsAt)) * (1 - pb);
+        const x = lerp(pa.x, pbb.x, pb) - push * 8, y = lerp(pa.y, pbb.y, pb) + (1 - pin) * 200 - push * 18, r = lerp(pa.r, pbb.r, pb) + push * (i ? 0.8 : -0.8), s = lerp(pa.s, pbb.s, pb) * (1 + push * 0.035);
+        ph.style.left = '0px'; ph.style.top = '0px';
+        ph.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${r.toFixed(2)}deg) scale(${s.toFixed(4)})`;
+        ph.style.transformOrigin = 'top left';
+        ph.style.opacity = pin.toFixed(3);
+        const front = n === 2 ? (sw < 0.5 ? (i === 0) : (i === 1)) : true;
+        ph.style.zIndex = front ? 3 : 2;
+        ph.style.filter = n === 2 && !front ? 'brightness(.6)' : 'none';
+        sig += ph.style.transform + ph.style.opacity + ph.style.zIndex;
+      });
+      return sig;
+    });
+
+    if (seg.screen) {
+      const sc = mk(root, 'screen', rich(seg.screen), 'top: 1395px');
+      anim(L, sc, seg.screenAt, 'zoom', { d: 0.8, out: seg.stepsAt - 0.4 });
+    }
+    subtitles(root, L, seg.narr);
+
+    if (seg.steps.length) {
+      const sh = mk(root, 'stephead', `<div class="h"><span class="emoji">🧭</span> ${esc(UI.steps)}</div><div class="dots">${seg.steps.map(() => '<span></span>').join('')}</div>`);
+      anim(L, sh, seg.stepsAt, 'fade', { out: seg.tip ? seg.tip.s - 0.3 : null });
+      const dots = [...sh.querySelectorAll('.dots span')];
+      M.push((lt) => { let k = -1; seg.steps.forEach((s, i) => { if (lt >= s.s) k = i; }); dots.forEach((d, i) => d.classList.toggle('on', i === k)); return k; });
+      seg.steps.forEach((s, i) => {
+        const el = mk(root, 'step', `<div class="n">${i + 1}</div><div class="x">${rich(s.text)}</div>`);
+        anim(L, el, s.s, 'right', { d: 0.5, out: s.e, outD: 0.35, outFx: 'left' }); // carrousel : la suivante arrive, la précédente part
+      });
+    }
+    // effets de caméra du scénario : passage du noir et blanc à la couleur, éclair lumineux
+    if (seg.fx === 'bw') M.push((lt) => { const g = 1 - clamp((lt - 2.2) / 1.2); root.style.filter = g > 0 ? `grayscale(${g.toFixed(2)})` : ''; return g; });
+    if (seg.fx === 'flash') {
+      const w = mk(root, 'white');
+      M.push((lt) => { const o = lt < 0.9 ? 0 : Math.max(0, 0.85 - (lt - 0.9) * 1.6); w.style.opacity = o.toFixed(2); return o; });
+    }
+    if (seg.tip) {
+      const tp = mk(root, 'tip', `<div class="h"><span class="emoji">💡</span> ${esc(UI.tip)}</div><div class="x">${rich(seg.tip.text)}</div>`);
+      anim(L, tp, seg.tip.s, 'pop', { d: 0.7 });
+    }
+  },
+
+  closing(seg, root, L, M) {
+    const ph = mk(root, 'photo', null, `background-image:url('${seg.photo}')`);
+    M.push((lt) => { const k = 1.04 + 0.12 * clamp(lt / seg.dur); ph.style.transform = `scale(${k.toFixed(4)})`; return k; });
+    mk(root, 'vignette');
+    mk(root, 'layer', null, 'background: rgba(8,4,5,.55)');
+    anim(L, mk(root, 'slate', `<span class="emoji">🎬</span><span>${esc(seg.slate)}</span>`), 0.3, 'fade', { out: seg.flashAt - 0.3 });
+    const lc = mk(root, 'logocard', `<img src="assets/logo.jpg" alt="">`, 'top: 230px; width: 560px; margin-left:-280px');
+    anim(L, lc, 0.6, 'pop', { d: 1.0, out: seg.flashAt - 0.3 });
+    const t = mk(root, 'sectitle', rich(seg.title), `top: 560px; font-size: ${LTR ? 50 : 64}px`);
+    anim(L, t, seg.checksAt, 'up', { out: seg.endAt - 0.4 });
+    const ch = mk(root, 'checks', seg.checks.map((c) => `<div>✓ ${rich(c)}</div>`).join(''), 'top: 760px');
+    [...ch.children].forEach((c, i) => anim(L, c, seg.checksAt + 0.4 + i * 0.35, 'up', { d: 0.5, out: seg.endAt - 0.4 }));
+    const pill = mk(root, 'pill', `<span class="emoji">🎁</span> ${esc(seg.cta)}`, 'top: 1380px');
+    anim(L, pill, seg.ctaAt, 'pop', { d: 0.8, out: seg.endAt - 0.4, base: 'translateX(-50%)' });
+    const wa = mk(root, 'wa', `<span class="emoji">📱</span> <span class="ltr">${esc(seg.phone)}</span>`, 'top: 1510px');
+    anim(L, wa, seg.ctaAt + 0.6, 'up', { out: seg.endAt - 0.4 });
+    // montage éclair des écrans de l'application, sur le rythme
+    const fl = mk(root, 'flash', '<img alt="">');
+    const fimg = fl.querySelector('img');
+    M.push((lt) => {
+      const on = lt >= seg.flashAt && lt < seg.flashEnd;
+      fl.style.opacity = on ? 1 : 0;
+      if (!on) return 'off';
+      const k = Math.min(seg.montage.length - 1, Math.floor((lt - seg.flashAt) / seg.flashStep));
+      if (fimg.getAttribute('src') !== seg.montage[k]) fimg.setAttribute('src', seg.montage[k]);
+      const u = ((lt - seg.flashAt) / seg.flashStep) % 1;
+      fl.style.transform = `scale(${(1.06 - 0.06 * ease(u)).toFixed(3)})`;
+      return k + fl.style.transform;
+    });
+    const wf = mk(root, 'white');
+    M.push((lt) => { let o = 0; if (lt >= seg.flashAt && lt < seg.flashEnd) { const u = ((lt - seg.flashAt) / seg.flashStep) % 1; o = u < 0.15 ? (1 - u / 0.15) * 0.6 : 0; } wf.style.opacity = o.toFixed(2); return o; });
+    // carte finale : noir + logo + WhatsApp, 5 secondes
+    const end = mk(root, 'layer', null, 'background:#000');
+    anim(L, end, seg.endAt, 'fade', { d: 0.8 });
+    const lc2 = mk(root, 'logocard', `<img src="assets/logo.jpg" alt="">`, 'top: 520px');
+    anim(L, lc2, seg.endAt + 0.4, 'pop', { d: 1.0 });
+    const sc = mk(root, 'screen', esc(seg.screen), 'top: 1060px');
+    anim(L, sc, seg.endAt + 1.0, 'up');
+    const wa2 = mk(root, 'wa', `<span class="emoji">📱</span> ${esc(UI.whatsapp)} <span class="ltr">${esc(seg.phone)}</span>`, 'top: 1330px; color: var(--gold2)');
+    anim(L, wa2, seg.endAt + 1.4, 'up');
+    subtitles(root, L, seg.narr);
+  },
+};
+
+// ---------- construction ----------
+const segRoot = document.getElementById('segs');
+const SEGS = F.segs.map((seg) => {
+  const root = mk(segRoot, 'seg');
+  const L = [], M = [];
+  BUILD[seg.kind](seg, root, L, M);
+  return { seg, root, L, M };
+});
+
+window.TOTAL = F.total;
+window.renderAt = (t) => {
+  let sig = '';
+  for (const s of SEGS) {
+    const lt = t - s.seg.start;
+    const vis = lt > -XF && lt < s.seg.dur + XF;
+    s.root.style.display = vis ? 'block' : 'none';
+    if (!vis) continue;
+    const o = Math.min(clamp((lt + XF) / XF), clamp((s.seg.dur + XF - lt) / XF));
+    s.root.style.opacity = o.toFixed(3);
+    sig += s.seg.id + o.toFixed(3);
+    for (const a of s.L) sig += applyAnim(a, lt);
+    for (const m of s.M) sig += m(lt);
+  }
+  const chip = document.getElementById('logochip');
+  const hide = SEGS.some((s) => ['title', 'closing'].includes(s.seg.kind) && t > s.seg.start - XF && t < s.seg.start + s.seg.dur + XF) || t < 2;
+  chip.style.opacity = hide ? 0 : 1;
+  return sig + chip.style.opacity;
+};
+
+window.renderAt(0);
+const q = new URLSearchParams(location.search);
+if (q.has('play')) {
+  const t0 = performance.now() - (Number(q.get('t')) || 0) * 1000;
+  const loop = () => { window.renderAt(((performance.now() - t0) / 1000) % F.total); requestAnimationFrame(loop); };
+  loop();
+}
+</script>
+</body>
+</html>

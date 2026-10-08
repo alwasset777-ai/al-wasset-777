@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Property, Language } from '../types';
 import { moroccanCities } from '../data/mockData';
+import { WelcomeVideoSection } from './WelcomeVideo';
 
 interface HomeViewProps {
   properties: Property[];
@@ -432,6 +433,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           })}
         </div>
       </div>
+
+      {/* Vidéo de bienvenue (lien envoyé aux abonnés : /#bienvenue) */}
+      <WelcomeVideoSection language={language} />
 
       {/* Legal Hub Banner */}
       <div className="rounded-3xl bg-gradient-to-br from-[#fff0ed] to-[#ffe5e0] border border-[#ffd8d2] p-8 sm:p-10 flex flex-col lg:flex-row items-center justify-between gap-8 shadow-sm">
