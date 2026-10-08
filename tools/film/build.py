@@ -1,9 +1,11 @@
 """Prépare le film : voix off (TTS), minutage de chaque scène, effets sonores, musique, mixage.
 
 Entrée  : content.json (le scénario du PDF, scène par scène, avec le texte vocalisé pour la voix off)
+          content.fr.json / content.en.json : versions française et anglaise (même structure, "lang" et "ui")
 Sorties : build/timeline.js (lu par film.html), build/film-audio.m4a (bande son complète)
 
 Usage : python3 build.py [--only ID,ID,...]   (--only : version courte avec ces segments seulement)
+        python3 build.py --content content.fr.json --name fr   → build/timeline-fr.js, build/fr-audio.m4a
 Variables : TTS_MODELS (dossier des voix sherpa-onnx), TTS_CACHE (cache des voix générées)
 """
 import argparse
@@ -56,13 +58,15 @@ def main():
 
     content = json.load(open(args.content, encoding="utf-8"))
     segs = content["segments"]
+    lang = content.get("lang", "ar")
+    voices = {v: v if lang == "ar" else f"{v}_{lang}" for v in ("narrator", "guide")}
     if args.only:
         keep = args.only.split(",")
         segs = [s for s in segs if s["id"] in keep]
     cache = os.environ.get("TTS_CACHE", str(HERE / ".cache" / "tts"))
 
     def say(text_tts, voice):
-        return upsample(synth(text_tts, voice, cache))
+        return upsample(synth(text_tts, voices[voice], cache))
 
     narr, guide = Track(), Track()
     fx_events = []  # (t, name, params)
@@ -199,7 +203,7 @@ def main():
 
     total = round(t + 1.0, 3)
     OUT.mkdir(exist_ok=True)
-    film = {"total": total, "segs": out_segs}
+    film = {"total": total, "lang": lang, "ui": content.get("ui", {}), "segs": out_segs}
     (OUT / f"{args.name == 'film' and 'timeline' or 'timeline-' + args.name}.js").write_text(
         "window.FILM = " + json.dumps(film, ensure_ascii=False) + ";\n", encoding="utf-8")
 
@@ -222,7 +226,7 @@ def main():
     )
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", stems / "narr.wav", "-i", stems / "guide.wav", "-i", stems / "sfx.wav",
                     "-i", stems / "music.wav", "-filter_complex", fc, "-map", "[out]", "-ar", "44100", "-c:a", "aac", "-b:a", "128k", audio], check=True)
-    print(f"{len(out_segs)} segments, durée {total:.1f} s → {OUT / 'timeline.js'}, {audio}")
+    print(f"{len(out_segs)} segments, durée {total:.1f} s → {OUT / ('timeline' if args.name == 'film' else 'timeline-' + args.name)}.js, {audio}")
 
 
 if __name__ == "__main__":

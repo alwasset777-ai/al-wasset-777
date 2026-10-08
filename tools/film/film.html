@@ -6,6 +6,7 @@
 <!--
   Film promotionnel et éducatif « مجموعة الوسيط 777 » (1080×1920), d'après le scénario PDF (34 scènes).
   Les données (textes, timings de la voix off) viennent de build/timeline.js, produit par build.py.
+  Versions française et anglaise : même page, mise en page de gauche à droite (FILM.lang, FILM.ui).
   La page ne bouge pas seule : render.mjs appelle window.renderAt(t) pour chaque image.
   Aperçu animé dans un navigateur : film.html?play (ou ?play&t=120 pour commencer à 120 s).
 -->
@@ -13,7 +14,7 @@
 @font-face { font-family: 'Cairo'; src: url(fonts/cairo-arabic.woff2) format('woff2'); font-weight: 200 1000;
   unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
 @font-face { font-family: 'Cairo'; src: url(fonts/cairo-latin.woff2) format('woff2'); font-weight: 200 1000;
-  unicode-range: U+0000-00FF, U+2000-206F, U+20AC, U+2122, U+2190-21FF, U+2212; }
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+20AC, U+2122, U+2190-21FF, U+2212; }
 
 :root {
   --bg0: #0b0506; --bg1: #1b0a0c; --maroon: #3a1013; --gold: #d9b25f; --gold2: #f4d88f; --gold3: #b8862f;
@@ -68,11 +69,16 @@ body { font-family: 'Cairo', 'Noto Color Emoji', sans-serif; color: #fff; }
 .sub .mic { flex: none; font-size: 46px; }
 .sub .tx { font-size: 40px; font-weight: 700; line-height: 1.5; }
 .sub.guide { border-color: rgba(224,38,45,.6); }
+html[dir=ltr] .sub { top: auto; min-height: 190px; }
+html[dir=ltr] .sub .tx { font-size: 38px; line-height: 1.42; }
+html[dir=ltr] .ctitle .a2 { font-size: 54px; }
+html[dir=ltr] .sectitle { font-size: 48px; }
+html[dir=ltr] .part-title { font-size: 80px; }
 
 /* Étapes */
 .stephead { position: absolute; top: 1200px; right: 64px; left: 64px; display: flex; align-items: center; justify-content: space-between; }
 .stephead .h { font-size: 44px; font-weight: 900; color: var(--gold2); display: flex; align-items: center; gap: 14px; }
-.dots { display: flex; gap: 12px; direction: rtl; }
+.dots { display: flex; gap: 12px; }
 .dots span { width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,.18); }
 .dots span.on { background: var(--red); box-shadow: 0 0 14px rgba(224,38,45,.8); }
 .step { position: absolute; top: 1290px; right: 64px; left: 64px; display: flex; gap: 30px; align-items: flex-start; padding: 36px 36px; border-radius: 36px; background: rgba(255,248,240,.07); border: 2px solid rgba(217,178,95,.35); }
@@ -141,10 +147,17 @@ body { font-family: 'Cairo', 'Noto Color Emoji', sans-serif; color: #fff; }
 <script>document.write('<script src="build/' + (new URLSearchParams(location.search).get('tl') || 'timeline') + '.js"><\/script>');</script>
 <script>
 const F = window.FILM;
+const LTR = !!F.lang && F.lang !== 'ar'; // versions française et anglaise
+document.documentElement.lang = F.lang || 'ar';
+document.documentElement.dir = LTR ? 'ltr' : 'rtl';
+const UI = { steps: 'خطوة بخطوة', tip: 'نصيحة احترافية', whatsapp: 'واتساب', ...(F.ui || {}) };
+const IN = LTR ? 'left' : 'right'; // les cartes entrent par le début de la ligne
 const XF = 0.6; // fondu enchaîné entre segments
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-// Les chiffres et mots latins restent lisibles dans le texte arabe.
-const rich = (s) => esc(s).replace(/([0-9A-Za-z][0-9A-Za-z .,+:/@%-]*[0-9A-Za-z%+]|[0-9])/g, '<span class="ltr">$1</span>');
+// Les chiffres et mots latins restent lisibles dans le texte arabe (et inversement les mots arabes dans le texte latin).
+const rich = LTR
+  ? (s) => esc(s).replace(/([\u0600-\u06FF][\u0600-\u06FF\s]*[\u0600-\u06FF]|[\u0600-\u06FF])/g, '<span dir="rtl">$1</span>')
+  : (s) => esc(s).replace(/([0-9A-Za-z][0-9A-Za-z .,+:/@%-]*[0-9A-Za-z%+]|[0-9])/g, '<span class="ltr">$1</span>');
 const emo = (s) => String(s).replace(/(\p{Extended_Pictographic}(️|‍\p{Extended_Pictographic})*)/gu, '<span class="emoji">$1</span>');
 
 // ---------- animations ----------
@@ -187,6 +200,7 @@ function applyAnim(a, lt) {
     const q = ease(clamp((lt - a.out) / a.outD));
     o *= 1 - q;
     if (a.outFx === 'left') tr += ` translateX(${-q * 120}px)`;
+    if (a.outFx === 'right') tr += ` translateX(${q * 120}px)`;
     if (a.outFx === 'up') tr += ` translateY(${-q * 60}px)`;
   }
   if (lt < a.t) o = 0;
@@ -197,6 +211,7 @@ function applyAnim(a, lt) {
 
 const TOD = (slate) => {
   const s = slate || '';
+  if (/^tod-/.test(s)) return s; // versions traduites : moment de la journée déjà résolu (seg.tod)
   if (/منتصف الليل|ليل/.test(s)) return 'tod-night';
   if (/شروق/.test(s)) return 'tod-dawn';
   if (/صباح/.test(s)) return 'tod-morning';
@@ -296,14 +311,14 @@ const BUILD = {
     const it = mk(root, 'intro', rich(seg.intro));
     anim(L, it, 0.8, 'up', { out: seg.featAt - 0.6 });
     seg.stats.forEach((s, i) => {
-      const x = i % 2 ? 60 : 570, y = 640 + Math.floor(i / 2) * 340;
+      const x = (i % 2 ? 60 : 570) + (LTR ? (i % 2 ? 510 : -510) : 0), y = 640 + Math.floor(i / 2) * 340;
       const el = mk(root, 'stat', `<div class="num">${esc(s.num)}</div><div class="lb">${esc(s.label)}</div>${s.extra ? `<div class="ex">${emo(esc(s.extra))}</div>` : ''}`, `left:${x}px; top:${y}px`);
       anim(L, el, s.at, 'pop', { d: 0.8, out: seg.featAt - 0.6 });
     });
     seg.feats.forEach((f, i) => {
       const y = 330 + (i % 3) * 360;
       const el = mk(root, 'feat', `<div class="ic emoji">${esc(f.icon)}</div><div><div class="ft">${esc(f.title)}</div><div class="fx">${rich(f.text)}</div></div>`, `top:${y}px`);
-      anim(L, el, f.at, 'right', { d: 0.6, out: f.out });
+      anim(L, el, f.at, IN, { d: 0.6, out: f.out });
     });
     subtitles(root, L, seg.narr, true);
   },
@@ -315,14 +330,14 @@ const BUILD = {
     anim(L, mk(root, 'part-label', esc(seg.label)), 0.7, 'fade');
     anim(L, mk(root, 'part-title', esc(seg.title)), 1.0, 'up', { d: 1.0 });
     const pl = mk(root, 'plist');
-    seg.list.forEach((r, i) => anim(L, mk(pl, 'r', `<b>${esc(r.num)}</b><span>${rich(r.title)}</span>`), 1.6 + i * 0.18, 'right', { d: 0.5 }));
+    seg.list.forEach((r, i) => anim(L, mk(pl, 'r', `<b>${esc(r.num)}</b><span>${rich(r.title)}</span>`), 1.6 + i * 0.18, IN, { d: 0.5 }));
   },
 
   scene(seg, root, L, M) {
-    background(root, seg.slate);
+    background(root, seg.tod || seg.slate);
     anim(L, mk(root, 'slate', `<span class="emoji">🎬</span><span>${rich(seg.slate)}</span>`), 0.15, 'fade');
     const head = mk(root, 'head', `<div class="badge">${esc(seg.num)}</div><div><div class="t">${rich(seg.title)}</div>${seg.tagline ? `<div class="tg">✦ ${rich(seg.tagline)}</div>` : ''}</div>`);
-    anim(L, head, 0.3, 'right', { d: 0.8 });
+    anim(L, head, 0.3, IN, { d: 0.8 });
 
     // Téléphones : grands pendant la voix off, puis plus petits en haut pendant les étapes.
     const n = seg.imgs.length;
@@ -363,13 +378,13 @@ const BUILD = {
     subtitles(root, L, seg.narr);
 
     if (seg.steps.length) {
-      const sh = mk(root, 'stephead', `<div class="h"><span class="emoji">🧭</span> خطوة بخطوة</div><div class="dots">${seg.steps.map(() => '<span></span>').join('')}</div>`);
+      const sh = mk(root, 'stephead', `<div class="h"><span class="emoji">🧭</span> ${esc(UI.steps)}</div><div class="dots">${seg.steps.map(() => '<span></span>').join('')}</div>`);
       anim(L, sh, seg.stepsAt, 'fade', { out: seg.tip ? seg.tip.s - 0.3 : null });
       const dots = [...sh.querySelectorAll('.dots span')];
       M.push((lt) => { let k = -1; seg.steps.forEach((s, i) => { if (lt >= s.s) k = i; }); dots.forEach((d, i) => d.classList.toggle('on', i === k)); return k; });
       seg.steps.forEach((s, i) => {
         const el = mk(root, 'step', `<div class="n">${i + 1}</div><div class="x">${rich(s.text)}</div>`);
-        anim(L, el, s.s, 'right', { d: 0.5, out: s.e, outD: 0.35, outFx: 'left' });
+        anim(L, el, s.s, 'right', { d: 0.5, out: s.e, outD: 0.35, outFx: 'left' }); // carrousel : la suivante arrive, la précédente part
       });
     }
     // effets de caméra du scénario : passage du noir et blanc à la couleur, éclair lumineux
@@ -379,7 +394,7 @@ const BUILD = {
       M.push((lt) => { const o = lt < 0.9 ? 0 : Math.max(0, 0.85 - (lt - 0.9) * 1.6); w.style.opacity = o.toFixed(2); return o; });
     }
     if (seg.tip) {
-      const tp = mk(root, 'tip', `<div class="h"><span class="emoji">💡</span> نصيحة احترافية</div><div class="x">${rich(seg.tip.text)}</div>`);
+      const tp = mk(root, 'tip', `<div class="h"><span class="emoji">💡</span> ${esc(UI.tip)}</div><div class="x">${rich(seg.tip.text)}</div>`);
       anim(L, tp, seg.tip.s, 'pop', { d: 0.7 });
     }
   },
@@ -422,7 +437,7 @@ const BUILD = {
     anim(L, lc2, seg.endAt + 0.4, 'pop', { d: 1.0 });
     const sc = mk(root, 'screen', esc(seg.screen), 'top: 1060px');
     anim(L, sc, seg.endAt + 1.0, 'up');
-    const wa2 = mk(root, 'wa', `<span class="emoji">📱</span> واتساب <span class="ltr">${esc(seg.phone)}</span>`, 'top: 1330px; color: var(--gold2)');
+    const wa2 = mk(root, 'wa', `<span class="emoji">📱</span> ${esc(UI.whatsapp)} <span class="ltr">${esc(seg.phone)}</span>`, 'top: 1330px; color: var(--gold2)');
     anim(L, wa2, seg.endAt + 1.4, 'up');
     subtitles(root, L, seg.narr);
   },

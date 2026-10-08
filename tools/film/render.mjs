@@ -4,7 +4,7 @@
 //   node render.mjs                         → build/film.mp4 (timeline.js + film-audio.m4a)
 //   node render.mjs --tl timeline-court --audio build/court-audio.m4a --out build/court.mp4
 //   node render.mjs --preview 5,40,120      → captures PNG dans build/preview/
-//   options : --fps 30 --crf 26 --scale 720 (largeur de sortie) --abr 96k --from 0 --to 60 (extrait) --workers 2
+//   options : --fps 30 --crf 26 --gop 300 (images entre deux clés) --scale 720 (largeur de sortie) --abr 96k --from 0 --to 60 (extrait) --workers 2
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -63,7 +63,7 @@ async function worker(w, f0, f1) {
   const file = path.join(tmp, `part-${w}.mp4`);
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-',
     ...(opt('--scale', null) ? ['-vf', `scale=${opt('--scale')}:-2:flags=lanczos`] : []),
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', opt('--crf', '26'), '-pix_fmt', 'yuv420p', '-r', String(FPS), file], { stdio: ['pipe', 'inherit', 'inherit'] });
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', opt('--crf', '26'), ...(opt('--gop', null) ? ['-g', opt('--gop')] : []), '-pix_fmt', 'yuv420p', '-r', String(FPS), file], { stdio: ['pipe', 'inherit', 'inherit'] });
   let last = null, lastSig = null, shots = 0;
   for (let f = f0; f < f1; f++) {
     const t = from + f / FPS;

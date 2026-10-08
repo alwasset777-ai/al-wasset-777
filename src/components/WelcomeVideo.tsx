@@ -2,22 +2,21 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle, Copy, Film, MessageCircle, Share2 } from 'lucide-react';
 import { ClientLead, Language } from '../types';
 import {
+  FILM_LANGUAGES,
   WELCOME_ANCHOR,
-  WELCOME_VIDEO_MINUTES,
-  WELCOME_VIDEO_PATH,
-  WELCOME_VIDEO_POSTER,
-  WELCOME_VIDEO_SHORT_PATH,
+  WELCOME_VIDEOS,
   shareWelcomeVideo,
+  welcomeAnchor,
   welcomeVideoMessage,
   welcomeVideoWhatsappUrl,
   type ShareOutcome,
 } from '../services/welcomeVideo';
 
-const Player: React.FC<{ className?: string; short?: boolean }> = ({ className = '', short = false }) => (
+const Player: React.FC<{ className?: string; short?: boolean; lang?: Language }> = ({ className = '', short = false, lang = 'ar' }) => (
   <video
-    key={short ? 'short' : 'full'}
-    src={short ? WELCOME_VIDEO_SHORT_PATH : WELCOME_VIDEO_PATH}
-    poster={WELCOME_VIDEO_POSTER}
+    key={`${lang}-${short ? 'short' : 'full'}`}
+    src={short ? WELCOME_VIDEOS[lang].short : WELCOME_VIDEOS[lang].full}
+    poster={WELCOME_VIDEOS[lang].poster}
     controls
     playsInline
     preload="none"
@@ -25,16 +24,39 @@ const Player: React.FC<{ className?: string; short?: boolean }> = ({ className =
   />
 );
 
+// Choix de la langue du film (arabe, français, anglais).
+const LangChips: React.FC<{ value: Language; onChange: (l: Language) => void; dark?: boolean }> = ({ value, onChange, dark = false }) => (
+  <div className="grid grid-cols-3 gap-2 text-xs font-bold">
+    {FILM_LANGUAGES.map((l) => (
+      <button
+        key={l.code}
+        onClick={() => onChange(l.code)}
+        className={`py-2 rounded-xl cursor-pointer ${
+          value === l.code ? 'bg-[#ff6f61] text-white' : dark ? 'bg-white/10 text-white' : 'bg-[#fff8f7] border border-[#f0e4e2] text-[#281715]'
+        }`}
+      >
+        {l.label}
+      </button>
+    ))}
+  </div>
+);
+
 // Section publique (page d'accueil) : les abonnés regardent la vidéo dans l'application.
 export const WelcomeVideoSection: React.FC<{ language: Language }> = ({ language }) => {
   const isAr = language === 'ar';
   const isEn = language === 'en';
   const [short, setShort] = useState(false);
-  const M = WELCOME_VIDEO_MINUTES;
+  const [filmLang, setFilmLang] = useState<Language>(language);
+  const M = WELCOME_VIDEOS[filmLang].minutes;
 
-  // Lien reçu par WhatsApp (…/#bienvenue) : on fait défiler jusqu'à la vidéo.
+  // Le film suit la langue du site (on peut ensuite en choisir une autre).
+  useEffect(() => setFilmLang(language), [language]);
+
+  // Lien reçu par WhatsApp (…/#bienvenue, #bienvenue-fr, #bienvenue-en) : film dans cette langue, puis défilement jusqu'à la vidéo.
   useEffect(() => {
-    if (window.location.hash === `#${WELCOME_ANCHOR}`) {
+    const lang = FILM_LANGUAGES.find((l) => window.location.hash === `#${welcomeAnchor(l.code)}`)?.code;
+    if (lang) {
+      setFilmLang(lang);
       setTimeout(() => document.getElementById(WELCOME_ANCHOR)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
     }
   }, []);
@@ -42,8 +64,11 @@ export const WelcomeVideoSection: React.FC<{ language: Language }> = ({ language
   return (
     <div id={WELCOME_ANCHOR} className="rounded-3xl bg-[#2a1613] text-white p-6 sm:p-10 flex flex-col md:flex-row items-center gap-8 scroll-mt-24">
       <div className="w-full max-w-[300px] shrink-0">
-        <Player short={short} />
-        <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold">
+        <Player short={short} lang={filmLang} />
+        <div className="mt-3">
+          <LangChips value={filmLang} onChange={setFilmLang} dark />
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs font-bold">
           <button onClick={() => setShort(false)} className={`py-2 rounded-xl cursor-pointer ${!short ? 'bg-[#d9b25f] text-[#2b1606]' : 'bg-white/10 text-white'}`}>
             {isAr ? `الفيلم الكامل (${M.full} د)` : isEn ? `Full film (${M.full} min)` : `Film complet (${M.full} min)`}
           </button>
@@ -68,7 +93,7 @@ export const WelcomeVideoSection: React.FC<{ language: Language }> = ({ language
             : 'L’application du Groupe Al Wassit 777 scène par scène : votre agence immobilière numérique, le matching intelligent, l’assistant IA, le réseau de 777 agences, 777 intermédiaires et 1554 entreprises, projets et financement, Al Hiba et solutions juridiques — chaque service expliqué étape par étape. Adhésion gratuite cette année.'}
         </p>
         <a
-          href={welcomeVideoWhatsappUrl('')}
+          href={welcomeVideoWhatsappUrl('', undefined, filmLang)}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#25d366] hover:bg-[#1fb757] text-white text-sm font-bold"
@@ -87,6 +112,8 @@ export const WelcomeVideoPanel: React.FC<{
   onMarkSent: (id: number) => void;
 }> = ({ clients, onMarkSent }) => {
   const [onlyPending, setOnlyPending] = useState(true);
+  const [lang, setLang] = useState<Language>('ar');
+  const V = WELCOME_VIDEOS[lang];
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -107,24 +134,25 @@ export const WelcomeVideoPanel: React.FC<{
   const share = async () => {
     setBusy(true);
     setNotice('جاري تجهيز الفيديو…');
-    const outcome = await shareWelcomeVideo();
+    const outcome = await shareWelcomeVideo(lang);
     setBusy(false);
     setNotice(notices[outcome]);
   };
 
   const copy = async () => {
-    await navigator.clipboard?.writeText(welcomeVideoMessage()).catch(() => undefined);
+    await navigator.clipboard?.writeText(welcomeVideoMessage(undefined, lang)).catch(() => undefined);
     setNotice(notices.copied);
   };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6" dir="rtl">
       <div className="space-y-3">
-        <Player />
-        <a href={WELCOME_VIDEO_PATH} download className="block text-center text-xs font-bold text-[#7a5c58] hover:text-[#ff6f61]">
+        <Player lang={lang} />
+        <LangChips value={lang} onChange={setLang} />
+        <a href={V.full} download className="block text-center text-xs font-bold text-[#7a5c58] hover:text-[#ff6f61]">
           تحميل الفيلم الكامل (MP4)
         </a>
-        <a href={WELCOME_VIDEO_SHORT_PATH} download className="block text-center text-xs font-bold text-[#7a5c58] hover:text-[#ff6f61]">
+        <a href={V.short} download className="block text-center text-xs font-bold text-[#7a5c58] hover:text-[#ff6f61]">
           تحميل النسخة القصيرة (MP4)
         </a>
       </div>
@@ -135,8 +163,8 @@ export const WelcomeVideoPanel: React.FC<{
             <Film className="w-5 h-5 text-[#ff6f61]" /> فيلم مجموعة الوسيط 777 لكل مشترك
           </h2>
           <p className="text-xs text-[#7a5c58] leading-relaxed">
-            فيلم «الوسيط 777… مستقبل مهنتك يبدأ الآن» ({WELCOME_VIDEO_MINUTES.full} دقيقة، 34 مشهدا مع الشرح خطوة بخطوة) ونسخة قصيرة ({WELCOME_VIDEO_MINUTES.short} دقائق).
-            أرسل الرابط لكل مشترك بضغطة على «واتساب» بجانب اسمه، أو شارك ملف النسخة القصيرة مباشرة في قائمة بث واتساب لإرساله للجميع دفعة واحدة.
+            فيلم «الوسيط 777… مستقبل مهنتك يبدأ الآن» ({V.minutes.full} دقيقة، 34 مشهدا مع الشرح خطوة بخطوة) ونسخة قصيرة ({V.minutes.short} دقائق)، بالعربية والفرنسية والإنجليزية.
+            اختر لغة الفيلم أولا، ثم أرسل الرابط لكل مشترك بضغطة على «واتساب» بجانب اسمه (الرسالة تُكتب بنفس اللغة)، أو شارك ملف النسخة القصيرة مباشرة في قائمة بث واتساب لإرساله للجميع دفعة واحدة.
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -190,7 +218,7 @@ export const WelcomeVideoPanel: React.FC<{
                       </span>
                     )}
                     <a
-                      href={welcomeVideoWhatsappUrl(c.phone, c.name)}
+                      href={welcomeVideoWhatsappUrl(c.phone, c.name, lang)}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => onMarkSent(c.id)}
