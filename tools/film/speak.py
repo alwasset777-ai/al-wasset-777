@@ -38,10 +38,20 @@ SYMBOLS = [
 EMOJI = re.compile(r"[\U0001F000-\U0001FAFF☀-➿⬀-⯿️‍▲▼✦✓✔]")
 
 
+NUMBERS = {  # formes vocalisées (Mishkal abîme les nombres écrits en lettres)
+    1: "وَاحِدٌ", 2: "اِثْنَانِ", 3: "ثَلَاثَةٌ", 4: "أَرْبَعَةٌ", 5: "خَمْسَةٌ", 6: "سِتَّةٌ", 7: "سَبْعَةٌ", 8: "ثَمَانِيَةٌ", 9: "تِسْعَةٌ",
+    10: "عَشَرَةٌ", 20: "عِشْرُونَ", 30: "ثَلَاثُونَ", 35: "خَمْسَةٌ وَثَلَاثُونَ", 41: "وَاحِدٌ وَأَرْبَعُونَ", 50: "خَمْسُونَ",
+    60: "سِتُّونَ", 70: "سَبْعُونَ", 77: "سَبْعَةٌ وَسَبْعُونَ", 80: "ثَمَانُونَ", 90: "تِسْعُونَ", 100: "مِائَةٌ", 200: "مِائَتَانِ",
+    500: "خَمْسُمِائَةٍ", 700: "سَبْعُمِائَةٍ", 777: "سَبْعُمِائَةٍ وَسَبْعَةٌ وَسَبْعُونَ", 1000: "أَلْفٌ",
+    1554: "أَلْفٌ وَخَمْسُمِائَةٍ وَأَرْبَعَةٌ وَخَمْسُونَ",
+}
+
+
 def number_words(n):
     from num2words import num2words
 
-    return num2words(int(n), lang="ar").replace("و ", "و")
+    n = int(n)
+    return NUMBERS.get(n) or num2words(n, lang="ar").replace("و ", "و")
 
 
 def speakable(text, keep=None):
@@ -59,8 +69,14 @@ def speakable(text, keep=None):
         s = s.replace(a, b)
     s = EMOJI.sub("", s)
     s = s.replace("«", "").replace("»", "").replace('"', "")
-    s = re.sub(r"(\d+)\s*%", lambda m: number_words(m.group(1)) + " في المائة", s)
-    s = re.sub(r"\d+", lambda m: number_words(m.group(0)), s)
+    def prot(txt):
+        if keep is None:
+            return f" {txt} "
+        keep.append(txt)
+        return f" {chr(0xE000 + len(keep) - 1)} "
+
+    s = re.sub(r"(\d+)\s*%", lambda m: prot(number_words(m.group(1)) + " فِي الْمِائَةِ"), s)
+    s = re.sub(r"\d+", lambda m: prot(number_words(m.group(0))), s)
     s = re.sub(r"\s+([،.؟!:])", r"\1", s)
     s = re.sub(r"(،\s*)+", "، ", s)
     return re.sub(r"\s+", " ", s).strip(" ،")
@@ -87,6 +103,7 @@ def diacritize(text):
         elif p.strip():
             out.append(" " + _mishkal.tashkeel(p.strip()) + " ")
     s = re.sub(r"\s+([.،؟!:…])", r"\1", "".join(out))
+    s = re.sub(r"[\u064E\u064F\u0650]+([\u064E\u064F\u0650])", r"\1", s)
     return re.sub(r"\s+", " ", s).strip()
 
 
