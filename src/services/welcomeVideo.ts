@@ -19,7 +19,7 @@ export const WELCOME_VIDEOS: Record<Language, WelcomeVideo> = {
     short: '/videos/film-al-wasset-777-fr-court.mp4',
     poster: '/videos/film-al-wasset-777-fr.jpg',
     filename: 'Groupe-Al-Wassit-777.mp4',
-    minutes: { full: 36, short: 5 },
+    minutes: { full: 33, short: 4 },
   },
   en: {
     full: '/videos/film-al-wasset-777-en.mp4',
