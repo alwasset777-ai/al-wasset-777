@@ -1,9 +1,10 @@
-"""Voix off hors ligne (sherpa-onnx + voix Piper), avec cache. Arabe, français, anglais.
+"""Voix off hors ligne (sherpa-onnx : voix Piper et Kokoro), avec cache. Arabe, français, anglais.
 
 Deux voix par langue :
-  - narrateur (« التعليق الصوتي » dramatique), voix d'homme : ar_JO-kareem-medium, fr_FR-tom-medium, en_US-john-medium
-  - guide (étapes « خطوة بخطوة » et « نصيحة احترافية »), voix de femme : ar_JO-SA_dii-high, fr_FR-siwis-medium, en_US-ljspeech-high
+  - narrateur (« التعليق الصوتي » dramatique), voix d'homme : Piper ar_JO-kareem-medium, Piper fr_FR-tom-medium, Kokoro am_michael
+  - guide (étapes « خطوة بخطوة » et « نصيحة احترافية »), voix de femme : Piper ar_JO-SA_dii-high, Kokoro ff_siwis, Kokoro af_heart
   (nom de voix : "narrator" / "guide" pour l'arabe, "narrator_fr", "guide_en"…)
+Kokoro (kokoro-multi-lang-v1_0, licence Apache 2.0) donne des voix bien plus naturelles, mais n'a ni arabe ni voix d'homme française.
 
 Le texte arabe doit être entièrement vocalisé (تشكيل) pour une bonne prononciation ;
 en français et en anglais, nombres et sigles écrits en toutes lettres.
@@ -20,13 +21,14 @@ import numpy as np
 import soundfile as sf
 
 SR = 22050
+KOKORO = "kokoro-multi-lang-v1_0"
 VOICES = {
     "narrator": {"dir": "vits-piper-ar_JO-kareem-medium", "speed": 1.0},
     "guide": {"dir": "vits-piper-ar_JO-SA_dii-high", "speed": 1.1},
-    "narrator_fr": {"dir": "vits-piper-fr_FR-tom-medium", "speed": 1.0, "lang": "fr"},
-    "guide_fr": {"dir": "vits-piper-fr_FR-siwis-medium", "speed": 1.05, "lang": "fr"},
-    "narrator_en": {"dir": "vits-piper-en_US-john-medium", "speed": 1.0, "lang": "en"},
-    "guide_en": {"dir": "vits-piper-en_US-ljspeech-high", "speed": 1.0, "lang": "en"},
+    "narrator_fr": {"dir": "vits-piper-fr_FR-tom-medium", "speed": 1.0, "lang": "fr", "resample": "fir"},
+    "guide_fr": {"dir": KOKORO, "kokoro": "fr", "sid": 30, "speed": 1.0, "lang": "fr"},  # ff_siwis
+    "narrator_en": {"dir": KOKORO, "kokoro": "en-us", "sid": 16, "speed": 1.0, "lang": "en"},  # am_michael
+    "guide_en": {"dir": KOKORO, "kokoro": "en-us", "sid": 3, "speed": 1.0, "lang": "en"},  # af_heart
 }
 PAUSE = {"…": 0.5, ".": 0.32, "؟": 0.38, "?": 0.38, "!": 0.32, "،": 0.12, ":": 0.18, "—": 0.15}
 
@@ -34,21 +36,31 @@ _engines = {}
 
 
 def _engine(voice):
-    if voice not in _engines:
+    v = VOICES[voice]
+    key = (v["dir"], v.get("kokoro"))  # une voix Kokoro = un numéro de locuteur dans un modèle partagé
+    if key not in _engines:
         import sherpa_onnx
 
-        base = Path(os.environ.get("TTS_MODELS", "tts-models")) / VOICES[voice]["dir"]
-        onnx = next(p for p in base.iterdir() if p.suffix == ".onnx")
-        cfg = sherpa_onnx.OfflineTtsConfig(
-            model=sherpa_onnx.OfflineTtsModelConfig(
+        base = Path(os.environ.get("TTS_MODELS", "tts-models")) / v["dir"]
+        if v.get("kokoro"):
+            model = sherpa_onnx.OfflineTtsModelConfig(
+                kokoro=sherpa_onnx.OfflineTtsKokoroModelConfig(
+                    model=str(base / "model.onnx"), voices=str(base / "voices.bin"), tokens=str(base / "tokens.txt"),
+                    data_dir=str(base / "espeak-ng-data"), dict_dir=str(base / "dict"),
+                    lexicon=f"{base / 'lexicon-us-en.txt'},{base / 'lexicon-zh.txt'}", lang=v["kokoro"],
+                ),
+                num_threads=4,
+            )
+        else:
+            onnx = next(p for p in base.iterdir() if p.suffix == ".onnx")
+            model = sherpa_onnx.OfflineTtsModelConfig(
                 vits=sherpa_onnx.OfflineTtsVitsModelConfig(
                     model=str(onnx), tokens=str(base / "tokens.txt"), data_dir=str(base / "espeak-ng-data")
                 ),
                 num_threads=4,
             )
-        )
-        _engines[voice] = sherpa_onnx.OfflineTts(cfg)
-    return _engines[voice]
+        _engines[key] = sherpa_onnx.OfflineTts(sherpa_onnx.OfflineTtsConfig(model=model))
+    return _engines[key]
 
 
 def split_pauses(text, latin=False):
@@ -74,15 +86,23 @@ def split_pauses(text, latin=False):
     return out
 
 
+def lowpass_kernel(cut, taps=127):
+    """Filtre passe-bas FIR (sinus cardinal fenêtré) ; cut = fréquence de coupure / fréquence d'échantillonnage."""
+    n = np.arange(taps) - (taps - 1) / 2
+    h = np.sinc(2 * cut * n) * np.blackman(taps)
+    return (h / h.sum()).astype(np.float32)
+
+
 def _resample(x, sr):
-    """Ramène la voix à SR (fr_FR-tom est en 44,1 kHz)."""
+    """Ramène la voix à SR (fr_FR-tom est en 44,1 kHz, Kokoro en 24 kHz) avec un vrai filtre anti-repliement."""
     if sr == SR or not len(x):
         return x
-    if sr % SR == 0:  # facteur entier : moyenne par blocs (filtre anti-repliement simple)
+    y = np.convolve(x, lowpass_kernel(0.45 * SR / sr), mode="same")
+    if sr % SR == 0:  # facteur entier : décimation
         k = sr // SR
-        return x[: len(x) // k * k].reshape(-1, k).mean(axis=1).astype(np.float32)
+        return y[: len(x) // k * k: k].astype(np.float32)
     n = int(len(x) * SR / sr)
-    return np.interp(np.linspace(0, len(x) - 1, n), np.arange(len(x)), x).astype(np.float32)
+    return np.interp(np.linspace(0, len(x) - 1, n), np.arange(len(x)), y).astype(np.float32)
 
 
 def synth(text, voice, cache_dir):

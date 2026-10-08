@@ -11,6 +11,7 @@ Variables : TTS_MODELS (dossier des voix sherpa-onnx), TTS_CACHE (cache des voix
 import argparse
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -19,17 +20,26 @@ import soundfile as sf
 
 import score
 import sfx
-from tts import SR as TTS_SR, synth
+from tts import SR as TTS_SR, lowpass_kernel, synth
 
 HERE = Path(__file__).parent
 OUT = HERE / "build"
 SR = 44100
 GAP = 1.2  # respiration musicale entre deux scènes (le PDF demande 1 à 2 s)
+LOUD_FX = {"boom", "whoosh", "swoosh_up", "riser", "gavel", "stamp", "glass", "applause", "engine", "ring", "shutter", "tear", "coins"}
+VOICE_RMS = 0.1  # niveau commun de chaque phrase (−20 dBFS) : toutes les voix et toutes les phrases au même volume
+UP = lowpass_kernel(0.23) * (SR // TTS_SR)  # 22,05 → 44,1 kHz sans « images » métalliques au-dessus de 11 kHz
 
 
 def upsample(x):
-    n = int(len(x) * SR / TTS_SR)
-    return np.interp(np.linspace(0, len(x) - 1, n), np.arange(len(x)), x).astype(np.float32)
+    """Suréchantillonnage ×2 propre (zéros intercalés + passe-bas), puis niveau normalisé."""
+    y = np.zeros(len(x) * (SR // TTS_SR), dtype=np.float32)
+    y[:: SR // TTS_SR] = x
+    y = np.convolve(y, UP, mode="same").astype(np.float32)
+    loud = y[np.abs(y) > 0.02]
+    if len(loud):
+        y *= VOICE_RMS / max(1e-4, float(np.sqrt(np.mean(loud ** 2))))
+    return np.clip(y, -0.95, 0.95)
 
 
 class Track:
@@ -193,8 +203,14 @@ def main():
         else:
             raise ValueError(k)
 
+        # effets du scénario : s'ils tombent sur une phrase (la voix traduite n'a pas le même rythme), on les décale juste après
+        spoken = [(ln["s"], ln["e"]) for ln in o.get("narr") or []]
         for ev in seg.get("sfx", []):
-            fx_events.append((t + ev.get("at", 0.5), ev["name"], ev))
+            at = ev.get("at", 0.5)
+            for s0, e0 in spoken:
+                if ev["name"] in LOUD_FX and s0 - 0.2 < at < e0:
+                    at = e0 + 0.05
+            fx_events.append((t + at, ev["name"], ev))
         m = seg.get("music", {"mood": "steady", "intensity": 0.5})
         moods.append((t, t + dur, m["mood"], m.get("intensity", 0.5)))
         o["start"], o["dur"] = round(t, 3), round(dur, 3)
@@ -207,25 +223,33 @@ def main():
     (OUT / f"{args.name == 'film' and 'timeline' or 'timeline-' + args.name}.js").write_text(
         "window.FILM = " + json.dumps(film, ensure_ascii=False) + ";\n", encoding="utf-8")
 
-    # --- bande son
+    # --- bande son : la voix d'abord (claire, sans écho), musique et effets en retrait et baissés pendant la parole
     stems = OUT / "stems"
     stems.mkdir(exist_ok=True)
     sf.write(stems / "narr.wav", narr.render(total), SR, subtype="FLOAT")
     sf.write(stems / "guide.wav", guide.render(total), SR, subtype="FLOAT")
     sf.write(stems / "sfx.wav", sfx.render(fx_events, total, SR), SR, subtype="FLOAT")
     sf.write(stems / "music.wav", score.render(moods, total, SR), SR, subtype="FLOAT")
-    audio = OUT / f"{args.name}-audio.m4a"
     fc = (
-        "[0]aformat=channel_layouts=stereo,equalizer=f=140:t=q:w=1:g=3,aecho=0.8:0.6:45|80:0.12|0.07,volume=1.25[n];"
-        "[1]aformat=channel_layouts=stereo,equalizer=f=3000:t=q:w=1:g=2,volume=1.1[g];"
-        "[n][g]amix=inputs=2:normalize=0[v];[v]asplit=2[v1][v2];"
-        "[3]aformat=channel_layouts=stereo,volume=0.55[m];"
-        "[m][v1]sidechaincompress=threshold=0.03:ratio=6:attack=20:release=600[md];"
-        "[2]aformat=channel_layouts=stereo,volume=0.8[s];"
-        "[v2][md][s]amix=inputs=3:normalize=0,loudnorm=I=-16:TP=-1.5:LRA=11[out]"
+        "[0]highpass=f=70,equalizer=f=160:t=q:w=1:g=1.5,equalizer=f=3200:t=q:w=1.2:g=2.5[n];"
+        "[1]highpass=f=90,equalizer=f=3200:t=q:w=1.2:g=2[g];"
+        "[n][g]amix=inputs=2:normalize=0,acompressor=threshold=-26dB:ratio=2.5:attack=8:release=150:makeup=1.5[v0];"
+        "[v0]asplit=3[v][k1][k2];"
+        "[3]volume=0.4[m];[m][k1]sidechaincompress=threshold=0.005:ratio=20:attack=30:release=900[md];"
+        "[2]volume=0.25[s];[s][k2]sidechaincompress=threshold=0.01:ratio=8:attack=5:release=300[sd];"
+        "[v][md][sd]amix=inputs=3:normalize=0[out]"
     )
+    premix = stems / "premix.wav"
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", stems / "narr.wav", "-i", stems / "guide.wav", "-i", stems / "sfx.wav",
-                    "-i", stems / "music.wav", "-filter_complex", fc, "-map", "[out]", "-ar", "44100", "-c:a", "aac", "-b:a", "128k", audio], check=True)
+                    "-i", stems / "music.wav", "-filter_complex", fc, "-map", "[out]", "-c:a", "pcm_f32le", premix], check=True)
+    # niveau final −16 LUFS : gain fixe (pas de « pompage ») puis limiteur pour les crêtes
+    meas = subprocess.run(["ffmpeg", "-hide_banner", "-i", premix, "-af", "ebur128=framelog=quiet", "-f", "null", "-"],
+                          capture_output=True, text=True).stderr
+    lufs = float(re.findall(r"I:\s+(-?[\d.]+) LUFS", meas)[-1])
+    audio = OUT / f"{args.name}-audio.m4a"
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", premix, "-af",
+                    f"volume={-16 - lufs:.2f}dB,alimiter=limit=0.84:attack=3:release=60:level=false",
+                    "-ar", "44100", "-ac", "1", "-c:a", "aac", "-b:a", "160k", audio], check=True)
     print(f"{len(out_segs)} segments, durée {total:.1f} s → {OUT / ('timeline' if args.name == 'film' else 'timeline-' + args.name)}.js, {audio}")
 
 

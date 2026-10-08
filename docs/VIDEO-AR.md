@@ -13,7 +13,7 @@
 
 ## النسختان الفرنسية والإنجليزية
 - نفس الفيلم مشهدا بمشهد (نفس الصور والموسيقى والمؤثرات)، مع ترجمة كاملة للتعليق والخطوات والنصائح، والكتابة من اليسار إلى اليمين.
-- الأصوات: بالفرنسية صوت رجل (tom) للتعليق وصوت امرأة (siwis) للخطوات؛ بالإنجليزية صوت رجل (john) وصوت امرأة (ljspeech).
+- الأصوات: بالفرنسية صوت رجل (tom) للتعليق وصوت امرأة (siwis، نموذج Kokoro) للخطوات؛ بالإنجليزية صوتا Kokoro الطبيعيان: رجل (am_michael) وامرأة (af_heart).
 - في الموقع: أزرار «العربية · Français · English» تحت الفيديو، والفيلم يتبع لغة الموقع تلقائيا.
 - في «إدارة الوكالة ← فيديو الترحيب»: اختر لغة الفيلم، فتُكتب رسالة واتساب بنفس اللغة مع الرابط المناسب (`#bienvenue-fr` أو `#bienvenue-en`).
 
@@ -22,6 +22,7 @@
 - **التعليق الصوتي** (صوت رجل): نص السيناريو كاملا مع الوقفات «…»، ومكتوب أسفل الشاشة.
 - **نص الشاشة** بالذهبي، و**صور التطبيق** من الملف داخل هواتف.
 - **خطوة بخطوة** (صوت امرأة): كل خطوة تظهر وتُقرأ، ثم **💡 نصيحة احترافية**.
+- **الصوت**: صوت المعلّق أولا وواضح (بدون صدى)، وكل الجمل بنفس المستوى؛ الموسيقى والمؤثرات تنخفض تلقائيا أثناء الكلام، والمؤثرات القوية لا تقع فوق جملة.
 - **الموسيقى** تتبع تعليمات كل مشهد وتتصاعد حتى المشهد 18 ثم الخاتمة، و**المؤثرات** (رنين، ساعة، «ووش»، قفل، نقرات، إشعار، «بووم»…).
 - مؤثرات الكاميرا الممكنة بدون تصوير: زوم بطيء، أبيض وأسود ← ألوان (المشهد 9)، وميض (11 و18)، لقطات خاطفة للشاشات في الخاتمة، ثم الشعار ورقم واتساب ثابتين 5 ثوان.
 
@@ -51,4 +52,7 @@ node tools/film/render.mjs --tl timeline-fr --audio build/fr-audio.m4a --scale 7
 python3 tools/film/build.py --content tools/film/content.fr.json --short --only A,B,1,11,17,18,19,28,29,END --name fr-court
 node tools/film/render.mjs --tl timeline-fr-court --audio build/fr-court-audio.m4a --scale 720 --out build/fr-court.mp4
 ```
-الأصوات: https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models (`vits-piper-ar_JO-kareem-medium`، `vits-piper-ar_JO-SA_dii-high`، `vits-piper-fr_FR-tom-medium`، `vits-piper-fr_FR-siwis-medium`، `vits-piper-en_US-john-medium`، `vits-piper-en_US-ljspeech-high`) — Python: `sherpa-onnx soundfile numpy mishkal num2words`.
+تغيير الصوت فقط دون إعادة التصوير (إذا لم يتغير التوقيت):
+`ffmpeg -i film.mp4 -i build/film-audio.m4a -map 0:v -map 1:a -c:v copy -c:a aac -b:a 64k -shortest -movflags +faststart new.mp4`
+
+الأصوات: https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models (`vits-piper-ar_JO-kareem-medium`، `vits-piper-ar_JO-SA_dii-high`، `vits-piper-fr_FR-tom-medium`، `kokoro-multi-lang-v1_0`) — Python: `sherpa-onnx soundfile numpy mishkal num2words`.
