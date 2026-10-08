@@ -407,7 +407,7 @@ const BUILD = {
     anim(L, mk(root, 'slate', `<span class="emoji">🎬</span><span>${esc(seg.slate)}</span>`), 0.3, 'fade', { out: seg.flashAt - 0.3 });
     const lc = mk(root, 'logocard', `<img src="assets/logo.jpg" alt="">`, 'top: 230px; width: 560px; margin-left:-280px');
     anim(L, lc, 0.6, 'pop', { d: 1.0, out: seg.flashAt - 0.3 });
-    const t = mk(root, 'sectitle', rich(seg.title), 'top: 560px; font-size: 64px');
+    const t = mk(root, 'sectitle', rich(seg.title), `top: 560px; font-size: ${LTR ? 50 : 64}px`);
     anim(L, t, seg.checksAt, 'up', { out: seg.endAt - 0.4 });
     const ch = mk(root, 'checks', seg.checks.map((c) => `<div>✓ ${rich(c)}</div>`).join(''), 'top: 760px');
     [...ch.children].forEach((c, i) => anim(L, c, seg.checksAt + 0.4 + i * 0.35, 'up', { d: 0.5, out: seg.endAt - 0.4 }));
