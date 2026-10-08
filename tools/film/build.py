@@ -51,6 +51,7 @@ def main():
     ap.add_argument("--only", default="")
     ap.add_argument("--name", default="film")
     ap.add_argument("--content", default=str(HERE / "content.json"))
+    ap.add_argument("--short", action="store_true", help="version courte : voix off seulement, sans étapes ni astuces")
     args = ap.parse_args()
 
     content = json.load(open(args.content, encoding="utf-8"))
@@ -82,7 +83,7 @@ def main():
 
     for seg in segs:
         k = seg["kind"]
-        o = {k2: v for k2, v in seg.items() if k2 not in ("narr", "steps", "tip", "sfx", "music", "feats", "stats", "intro")}
+        o = {k2: v for k2, v in seg.items() if k2 not in ("narr", "steps", "tip", "sfx", "music", "feats", "stats", "intro", "camera", "page")}
         o["kind"] = "opening" if k == "opening" else k
 
         if k == "opening":
@@ -130,6 +131,10 @@ def main():
             o["narr"] = lines
             dur = max(end + 1.6, 3.2 + 0.18 * len(seg["list"]))
             fx_events.append((t + 0.2, "boom", {"gain": 0.8}))
+        elif k == "scene" and args.short:
+            lines, end = speak(narr, seg["narr"], 1.0, "narrator", 0.3)
+            o["narr"], o["screenAt"], o["stepsAt"], o["steps"], o["tip"] = lines, 1.6, 9999, [], None
+            dur = end + 1.6
         elif k == "scene":
             lines, end = speak(narr, seg["narr"], 1.0, "narrator", 0.3)
             o["narr"] = lines

@@ -372,6 +372,12 @@ const BUILD = {
         anim(L, el, s.s, 'right', { d: 0.5, out: s.e, outD: 0.35, outFx: 'left' });
       });
     }
+    // effets de caméra du scénario : passage du noir et blanc à la couleur, éclair lumineux
+    if (seg.fx === 'bw') M.push((lt) => { const g = 1 - clamp((lt - 2.2) / 1.2); root.style.filter = g > 0 ? `grayscale(${g.toFixed(2)})` : ''; return g; });
+    if (seg.fx === 'flash') {
+      const w = mk(root, 'white');
+      M.push((lt) => { const o = lt < 0.9 ? 0 : Math.max(0, 0.85 - (lt - 0.9) * 1.6); w.style.opacity = o.toFixed(2); return o; });
+    }
     if (seg.tip) {
       const tp = mk(root, 'tip', `<div class="h"><span class="emoji">💡</span> نصيحة احترافية</div><div class="x">${rich(seg.tip.text)}</div>`);
       anim(L, tp, seg.tip.s, 'pop', { d: 0.7 });

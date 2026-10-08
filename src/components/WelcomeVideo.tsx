@@ -3,17 +3,20 @@ import { CheckCircle, Copy, Film, MessageCircle, Share2 } from 'lucide-react';
 import { ClientLead, Language } from '../types';
 import {
   WELCOME_ANCHOR,
+  WELCOME_VIDEO_MINUTES,
   WELCOME_VIDEO_PATH,
   WELCOME_VIDEO_POSTER,
+  WELCOME_VIDEO_SHORT_PATH,
   shareWelcomeVideo,
   welcomeVideoMessage,
   welcomeVideoWhatsappUrl,
   type ShareOutcome,
 } from '../services/welcomeVideo';
 
-const Player: React.FC<{ className?: string }> = ({ className = '' }) => (
+const Player: React.FC<{ className?: string; short?: boolean }> = ({ className = '', short = false }) => (
   <video
-    src={WELCOME_VIDEO_PATH}
+    key={short ? 'short' : 'full'}
+    src={short ? WELCOME_VIDEO_SHORT_PATH : WELCOME_VIDEO_PATH}
     poster={WELCOME_VIDEO_POSTER}
     controls
     playsInline
@@ -26,6 +29,8 @@ const Player: React.FC<{ className?: string }> = ({ className = '' }) => (
 export const WelcomeVideoSection: React.FC<{ language: Language }> = ({ language }) => {
   const isAr = language === 'ar';
   const isEn = language === 'en';
+  const [short, setShort] = useState(false);
+  const M = WELCOME_VIDEO_MINUTES;
 
   // Lien reçu par WhatsApp (…/#bienvenue) : on fait défiler jusqu'à la vidéo.
   useEffect(() => {
@@ -37,22 +42,30 @@ export const WelcomeVideoSection: React.FC<{ language: Language }> = ({ language
   return (
     <div id={WELCOME_ANCHOR} className="rounded-3xl bg-[#2a1613] text-white p-6 sm:p-10 flex flex-col md:flex-row items-center gap-8 scroll-mt-24">
       <div className="w-full max-w-[300px] shrink-0">
-        <Player />
+        <Player short={short} />
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold">
+          <button onClick={() => setShort(false)} className={`py-2 rounded-xl cursor-pointer ${!short ? 'bg-[#d9b25f] text-[#2b1606]' : 'bg-white/10 text-white'}`}>
+            {isAr ? `الفيلم الكامل (${M.full} د)` : isEn ? `Full film (${M.full} min)` : `Film complet (${M.full} min)`}
+          </button>
+          <button onClick={() => setShort(true)} className={`py-2 rounded-xl cursor-pointer ${short ? 'bg-[#d9b25f] text-[#2b1606]' : 'bg-white/10 text-white'}`}>
+            {isAr ? `النسخة القصيرة (${M.short} د)` : isEn ? `Short version (${M.short} min)` : `Version courte (${M.short} min)`}
+          </button>
+        </div>
       </div>
       <div className="space-y-4 text-center md:text-start" dir={isAr ? 'rtl' : 'ltr'}>
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ff6f61]/20 text-[#ff9a8b] text-xs font-bold">
           <Film className="w-3.5 h-3.5" />
-          <span>{isAr ? 'فيديو الترحيب – 3 دقائق' : isEn ? 'Welcome video – 3 min' : 'Vidéo de bienvenue – 3 min'}</span>
+          <span>{isAr ? 'الفيلم الترويجي التعليمي' : isEn ? 'Promotional & tutorial film' : 'Film promotionnel et tutoriel'}</span>
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-          {isAr ? 'مرحباً بك في عائلة الوسيط 777' : isEn ? 'Welcome to the Al Wassit 777 family' : 'Bienvenue dans la famille Al Wassit 777'}
+          {isAr ? 'الوسيط 777… مستقبل مهنتك يبدأ الآن' : isEn ? 'Al Wassit 777: the future of your profession starts now' : 'Al Wassit 777 : l’avenir de votre métier commence maintenant'}
         </h2>
         <p className="text-sm text-[#e8cfcb] leading-relaxed max-w-xl">
           {isAr
-            ? 'تعرّف على مكتبنا بمكناس، خدماتنا، وكيف تستعمل التطبيق: البحث عن العقارات، حجز الزيارات، المساعد الذكي «وكيل الوسيط 777» وتثبيت التطبيق على هاتفك.'
+            ? 'تطبيق مجموعة الوسيط 777 مشهدا بمشهد: مكتبك العقاري الرقمي، المطابقة الذكية، المساعد الذكي، شبكة 777 وكالة و777 وسيطا و1554 شركة، المشاريع والتمويل، الهبة والحلول القانونية — مع شرح كل خدمة خطوة بخطوة. الانضمام مجاني هذه السنة.'
             : isEn
-            ? 'Discover our Meknès office, our services and how to use the app: property search, visit booking, the “Al Wassit 777” smart assistant and installing the app on your phone.'
-            : 'Découvrez notre agence à Meknès, nos services et comment utiliser l’application : recherche de biens, réservation de visites, l’assistant intelligent « Al Wassit 777 » et l’installation sur votre téléphone.'}
+            ? 'The Al Wassit 777 Group app scene by scene: your digital real-estate office, smart matching, the AI assistant, the network of 777 agencies, 777 brokers and 1554 companies, projects and financing, Al Hiba and legal solutions — every service explained step by step. Joining is free this year.'
+            : 'L’application du Groupe Al Wassit 777 scène par scène : votre agence immobilière numérique, le matching intelligent, l’assistant IA, le réseau de 777 agences, 777 intermédiaires et 1554 entreprises, projets et financement, Al Hiba et solutions juridiques — chaque service expliqué étape par étape. Adhésion gratuite cette année.'}
         </p>
         <a
           href={welcomeVideoWhatsappUrl('')}
@@ -87,7 +100,7 @@ export const WelcomeVideoPanel: React.FC<{
     file: 'تم فتح المشاركة: اختر واتساب ثم «قائمة البث» أو المجموعة لإرسال الفيديو للجميع دفعة واحدة.',
     link: 'تمت مشاركة الرابط.',
     copied: 'تم نسخ الرسالة مع رابط الفيديو. ألصقها في واتساب.',
-    retry: 'الفيديو جاهز ✅ اضغط مرة أخرى على «مشاركة ملف الفيديو».',
+    retry: 'الفيديو جاهز ✅ اضغط مرة أخرى على «مشاركة النسخة القصيرة».',
     cancelled: null,
   };
 
@@ -109,18 +122,21 @@ export const WelcomeVideoPanel: React.FC<{
       <div className="space-y-3">
         <Player />
         <a href={WELCOME_VIDEO_PATH} download className="block text-center text-xs font-bold text-[#7a5c58] hover:text-[#ff6f61]">
-          تحميل ملف الفيديو (MP4)
+          تحميل الفيلم الكامل (MP4)
+        </a>
+        <a href={WELCOME_VIDEO_SHORT_PATH} download className="block text-center text-xs font-bold text-[#7a5c58] hover:text-[#ff6f61]">
+          تحميل النسخة القصيرة (MP4)
         </a>
       </div>
 
       <div className="space-y-4">
         <div className="bg-white rounded-3xl p-5 border border-[#f0e4e2] shadow-sm space-y-3">
           <h2 className="text-base font-extrabold text-[#281715] flex items-center gap-2">
-            <Film className="w-5 h-5 text-[#ff6f61]" /> فيديو الترحيب لكل مشترك
+            <Film className="w-5 h-5 text-[#ff6f61]" /> فيلم مجموعة الوسيط 777 لكل مشترك
           </h2>
           <p className="text-xs text-[#7a5c58] leading-relaxed">
-            فيديو تعريفي (3 دقائق و33 ثانية) بالمكتب، الخدمات ومزايا التطبيق. أرسله لكل زبون بضغطة على «واتساب» بجانب اسمه،
-            أو شارك ملف الفيديو مباشرة في قائمة بث واتساب لإرساله للجميع دفعة واحدة.
+            فيلم «الوسيط 777… مستقبل مهنتك يبدأ الآن» ({WELCOME_VIDEO_MINUTES.full} دقيقة، 34 مشهدا مع الشرح خطوة بخطوة) ونسخة قصيرة ({WELCOME_VIDEO_MINUTES.short} دقائق).
+            أرسل الرابط لكل مشترك بضغطة على «واتساب» بجانب اسمه، أو شارك ملف النسخة القصيرة مباشرة في قائمة بث واتساب لإرساله للجميع دفعة واحدة.
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -128,7 +144,7 @@ export const WelcomeVideoPanel: React.FC<{
               disabled={busy}
               className="px-4 py-2.5 rounded-xl bg-[#ff6f61] hover:bg-[#e8584a] text-white text-xs font-bold flex items-center gap-2 disabled:opacity-60 cursor-pointer"
             >
-              <Share2 className="w-4 h-4" /> مشاركة ملف الفيديو
+              <Share2 className="w-4 h-4" /> مشاركة النسخة القصيرة
             </button>
             <button
               onClick={copy}
@@ -156,7 +172,7 @@ export const WelcomeVideoPanel: React.FC<{
 
           {shown.length === 0 ? (
             <p className="text-xs text-[#7a5c58] py-4 text-center">
-              {clients.length ? 'توصل جميع الزبناء بالفيديو 🎉' : 'لا يوجد زبناء بعد. أضفهم من «إضافة زبون جديد».'}
+              {clients.length ? 'توصل جميع الزبناء بالفيلم 🎉' : 'لا يوجد زبناء بعد. أضفهم من «إضافة زبون جديد».'}
             </p>
           ) : (
             <ul className="divide-y divide-[#f2e6e4]">
