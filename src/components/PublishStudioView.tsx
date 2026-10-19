@@ -4,7 +4,7 @@ import { siBluesky, siFacebook, siGoogle, siInstagram, siThreads, siTiktok, siWh
 import { Language, ListingType, PropertyType } from '../types';
 import { ServerStatus, fetchServerStatus } from '../services/adsApi';
 import { isFirebaseEnabled } from '../services/firebase';
-import { DEAL_LABELS, PosterData, TYPE_LABELS, drawPoster, ensureFonts, posterBlob, posterVideo } from '../services/posterMaker';
+import { DEAL_LABELS, FEATURES, PosterData, TYPE_LABELS, drawPoster, ensureFonts, headlineOf, posterBlob, posterVideo } from '../services/posterMaker';
 import { STUDIO_LANGUAGES, STUDIO_PLATFORMS, StudioLanguage, StudioNetwork } from '../services/studioPlatforms';
 import {
   StudioPhoto,
@@ -49,10 +49,11 @@ const TARGETS: TargetSpec[] = [
 ];
 const target = (id: StudioTarget) => TARGETS.find((x) => x.id === id)!;
 
-const FEATURES = ['مصعد', 'موقف سيارات', 'مرآب', 'مسبح', 'حديقة', 'شرفة', 'مفروشة', 'مطبخ مجهز', 'تدفئة مركزية', 'إطلالة رائعة', 'قريب من المدارس', 'رسم عقاري'];
+const FEATURE_TITLES = FEATURES.map((f) => f.title);
+const MAX_FEATURES = 4; // places prévues sur l'affiche
 
 const EMPTY: PosterData = {
-  deal: 'vente', type: 'Appartement', city: 'مكناس', district: '', surface: 0, bedrooms: 0, bathrooms: 0, price: '', features: [],
+  deal: 'vente', type: 'Appartement', headline: '', city: 'مكناس', district: '', surface: 0, surfaceMax: 0, bedrooms: 0, bathrooms: 0, price: '', features: [],
 };
 
 const BrandLogo: React.FC<{ path: string; className?: string }> = ({ path, className = 'w-6 h-6' }) => (
@@ -137,11 +138,15 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
 
   // ---------- Fiche ----------
   const set = <K extends keyof PosterData>(k: K, v: PosterData[K]) => setData((prev) => ({ ...prev, [k]: v }));
-  const toggleFeature = (f: string) =>
-    set('features', data.features.includes(f) ? data.features.filter((x) => x !== f) : [...data.features, f]);
+  const toggleFeature = (f: string) => {
+    if (data.features.includes(f)) return set('features', data.features.filter((x) => x !== f));
+    if (data.features.length >= MAX_FEATURES)
+      return setToast(t('4 atouts maximum sur l’image', 'أقصى عدد 4 مميزات في الصورة', '4 highlights maximum'));
+    set('features', [...data.features, f]);
+  };
   const addCustomFeature = () => {
     const f = customFeature.trim();
-    if (f && !data.features.includes(f)) set('features', [...data.features, f]);
+    if (f && !data.features.includes(f)) toggleFeature(f);
     setCustomFeature('');
   };
   const toggleTarget = (id: StudioTarget) => {
@@ -366,6 +371,10 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
                 </button>
               ))}
             </div>
+            <label className="block space-y-1">
+              <span className={label}>{t('Grand titre de l’affiche', 'العنوان الكبير في الصورة', 'Poster headline')}</span>
+              <input value={data.headline} onChange={(e) => set('headline', e.target.value)} placeholder={headlineOf({ ...data, headline: '' })} className={`${input} font-black`} />
+            </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <label className="space-y-1">
                 <span className={label}>{t('Quartier', 'الحي', 'District')}</span>
@@ -384,6 +393,10 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
                 <input type="number" min={0} inputMode="numeric" value={data.surface || ''} onChange={(e) => set('surface', Number(e.target.value) || 0)} className={input} />
               </label>
               <label className="space-y-1">
+                <span className={label}>{t('Jusqu’à (m², facultatif)', 'إلى (م²، اختياري)', 'Up to (m², optional)')}</span>
+                <input type="number" min={0} inputMode="numeric" value={data.surfaceMax || ''} onChange={(e) => set('surfaceMax', Number(e.target.value) || 0)} className={input} />
+              </label>
+              <label className="space-y-1">
                 <span className={label}>{t('Chambres', 'الغرف', 'Bedrooms')}</span>
                 <input type="number" min={0} inputMode="numeric" value={data.bedrooms || ''} onChange={(e) => set('bedrooms', Number(e.target.value) || 0)} className={input} />
               </label>
@@ -393,9 +406,11 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
               </label>
             </div>
             <div className="space-y-2">
-              <span className={label}>{t('Atouts (affichés sur l’image)', 'المميزات (تظهر في الصورة)', 'Highlights (shown on the image)')}</span>
+              <span className={label}>
+                {t('Atouts sur l’image', 'المميزات في الصورة', 'Highlights on the image')} ({data.features.length}/{MAX_FEATURES})
+              </span>
               <div className="flex flex-wrap gap-1.5">
-                {[...FEATURES, ...data.features.filter((f) => !FEATURES.includes(f))].map((f) => {
+                {[...FEATURE_TITLES, ...data.features.filter((f) => !FEATURE_TITLES.includes(f))].map((f) => {
                   const on = data.features.includes(f);
                   return (
                     <button
