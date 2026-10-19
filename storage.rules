@@ -11,6 +11,12 @@ service firebase.storage {
     match /registry/{allPaths=**} {
       allow read, write: if isAdmin();
     }
+    // Médias du « استوديو النشر » : lecture publique (Metricool et les plateformes les téléchargent).
+    match /studio/{batch}/{file} {
+      allow read: if true;
+      allow write: if isAdmin() && request.resource.size < 250 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+    }
     match /ads/{file} {
       allow read: if true;
       allow write: if isAdmin() && request.resource.size < 10 * 1024 * 1024

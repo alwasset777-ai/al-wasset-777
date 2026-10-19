@@ -167,11 +167,14 @@ export async function recordSlideshow(p: Property, format: VisualFormat, seconds
   await document.fonts?.ready;
   const photos = await loadPhotos(p);
   const frames = photos.length ? photos : [null];
-  const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+  // MP4 en priorité (exigé par Instagram / TikTok), WebM sinon.
+  const mime =
+    ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m)) ||
+    'video/webm';
   const recorder = new MediaRecorder(canvas.captureStream(30), { mimeType: mime, videoBitsPerSecond: 5_000_000 });
   const chunks: Blob[] = [];
   recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-  const done = new Promise<Blob>((resolve) => (recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }))));
+  const done = new Promise<Blob>((resolve) => (recorder.onstop = () => resolve(new Blob(chunks, { type: mime.split(';')[0] }))));
   recorder.start();
   const total = frames.length * secondsPerPhoto * 1000;
   const start = performance.now();

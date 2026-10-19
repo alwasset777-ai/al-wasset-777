@@ -22,6 +22,7 @@ import { DashboardView } from './components/DashboardView';
 import { MessagesView } from './components/MessagesView';
 import { CrmView } from './components/CrmView';
 import { AdsAgentView } from './components/AdsAgentView';
+import { PublishStudioView } from './components/PublishStudioView';
 import { AgentChat } from './components/AgentChat';
 import { PostAdModal } from './components/PostAdModal';
 import { DocumentModal } from './components/DocumentModal';
@@ -273,6 +274,8 @@ export const App: React.FC = () => {
             {currentTab === 'ads' && (
               <AdsAgentView properties={properties} language={language} />
             )}
+
+            {currentTab === 'studio' && <PublishStudioView language={language} />}
 
             {currentTab === 'crm' && (
               <CrmView

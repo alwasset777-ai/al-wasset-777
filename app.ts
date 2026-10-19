@@ -6,9 +6,12 @@ import { GoogleGenAI } from '@google/genai';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { metaStatus, publishFacebook, publishInstagram } from './meta.js';
+import { metricoolEnabled, schedulePost, type StudioPostInput } from './metricool.js';
+import { STUDIO_NETWORK_IDS, studioSpec, type StudioNetwork } from './src/services/studioPlatforms.js';
 import { toolsForMode, type AgentMode } from './src/agent/toolDefs.js';
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
 const apiKey = process.env.GEMINI_API_KEY;
 const ai =
   apiKey && apiKey !== 'MY_GEMINI_API_KEY'
@@ -64,7 +67,7 @@ const app = express();
 app.use(express.json({ limit: '12mb' }));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, ai: Boolean(ai), auth: Boolean(adminAuth), meta: metaStatus });
+  res.json({ ok: true, ai: Boolean(ai), auth: Boolean(adminAuth), meta: metaStatus, metricool: metricoolEnabled });
 });
 
 app.post('/api/ads/generate', async (req, res) => {
@@ -225,6 +228,169 @@ app.post('/api/meta/publish', async (req, res) => {
     res.json({ id });
   } catch (err) {
     console.error('Erreur publication Meta :', err);
+    res.status(502).json({ error: (err as Error).message });
+  }
+});
+
+// ---------- « استوديو النشر » : du fichier (photo, vidéo, PDF) aux publications sur toutes les plateformes ----------
+// Le navigateur envoie des images réduites, quelques images extraites des vidéos et le PDF (moins de 4 Mo au total,
+// limite de Vercel) ; les fichiers originaux sont hébergés sur Firebase Storage pour la publication.
+type InlineFile = { inlineData: { mimeType: string; data: string } };
+const STUDIO_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+
+function sanitizeFiles(raw: unknown, max = 12): InlineFile[] {
+  if (!Array.isArray(raw)) return [];
+  let total = 0;
+  const out: InlineFile[] = [];
+  for (const f of raw.slice(0, max)) {
+    if (!f || typeof f.data !== 'string' || !STUDIO_MIME.includes(f.mimeType)) continue;
+    total += f.data.length;
+    if (total > 4_500_000) break;
+    out.push({ inlineData: { mimeType: f.mimeType, data: f.data } });
+  }
+  return out;
+}
+
+async function requireStudio(req: express.Request, res: express.Response): Promise<boolean> {
+  if (adminAuth && !(await isAdmin(req))) {
+    res.status(401).json({ error: 'Connexion requise' });
+    return false;
+  }
+  if (!ai) {
+    res.status(503).json({ error: 'GEMINI_API_KEY non configurée' });
+    return false;
+  }
+  return true;
+}
+
+const EXTRACT_PROMPT = `Voici les photos, images de vidéo et/ou documents (PDF) d'un bien immobilier confié à l'agence Al Wassit 777 (Meknès).
+Extrais uniquement ce qui est visible ou écrit ; laisse vide ("" ou 0) ce qui n'apparaît pas. N'invente rien (surtout pas le prix ni la surface).
+Réponds en JSON : {"type": "Appartement"|"Villa"|"Maison"|"Terrain"|"Local Commercial"|"Bureau"|"Immeuble"|"Riad"|"Ferme"|"", "listingType": "vente"|"location"|"neuf"|"", "city": string, "district": string, "surface": number, "bedrooms": number, "bathrooms": number, "price": string, "features": string[], "description": string}
+"features" et "description" en arabe (description : 2 à 4 phrases factuelles décrivant ce qu'on voit : pièces, état, vue, finitions).`;
+
+app.post('/api/studio/extract', async (req, res) => {
+  if (!(await requireStudio(req, res))) return;
+  const files = sanitizeFiles(req.body?.files);
+  if (!files.length) {
+    res.status(400).json({ error: 'Aucun fichier lisible' });
+    return;
+  }
+  try {
+    const response = await ai!.models.generateContent({
+      model: MODEL,
+      contents: [{ role: 'user', parts: [...files, { text: EXTRACT_PROMPT }] }],
+      config: { responseMimeType: 'application/json', temperature: 0.2 },
+    });
+    res.json({ info: JSON.parse(response.text || '{}') });
+  } catch (err) {
+    console.error('Erreur extraction studio :', err);
+    res.status(502).json({ error: 'Analyse IA impossible' });
+  }
+});
+
+app.post('/api/studio/posts', async (req, res) => {
+  if (!(await requireStudio(req, res))) return;
+  const { info, language } = req.body || {};
+  const platforms: StudioNetwork[] = Array.isArray(req.body?.platforms)
+    ? req.body.platforms.filter((p: unknown): p is StudioNetwork => STUDIO_NETWORK_IDS.includes(p as StudioNetwork))
+    : [];
+  if (!info || typeof info !== 'object' || !platforms.length) {
+    res.status(400).json({ error: 'Paramètres manquants' });
+    return;
+  }
+  const lang = ['ar', 'darija', 'fr'].includes(language) ? language : 'ar';
+  const specs = platforms.map((id) => {
+    const s = studioSpec(id);
+    return `- ${id} (${s.label}) : ${s.maxChars} caractères max, ${s.maxHashtags} hashtags max${s.title ? ', + un "title" court et accrocheur (moins de 90 caractères)' : ''}`;
+  });
+  const prompt = `Rédige une publication par plateforme pour ce bien, en langue "${lang}".
+Regarde les fichiers joints (photos, images de la vidéo, PDF) pour décrire les vrais atouts visibles, sans rien inventer.
+Plateformes :
+${specs.join('\n')}
+Adapte le ton : YouTube et TikTok = titre accrocheur + description qui donne envie de visiter ; Google Business = annonce sobre sans hashtags ; Bluesky et Threads = très court.
+Données du bien (JSON, saisies par le gérant — elles priment sur les fichiers) :
+${JSON.stringify(info).slice(0, 4000)}
+Réponds en JSON : {"posts": [{"platform": string, "text": string, "hashtags": string[], "title": string}]}`;
+  try {
+    const response = await ai!.models.generateContent({
+      model: MODEL,
+      contents: [{ role: 'user', parts: [...sanitizeFiles(req.body?.files), { text: prompt }] }],
+      config: { systemInstruction: SYSTEM, responseMimeType: 'application/json', temperature: 0.8 },
+    });
+    const parsed = JSON.parse(response.text || '{}');
+    const posts = (Array.isArray(parsed.posts) ? parsed.posts : [])
+      .filter((p: any) => platforms.includes(p?.platform) && typeof p.text === 'string')
+      .map((p: any) => {
+        const s = studioSpec(p.platform);
+        return {
+          platform: p.platform,
+          text: p.text.slice(0, s.maxChars),
+          hashtags: Array.isArray(p.hashtags) ? p.hashtags.filter((h: unknown) => typeof h === 'string').slice(0, s.maxHashtags) : [],
+          title: typeof p.title === 'string' ? p.title.slice(0, 100) : '',
+        };
+      });
+    res.json({ posts });
+  } catch (err) {
+    console.error('Erreur publications studio :', err);
+    res.status(502).json({ error: 'Génération IA impossible' });
+  }
+});
+
+// Retouche d'une photo (lumière, couleurs, netteté) sans modifier le bien : la publicité doit rester honnête.
+app.post('/api/studio/image', async (req, res) => {
+  if (!(await requireStudio(req, res))) return;
+  const [image] = sanitizeFiles([req.body?.image], 1);
+  if (!image || image.inlineData.mimeType === 'application/pdf') {
+    res.status(400).json({ error: 'Image manquante' });
+    return;
+  }
+  const prompt = `Retouche professionnelle de cette photo immobilière pour une publicité : meilleure lumière, couleurs naturelles et chaleureuses, ciel dégagé si visible, image nette et redressée.
+Ne modifie PAS le bien : garde exactement les murs, pièces, meubles, fenêtres, la vue et les dimensions. N'ajoute ni texte, ni logo, ni objet.`;
+  try {
+    const response = await ai!.models.generateContent({
+      model: IMAGE_MODEL,
+      contents: [{ role: 'user', parts: [image, { text: prompt }] }],
+      config: { responseModalities: ['TEXT', 'IMAGE'] },
+    });
+    const part = (response.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData?.data);
+    if (!part?.inlineData?.data) throw new Error('Aucune image renvoyée');
+    res.json({ mimeType: part.inlineData.mimeType || 'image/png', data: part.inlineData.data });
+  } catch (err) {
+    console.error('Erreur image studio :', err);
+    res.status(502).json({ error: 'Retouche IA impossible' });
+  }
+});
+
+// Programmation sur la plateforme via Metricool (publication validée par le gérant).
+app.post('/api/studio/schedule', async (req, res) => {
+  if (!(await isAdmin(req))) {
+    res.status(401).json({ error: 'Connexion du gérant requise' });
+    return;
+  }
+  const b = req.body || {};
+  const isUrl = (u: unknown): u is string => typeof u === 'string' && /^https:\/\//.test(u);
+  if (!STUDIO_NETWORK_IDS.includes(b.network) || typeof b.text !== 'string' || !b.text.trim()) {
+    res.status(400).json({ error: 'Paramètres invalides' });
+    return;
+  }
+  if (b.dateTime !== undefined && !(typeof b.dateTime === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(b.dateTime))) {
+    res.status(400).json({ error: 'Date invalide' });
+    return;
+  }
+  const input: StudioPostInput = {
+    network: b.network,
+    text: b.text.slice(0, studioSpec(b.network).maxChars),
+    title: typeof b.title === 'string' ? b.title : undefined,
+    images: Array.isArray(b.images) ? b.images.filter(isUrl).slice(0, 10) : [],
+    video: isUrl(b.video) ? b.video : undefined,
+    vertical: Boolean(b.vertical),
+    aiImages: Boolean(b.aiImages),
+    dateTime: b.dateTime,
+  };
+  try {
+    res.json(await schedulePost(input));
+  } catch (err) {
+    console.error('Erreur Metricool :', err);
     res.status(502).json({ error: (err as Error).message });
   }
 });

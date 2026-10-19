@@ -196,7 +196,7 @@ export const AdsAgentView: React.FC<AdsAgentViewProps> = ({ properties, language
     setBusyVisual(`${d.id}-${kind}`);
     try {
       const blob = kind === 'poster' ? await renderPoster(p, format) : await recordSlideshow(p, format);
-      downloadBlob(blob, `alwassit777-${d.platform}-${p.id}.${kind === 'poster' ? 'png' : 'webm'}`);
+      downloadBlob(blob, `alwassit777-${d.platform}-${p.id}.${kind === 'poster' ? 'png' : blob.type === 'video/mp4' ? 'mp4' : 'webm'}`);
     } catch (e) {
       setToast((e as Error).message);
     } finally {
