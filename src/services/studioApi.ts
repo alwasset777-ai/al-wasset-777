@@ -5,7 +5,7 @@ import { AdLanguage, AdPlatform, ListingType, Property, PropertyType } from '../
 import { agencyProfile as A } from '../data/agencyProfile';
 import { buildHashtags, generateTemplateText } from './adGenerator';
 import { getIdToken, isFirebaseEnabled, requireStorage } from './firebase';
-import { StudioNetwork, studioSpec } from './studioPlatforms';
+import { StudioLanguage, StudioNetwork, studioSpec } from './studioPlatforms';
 
 export interface StudioFile {
   id: string;
@@ -36,7 +36,7 @@ export interface StudioPost {
   hashtags: string[];
   title: string;
   source: 'ia' | 'modèle';
-  status: 'brouillon' | 'envoi' | 'programmé' | 'erreur';
+  status: 'brouillon' | 'envoi' | 'programmé' | 'publié' | 'erreur';
   error?: string;
   scheduledFor?: string;
 }
@@ -128,26 +128,30 @@ export async function isVerticalVideo(blob: Blob): Promise<boolean> {
   return v.videoHeight > v.videoWidth;
 }
 
-// Fichiers réduits envoyés à l'IA (≈ 4 Mo au maximum, limite du serveur).
-export async function prepareForAI(files: StudioFile[]): Promise<{ parts: InlineFile[]; skipped: string[] }> {
-  const parts: InlineFile[] = [];
+// Fichiers réduits envoyés à l'IA (≈ 4 Mo au maximum, limite du serveur), dans l'ordre :
+// photos (photoCount, pour les légendes de la vidéo), images des vidéos, puis PDF.
+// Priorité de place : PDF, puis photos, puis images des vidéos.
+export async function prepareForAI(files: StudioFile[]): Promise<{ parts: InlineFile[]; photoCount: number; skipped: string[] }> {
   const skipped: string[] = [];
   let total = 0;
-  const push = async (b: Blob, mimeType: string, name: string) => {
+  const encode = async (b: Blob, mimeType: string, name: string, out: InlineFile[]) => {
     const data = await blobToBase64(b);
     if (total + data.length > 4_000_000) return skipped.push(name);
     total += data.length;
-    parts.push({ mimeType, data });
+    out.push({ mimeType, data });
   };
+  const pdfs: InlineFile[] = [];
+  const photos: InlineFile[] = [];
+  const frames: InlineFile[] = [];
   for (const f of files.filter((x) => x.kind === 'pdf')) {
     if (f.file.size > 2_800_000) skipped.push(f.name);
-    else await push(f.file, 'application/pdf', f.name);
+    else await encode(f.file, 'application/pdf', f.name, pdfs);
   }
-  for (const f of files.filter((x) => x.kind === 'image').slice(0, 8)) await push(await shrinkImage(f.file), 'image/jpeg', f.name);
+  for (const f of files.filter((x) => x.kind === 'image').slice(0, 8)) await encode(await shrinkImage(f.file), 'image/jpeg', f.name, photos);
   for (const f of files.filter((x) => x.kind === 'video').slice(0, 2)) {
-    for (const frame of await videoFrames(f.file).catch(() => [])) await push(frame, 'image/jpeg', f.name);
+    for (const frame of await videoFrames(f.file).catch(() => [])) await encode(frame, 'image/jpeg', f.name, frames);
   }
-  return { parts, skipped };
+  return { parts: [...photos, ...frames, ...pdfs], photoCount: photos.length, skipped };
 }
 
 export async function extractInfo(files: StudioFile[]): Promise<Partial<StudioInfo>> {
@@ -205,13 +209,17 @@ const TEMPLATE_OF: Record<StudioNetwork, AdPlatform> = {
   facebook: 'facebook', instagram: 'instagram', tiktok: 'tiktok', youtube: 'facebook', threads: 'threads', gmb: 'avito', bluesky: 'x',
 };
 
-function templatePost(info: StudioInfo, platform: StudioNetwork, lang: AdLanguage): StudioPost {
+function templatePost(info: StudioInfo, platform: StudioNetwork, lang: StudioLanguage): StudioPost {
   const spec = studioSpec(platform);
   const p = toProperty(info, []);
-  const hashtags = buildHashtags(p, TEMPLATE_OF[platform], lang).slice(0, spec.maxHashtags);
+  const tpl = TEMPLATE_OF[platform];
+  // Bilingue : texte arabe puis français, hashtags des deux langues.
+  const langs: AdLanguage[] = lang === 'ar+fr' ? ['ar', 'fr'] : [lang];
+  const hashtags = Array.from(new Set(langs.flatMap((l) => buildHashtags(p, tpl, l)))).slice(0, spec.maxHashtags);
+  const budget = Math.floor((spec.maxChars - hashtags.join(' ').length - 2) / langs.length);
   return {
     platform,
-    text: generateTemplateText(p, TEMPLATE_OF[platform], lang).slice(0, spec.maxChars),
+    text: langs.map((l) => generateTemplateText(p, tpl, l).slice(0, budget)).join('\n\n'),
     hashtags,
     title: spec.title ? `${p.titleFr} – ${p.priceFormattedFr}`.slice(0, 90) : '',
     source: 'modèle',
@@ -223,19 +231,23 @@ export async function generatePosts(
   files: StudioFile[],
   info: StudioInfo,
   platforms: StudioNetwork[],
-  lang: AdLanguage
-): Promise<StudioPost[]> {
+  lang: StudioLanguage
+): Promise<{ posts: StudioPost[]; captions: string[] }> {
   let ai: { platform: StudioNetwork; text: string; hashtags: string[]; title: string }[] = [];
+  let captions: string[] = [];
   try {
-    const { parts } = await prepareForAI(files);
-    ai = (await post<{ posts: typeof ai }>('/api/studio/posts', { files: parts, info, platforms, language: lang })).posts;
+    const { parts, photoCount } = await prepareForAI(files);
+    const res = await post<{ posts: typeof ai; captions?: string[] }>('/api/studio/posts', { files: parts, photoCount, info, platforms, language: lang });
+    ai = res.posts;
+    captions = res.captions ?? [];
   } catch {
     // IA indisponible : modèles Al Wassit ci-dessous.
   }
-  return platforms.map((platform) => {
+  const posts = platforms.map((platform): StudioPost => {
     const found = ai.find((x) => x.platform === platform);
     return found ? { ...found, source: 'ia', status: 'brouillon' } : templatePost(info, platform, lang);
   });
+  return { posts, captions };
 }
 
 export async function enhanceImage(f: StudioFile): Promise<Blob> {
@@ -265,3 +277,9 @@ export interface SchedulePayload {
 }
 
 export const schedulePost = (p: SchedulePayload) => post<{ id: string; dateTime: string }>('/api/studio/schedule', p);
+
+// Sans Metricool : publication immédiate et gratuite sur la Page Facebook / Instagram (API Meta, voir meta.ts).
+export async function publishMetaDirect(platform: 'facebook' | 'instagram', caption: string, imageUrl?: string): Promise<string> {
+  const { id } = await post<{ id: string }>('/api/meta/publish', { platform, caption, imageUrl });
+  return id;
+}

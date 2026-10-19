@@ -24,3 +24,13 @@ export const STUDIO_PLATFORMS: StudioPlatformSpec[] = [
 export const STUDIO_NETWORK_IDS = STUDIO_PLATFORMS.map((p) => p.id);
 
 export const studioSpec = (id: StudioNetwork) => STUDIO_PLATFORMS.find((p) => p.id === id)!;
+
+// Langue des publications : « ar+fr » = un seul texte bilingue (arabe puis français), choix par défaut.
+export type StudioLanguage = 'ar+fr' | 'ar' | 'fr' | 'darija';
+
+export const STUDIO_LANGUAGES: { id: StudioLanguage; label: string }[] = [
+  { id: 'ar+fr', label: 'العربية + Français' },
+  { id: 'ar', label: 'العربية' },
+  { id: 'fr', label: 'Français' },
+  { id: 'darija', label: 'الدارجة' },
+];

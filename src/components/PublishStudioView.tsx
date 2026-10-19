@@ -16,11 +16,10 @@ import {
   AlertTriangle,
   Rocket,
 } from 'lucide-react';
-import { AdLanguage, Language, ListingType, PropertyType } from '../types';
-import { AD_LANGUAGES } from '../services/adGenerator';
+import { Language, ListingType, PropertyType } from '../types';
 import { ServerStatus, fetchServerStatus } from '../services/adsApi';
 import { isFirebaseEnabled } from '../services/firebase';
-import { STUDIO_PLATFORMS, StudioNetwork, studioSpec } from '../services/studioPlatforms';
+import { STUDIO_LANGUAGES, STUDIO_PLATFORMS, StudioLanguage, StudioNetwork, studioSpec } from '../services/studioPlatforms';
 import {
   EMPTY_INFO,
   StudioFile,
@@ -30,6 +29,7 @@ import {
   extractInfo,
   generatePosts,
   isVerticalVideo,
+  publishMetaDirect,
   schedulePost,
   toProperty,
   uploadMedia,
@@ -64,7 +64,8 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
   const [files, setFiles] = useState<StudioFile[]>([]);
   const [info, setInfo] = useState<StudioInfo>(EMPTY_INFO);
   const [platforms, setPlatforms] = useState<StudioNetwork[]>(['facebook', 'instagram', 'tiktok', 'youtube']);
-  const [lang, setLang] = useState<AdLanguage>('ar');
+  const [lang, setLang] = useState<StudioLanguage>('ar+fr');
+  const [captions, setCaptions] = useState<string[]>([]); // légendes IA des photos, pour la vidéo publicitaire
   const [when, setWhen] = useState<'now' | 'later'>('now');
   const [dateTime, setDateTime] = useState('');
   const [posts, setPosts] = useState<StudioPost[]>([]);
@@ -105,12 +106,14 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
       });
     }
     setFiles((prev) => [...prev, ...added]);
+    setCaptions([]);
   };
 
   const removeFile = (id: string) => {
     const f = files.find((x) => x.id === id);
     if (f) URL.revokeObjectURL(f.url);
     setFiles((prev) => prev.filter((x) => x.id !== id));
+    setCaptions([]);
   };
 
   const addBlob = (blob: Blob, name: string, kind: 'image' | 'video', extra: Partial<StudioFile> = {}) =>
@@ -142,7 +145,7 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
     });
 
   const makeSlideshow = async (): Promise<StudioFile> => {
-    const blob = await recordSlideshow(toProperty(info, images.map((f) => f.url)), 'vertical');
+    const blob = await recordSlideshow(toProperty(info, images.map((f) => f.url)), 'vertical', 3, { captions, bookends: true });
     const f: StudioFile = { id: newId(), file: blob, name: `video-alwassit777.${blob.type === 'video/mp4' ? 'mp4' : 'webm'}`, kind: 'video', url: URL.createObjectURL(blob), vertical: true };
     setFiles((prev) => [...prev, f]);
     return f;
@@ -165,8 +168,9 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
   // ---------- Création et publication ----------
   const handleGenerate = () =>
     run('generate', async () => {
-      const created = await generatePosts(files, info, platforms, lang);
+      const { posts: created, captions: found } = await generatePosts(files, info, platforms, lang);
       setPosts(created);
+      setCaptions(found);
       if (created.every((p) => p.source === 'modèle'))
         setToast(t('IA indisponible : modèles Al Wassit utilisés', 'الذكاء الاصطناعي غير متوفر: تم استعمال نماذج المكتب', 'AI unavailable: templates used'));
     });
@@ -183,7 +187,10 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
     }
   };
 
-  const toPublish = posts.filter((p) => p.status !== 'programmé');
+  const toPublish = posts.filter((p) => p.status !== 'programmé' && p.status !== 'publié');
+  const viaMetricool = !!status?.metricool;
+  // Sans Metricool : Facebook / Instagram restent publiables tout de suite, gratuitement, via l'API Meta.
+  const metaDirect = (id: StudioNetwork) => !viaMetricool && when === 'now' && (id === 'facebook' || id === 'instagram') && !!status?.meta[id];
   const missingFor = (id: StudioNetwork): string | null => {
     const needs = studioSpec(id).needs;
     if (needs === 'video' && !videos.length && !images.length) return t('vidéo ou photos nécessaires', 'يحتاج فيديو أو صور', 'needs a video or photos');
@@ -197,17 +204,24 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
       const batch = newId();
       // YouTube exige une vidéo : diaporama automatique à partir des photos si aucune vidéo n'a été ajoutée.
       let video = videos[0];
-      if (!video && images.length && toPublish.some((p) => studioSpec(p.platform).needs === 'video')) {
+      if (viaMetricool && !video && images.length && toPublish.some((p) => studioSpec(p.platform).needs === 'video')) {
         setBusy('slideshow');
         video = await makeSlideshow();
         setBusy('publish');
       }
-      const imageUrls = await Promise.all(images.slice(0, 10).map((f) => uploadMedia(batch, f.file, f.name)));
-      const videoUrl = video ? await uploadMedia(batch, video.file, video.name) : undefined;
+      const imageUrls = await Promise.all(images.slice(0, viaMetricool ? 10 : 1).map((f) => uploadMedia(batch, f.file, f.name)));
+      const videoUrl = video && viaMetricool ? await uploadMedia(batch, video.file, video.name) : undefined;
       let ok = 0;
       for (const p of toPublish) {
         updatePost(p.platform, { status: 'envoi', error: undefined });
         try {
+          if (!viaMetricool) {
+            if (!metaDirect(p.platform)) throw new Error(t('Nécessite Metricool', 'يحتاج ربط Metricool', 'Needs Metricool'));
+            await publishMetaDirect(p.platform as 'facebook' | 'instagram', fullText(p), imageUrls[0]);
+            updatePost(p.platform, { status: 'publié' });
+            ok++;
+            continue;
+          }
           const r = await schedulePost({
             network: p.platform,
             text: fullText(p),
@@ -224,10 +238,10 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
           updatePost(p.platform, { status: 'erreur', error: (e as Error).message });
         }
       }
-      setToast(t(`${ok}/${toPublish.length} publications envoyées à Metricool`, `تم إرسال ${ok} من ${toPublish.length} منشورات`, `${ok}/${toPublish.length} posts sent`));
+      setToast(t(`${ok}/${toPublish.length} publications envoyées`, `تم إرسال ${ok} من ${toPublish.length} منشورات`, `${ok}/${toPublish.length} posts sent`));
     });
 
-  const canPublish = !!status?.metricool && isFirebaseEnabled && !!user && toPublish.length > 0;
+  const canPublish = (viaMetricool || toPublish.some((p) => metaDirect(p.platform))) && isFirebaseEnabled && !!user && toPublish.length > 0;
 
   // ---------- Affichage ----------
   const card = 'bg-white rounded-3xl p-5 border border-[#f0e4e2] space-y-4';
@@ -335,7 +349,7 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
               </button>
               <button onClick={() => run('slideshow', async () => void (await makeSlideshow()))} disabled={!!busy} className="px-3 py-2 rounded-xl border border-[#f0e4e2] text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
                 {busy === 'slideshow' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Film className="w-3.5 h-3.5" />}
-                {busy === 'slideshow' ? t('Vidéo en cours…', 'جاري صنع الفيديو…', 'Making video…') : t('Vidéo à partir des photos', 'فيديو من الصور', 'Video from photos')}
+                {busy === 'slideshow' ? t('Vidéo en cours…', 'جاري صنع الفيديو…', 'Making video…') : t('Vidéo publicitaire (gratuite)', 'فيديو إعلاني مجاني من الصور', 'Free ad video')}
               </button>
             </div>
           )}
@@ -435,7 +449,7 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
           })}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {AD_LANGUAGES.map((l) => (
+          {STUDIO_LANGUAGES.map((l) => (
             <button
               key={l.id}
               onClick={() => setLang(l.id)}
@@ -490,12 +504,17 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
                       <CheckCircle className="w-3.5 h-3.5" /> {t('Programmé', 'مبرمج', 'Scheduled')} {p.scheduledFor?.replace('T', ' ').slice(0, 16)}
                     </span>
                   )}
+                  {p.status === 'publié' && (
+                    <span className="flex items-center gap-1 text-green-700 font-bold">
+                      <CheckCircle className="w-3.5 h-3.5" /> {t('Publié', 'تم النشر', 'Published')}
+                    </span>
+                  )}
                   {p.status === 'envoi' && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#ff6f61]" />}
                   <span className={`ms-auto text-[10px] font-bold ${len > spec.maxChars ? 'text-red-600' : 'text-[#99807d]'}`}>{len}/{spec.maxChars}</span>
                   <button onClick={() => copyPost(p)} className="p-1.5 rounded-lg hover:bg-[#fff0ed] cursor-pointer" title={t('Copier', 'نسخ', 'Copy')}>
                     <Copy className="w-3.5 h-3.5" />
                   </button>
-                  {p.status !== 'programmé' && (
+                  {p.status !== 'programmé' && p.status !== 'publié' && (
                     <button onClick={() => setPosts((prev) => prev.filter((x) => x.platform !== p.platform))} className="p-1.5 rounded-lg hover:bg-[#fff0ed] cursor-pointer" title={t('Retirer', 'حذف', 'Remove')}>
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -521,9 +540,9 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
           {!status?.metricool && (
             <p className="text-xs text-amber-700 font-semibold">
               {t(
-                'Metricool n’est pas encore relié au serveur : copiez les textes, ou suivez docs/SETUP-AR.md pour activer la publication automatique.',
-                'Metricool غير مربوط بالخادم بعد: انسخ النصوص يدوياً، أو اتبع الدليل docs/SETUP-AR.md لتفعيل النشر التلقائي.',
-                'Metricool is not linked yet: copy the texts, or follow docs/SETUP-AR.md.'
+                'Metricool n’est pas relié : seuls Facebook et Instagram (si Meta est configuré) peuvent être publiés maintenant, gratuitement. Pour les autres, copiez le texte.',
+                'Metricool غير مربوط: يمكن النشر الآن مجاناً على فيسبوك وإنستغرام فقط (إذا كان ربط Meta مفعّلاً). للمنصات الأخرى انسخ النص.',
+                'Metricool not linked: only Facebook and Instagram (if Meta is set up) can be published now, for free. Copy the text for others.'
               )}
             </p>
           )}

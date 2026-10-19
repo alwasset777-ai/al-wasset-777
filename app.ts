@@ -7,7 +7,7 @@ import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { metaStatus, publishFacebook, publishInstagram } from './meta.js';
 import { metricoolEnabled, schedulePost, type StudioPostInput } from './metricool.js';
-import { STUDIO_NETWORK_IDS, studioSpec, type StudioNetwork } from './src/services/studioPlatforms.js';
+import { STUDIO_LANGUAGES, STUDIO_NETWORK_IDS, studioSpec, type StudioNetwork } from './src/services/studioPlatforms.js';
 import { toolsForMode, type AgentMode } from './src/agent/toolDefs.js';
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
@@ -298,19 +298,27 @@ app.post('/api/studio/posts', async (req, res) => {
     res.status(400).json({ error: 'Paramètres manquants' });
     return;
   }
-  const lang = ['ar', 'darija', 'fr'].includes(language) ? language : 'ar';
+  const lang = STUDIO_LANGUAGES.some((l) => l.id === language) ? language : 'ar+fr';
+  const langRule =
+    lang === 'ar+fr'
+      ? `Texte bilingue : d'abord la version arabe (style ci-dessus), une ligne vide, puis la version française. La limite de caractères s'applique au total ; hashtags en arabe et en français.`
+      : `Langue : "${lang}".`;
+  const photoCount = Math.max(0, Math.min(8, Number(req.body?.photoCount) || 0));
+  const captionRule = photoCount
+    ? `\nLes ${photoCount} premières images jointes sont les photos du bien, dans l'ordre : donne aussi "captions", une légende très courte en arabe (2 à 5 mots, ce qu'on voit réellement, ex. « صالون واسع ومشمس ») pour chacune, dans le même ordre.`
+    : '';
   const specs = platforms.map((id) => {
     const s = studioSpec(id);
     return `- ${id} (${s.label}) : ${s.maxChars} caractères max, ${s.maxHashtags} hashtags max${s.title ? ', + un "title" court et accrocheur (moins de 90 caractères)' : ''}`;
   });
-  const prompt = `Rédige une publication par plateforme pour ce bien, en langue "${lang}".
+  const prompt = `Rédige une publication par plateforme pour ce bien. ${langRule}
 Regarde les fichiers joints (photos, images de la vidéo, PDF) pour décrire les vrais atouts visibles, sans rien inventer.
 Plateformes :
 ${specs.join('\n')}
 Adapte le ton : YouTube et TikTok = titre accrocheur + description qui donne envie de visiter ; Google Business = annonce sobre sans hashtags ; Bluesky et Threads = très court.
 Données du bien (JSON, saisies par le gérant — elles priment sur les fichiers) :
-${JSON.stringify(info).slice(0, 4000)}
-Réponds en JSON : {"posts": [{"platform": string, "text": string, "hashtags": string[], "title": string}]}`;
+${JSON.stringify(info).slice(0, 4000)}${captionRule}
+Réponds en JSON : {"posts": [{"platform": string, "text": string, "hashtags": string[], "title": string}], "captions": string[]}`;
   try {
     const response = await ai!.models.generateContent({
       model: MODEL,
@@ -329,7 +337,10 @@ Réponds en JSON : {"posts": [{"platform": string, "text": string, "hashtags": s
           title: typeof p.title === 'string' ? p.title.slice(0, 100) : '',
         };
       });
-    res.json({ posts });
+    const captions = Array.isArray(parsed.captions)
+      ? parsed.captions.slice(0, photoCount).map((c: unknown) => (typeof c === 'string' ? c.slice(0, 40) : ''))
+      : [];
+    res.json({ posts, captions });
   } catch (err) {
     console.error('Erreur publications studio :', err);
     res.status(502).json({ error: 'Génération IA impossible' });
