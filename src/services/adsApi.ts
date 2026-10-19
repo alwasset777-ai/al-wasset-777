@@ -15,6 +15,7 @@ export interface ServerStatus {
   ai: boolean;
   auth: boolean;
   meta: { facebook: boolean; instagram: boolean };
+  metricool: boolean;
 }
 
 export async function fetchServerStatus(): Promise<ServerStatus | null> {
@@ -22,7 +23,7 @@ export async function fetchServerStatus(): Promise<ServerStatus | null> {
     const res = await fetch('/api/health');
     if (!res.ok) return null;
     const data = await res.json();
-    return { ai: !!data.ai, auth: !!data.auth, meta: { facebook: !!data.meta?.facebook, instagram: !!data.meta?.instagram } };
+    return { ai: !!data.ai, auth: !!data.auth, meta: { facebook: !!data.meta?.facebook, instagram: !!data.meta?.instagram }, metricool: !!data.metricool };
   } catch {
     return null;
   }
