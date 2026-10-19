@@ -11,7 +11,6 @@ import { STUDIO_LANGUAGES, STUDIO_NETWORK_IDS, studioSpec, type StudioNetwork } 
 import { toolsForMode, type AgentMode } from './src/agent/toolDefs.js';
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
 const apiKey = process.env.GEMINI_API_KEY;
 const ai =
   apiKey && apiKey !== 'MY_GEMINI_API_KEY'
@@ -233,10 +232,10 @@ app.post('/api/meta/publish', async (req, res) => {
 });
 
 // ---------- « استوديو النشر » : du fichier (photo, vidéo, PDF) aux publications sur toutes les plateformes ----------
-// Le navigateur envoie des images réduites, quelques images extraites des vidéos et le PDF (moins de 4 Mo au total,
-// limite de Vercel) ; les fichiers originaux sont hébergés sur Firebase Storage pour la publication.
+// Le navigateur envoie les photos réduites (moins de 4 Mo au total, limite de Vercel) ; les affiches
+// générées pour chaque plateforme sont hébergées sur Firebase Storage pour la publication.
 type InlineFile = { inlineData: { mimeType: string; data: string } };
-const STUDIO_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const STUDIO_MIME = ['image/jpeg', 'image/png', 'image/webp'];
 
 function sanitizeFiles(raw: unknown, max = 12): InlineFile[] {
   if (!Array.isArray(raw)) return [];
@@ -263,31 +262,6 @@ async function requireStudio(req: express.Request, res: express.Response): Promi
   return true;
 }
 
-const EXTRACT_PROMPT = `Voici les photos, images de vidéo et/ou documents (PDF) d'un bien immobilier confié à l'agence Al Wassit 777 (Meknès).
-Extrais uniquement ce qui est visible ou écrit ; laisse vide ("" ou 0) ce qui n'apparaît pas. N'invente rien (surtout pas le prix ni la surface).
-Réponds en JSON : {"type": "Appartement"|"Villa"|"Maison"|"Terrain"|"Local Commercial"|"Bureau"|"Immeuble"|"Riad"|"Ferme"|"", "listingType": "vente"|"location"|"neuf"|"", "city": string, "district": string, "surface": number, "bedrooms": number, "bathrooms": number, "price": string, "features": string[], "description": string}
-"features" et "description" en arabe (description : 2 à 4 phrases factuelles décrivant ce qu'on voit : pièces, état, vue, finitions).`;
-
-app.post('/api/studio/extract', async (req, res) => {
-  if (!(await requireStudio(req, res))) return;
-  const files = sanitizeFiles(req.body?.files);
-  if (!files.length) {
-    res.status(400).json({ error: 'Aucun fichier lisible' });
-    return;
-  }
-  try {
-    const response = await ai!.models.generateContent({
-      model: MODEL,
-      contents: [{ role: 'user', parts: [...files, { text: EXTRACT_PROMPT }] }],
-      config: { responseMimeType: 'application/json', temperature: 0.2 },
-    });
-    res.json({ info: JSON.parse(response.text || '{}') });
-  } catch (err) {
-    console.error('Erreur extraction studio :', err);
-    res.status(502).json({ error: 'Analyse IA impossible' });
-  }
-});
-
 app.post('/api/studio/posts', async (req, res) => {
   if (!(await requireStudio(req, res))) return;
   const { info, language } = req.body || {};
@@ -303,22 +277,19 @@ app.post('/api/studio/posts', async (req, res) => {
     lang === 'ar+fr'
       ? `Texte bilingue : d'abord la version arabe (style ci-dessus), une ligne vide, puis la version française. La limite de caractères s'applique au total ; hashtags en arabe et en français.`
       : `Langue : "${lang}".`;
-  const photoCount = Math.max(0, Math.min(8, Number(req.body?.photoCount) || 0));
-  const captionRule = photoCount
-    ? `\nLes ${photoCount} premières images jointes sont les photos du bien, dans l'ordre : donne aussi "captions", une légende très courte en arabe (2 à 5 mots, ce qu'on voit réellement, ex. « صالون واسع ومشمس ») pour chacune, dans le même ordre.`
-    : '';
   const specs = platforms.map((id) => {
     const s = studioSpec(id);
     return `- ${id} (${s.label}) : ${s.maxChars} caractères max, ${s.maxHashtags} hashtags max${s.title ? ', + un "title" court et accrocheur (moins de 90 caractères)' : ''}`;
   });
   const prompt = `Rédige une publication par plateforme pour ce bien. ${langRule}
-Regarde les fichiers joints (photos, images de la vidéo, PDF) pour décrire les vrais atouts visibles, sans rien inventer.
+Regarde les photos jointes pour décrire les vrais atouts visibles, sans rien inventer.
 Plateformes :
 ${specs.join('\n')}
 Adapte le ton : YouTube et TikTok = titre accrocheur + description qui donne envie de visiter ; Google Business = annonce sobre sans hashtags ; Bluesky et Threads = très court.
 Données du bien (JSON, saisies par le gérant — elles priment sur les fichiers) :
-${JSON.stringify(info).slice(0, 4000)}${captionRule}
-Réponds en JSON : {"posts": [{"platform": string, "text": string, "hashtags": string[], "title": string}], "captions": string[]}`;
+${JSON.stringify(info).slice(0, 4000)}
+L'image publicitaire (photos, prix, téléphones) est déjà jointe à chaque publication : le texte la complète sans la répéter mot pour mot.
+Réponds en JSON : {"posts": [{"platform": string, "text": string, "hashtags": string[], "title": string}]}`;
   try {
     const response = await ai!.models.generateContent({
       model: MODEL,
@@ -337,38 +308,10 @@ Réponds en JSON : {"posts": [{"platform": string, "text": string, "hashtags": s
           title: typeof p.title === 'string' ? p.title.slice(0, 100) : '',
         };
       });
-    const captions = Array.isArray(parsed.captions)
-      ? parsed.captions.slice(0, photoCount).map((c: unknown) => (typeof c === 'string' ? c.slice(0, 40) : ''))
-      : [];
-    res.json({ posts, captions });
+    res.json({ posts });
   } catch (err) {
     console.error('Erreur publications studio :', err);
     res.status(502).json({ error: 'Génération IA impossible' });
-  }
-});
-
-// Retouche d'une photo (lumière, couleurs, netteté) sans modifier le bien : la publicité doit rester honnête.
-app.post('/api/studio/image', async (req, res) => {
-  if (!(await requireStudio(req, res))) return;
-  const [image] = sanitizeFiles([req.body?.image], 1);
-  if (!image || image.inlineData.mimeType === 'application/pdf') {
-    res.status(400).json({ error: 'Image manquante' });
-    return;
-  }
-  const prompt = `Retouche professionnelle de cette photo immobilière pour une publicité : meilleure lumière, couleurs naturelles et chaleureuses, ciel dégagé si visible, image nette et redressée.
-Ne modifie PAS le bien : garde exactement les murs, pièces, meubles, fenêtres, la vue et les dimensions. N'ajoute ni texte, ni logo, ni objet.`;
-  try {
-    const response = await ai!.models.generateContent({
-      model: IMAGE_MODEL,
-      contents: [{ role: 'user', parts: [image, { text: prompt }] }],
-      config: { responseModalities: ['TEXT', 'IMAGE'] },
-    });
-    const part = (response.candidates?.[0]?.content?.parts ?? []).find((p) => p.inlineData?.data);
-    if (!part?.inlineData?.data) throw new Error('Aucune image renvoyée');
-    res.json({ mimeType: part.inlineData.mimeType || 'image/png', data: part.inlineData.data });
-  } catch (err) {
-    console.error('Erreur image studio :', err);
-    res.status(502).json({ error: 'Retouche IA impossible' });
   }
 });
 
@@ -395,7 +338,6 @@ app.post('/api/studio/schedule', async (req, res) => {
     images: Array.isArray(b.images) ? b.images.filter(isUrl).slice(0, 10) : [],
     video: isUrl(b.video) ? b.video : undefined,
     vertical: Boolean(b.vertical),
-    aiImages: Boolean(b.aiImages),
     dateTime: b.dateTime,
   };
   try {

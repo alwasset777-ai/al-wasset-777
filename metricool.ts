@@ -19,7 +19,6 @@ export interface StudioPostInput {
   images: string[]; // liens publics (Firebase Storage)
   video?: string; // lien public
   vertical?: boolean; // vidéo verticale → Short / Reel
-  aiImages?: boolean; // images retouchées par l'IA (déclaration obligatoire Instagram / TikTok)
   dateTime?: string; // "YYYY-MM-DDTHH:mm" heure du Maroc ; absent = dans 5 minutes
 }
 
@@ -69,7 +68,7 @@ function mediaFor(p: StudioPostInput): string[] {
     case 'threads':
       return p.images.slice(0, 10);
     case 'gmb':
-      return [];
+      return p.images.slice(0, 1);
   }
 }
 
@@ -79,12 +78,12 @@ function networkData(p: StudioPostInput): Record<string, unknown> {
     case 'facebook':
       return { facebookData: { type: reel && p.vertical ? 'REEL' : 'POST' } };
     case 'instagram':
-      return { instagramData: { type: reel ? 'REEL' : 'POST', showReelOnFeed: true, isAiGenerated: Boolean(p.aiImages) } };
+      return { instagramData: { type: reel ? 'REEL' : 'POST', showReelOnFeed: true, isAiGenerated: false } };
     case 'tiktok':
       return {
         tiktokData: {
           privacyOption: 'PUBLIC_TO_EVERYONE', title: (p.title || '').slice(0, 90), disableComment: false, disableDuet: false,
-          disableStitch: false, autoAddMusic: false, commercialContentOwnBrand: true, commercialContentThirdParty: false, isAigc: Boolean(p.aiImages),
+          disableStitch: false, autoAddMusic: false, commercialContentOwnBrand: true, commercialContentThirdParty: false, isAigc: false,
         },
       };
     case 'youtube':
