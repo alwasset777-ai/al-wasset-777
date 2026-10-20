@@ -318,8 +318,20 @@ function header(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, 
   ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
   ctx.fillStyle = '#fff';
   ctx.fill();
-  if (logoImg) ctx.drawImage(logoImg, x, y, r * 2, r * 2);
-  else {
+  if (logoImg) {
+    ctx.drawImage(logoImg, x, y, r * 2, r * 2);
+    // Cerclage blanc et rouge, comme sur l'affiche officielle
+    ctx.beginPath();
+    ctx.arc(x + r, y + r, r - r * 0.025, 0, Math.PI * 2);
+    ctx.lineWidth = r * 0.05;
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x + r, y + r, r + r * 0.03, 0, Math.PI * 2);
+    ctx.lineWidth = r * 0.06;
+    ctx.strokeStyle = RED;
+    ctx.stroke();
+  } else {
     ctx.lineWidth = r * 0.08;
     ctx.strokeStyle = RED;
     ctx.stroke();

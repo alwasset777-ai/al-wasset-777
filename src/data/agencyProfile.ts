@@ -24,6 +24,6 @@ export const agencyProfile = {
     phones: ['+212 777-777848', '+212 777-777959'],
     whatsappUrl: 'https://wa.me/212777777848',
     social: { instagram: 'alwasset777', facebook: 'al waseet777Immobilier', youtube: 'alwasset777' },
-    logo: '/brand/logo-alwasset777.png',
+    logo: '/brand/logo-alwasset777.webp',
   },
 };
