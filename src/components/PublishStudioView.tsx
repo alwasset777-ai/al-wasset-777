@@ -4,7 +4,17 @@ import { siBluesky, siFacebook, siGoogle, siInstagram, siThreads, siTiktok, siWh
 import { ListingType, PropertyType } from '../types';
 import { ServerStatus, fetchServerStatus } from '../services/adsApi';
 import { isFirebaseEnabled } from '../services/firebase';
-import { DEAL_LABELS, FEATURES, PosterData, TYPE_LABELS, drawPoster, ensureFonts, headlineOf, posterBlob, posterVideo } from '../services/posterMaker';
+import { DEAL_LABELS, FEATURES, PosterData, TYPE_LABELS, drawPoster, ensureFonts, headlineOf } from '../services/posterMaker';
+import {
+  BUILTIN_TEMPLATES,
+  CustomTemplate,
+  DEFAULT_TEMPLATE,
+  PosterTemplate,
+  nativeSize,
+  templateBlob,
+  templateVideo,
+} from '../services/posterTemplates';
+import { deleteTemplate, listTemplates, saveTemplate } from '../services/templateStore';
 import { STUDIO_PLATFORMS, StudioNetwork } from '../services/studioPlatforms';
 import {
   StudioPhoto,
@@ -20,6 +30,8 @@ import {
   uploadMedia,
 } from '../services/studioApi';
 import { LoginCard, SignOutButton, useAuthUser } from './AuthGate';
+import { TemplateEditor } from './TemplateEditor';
+import { TemplatePicker } from './TemplatePicker';
 
 // « صانع الإعلانات » : une case photos, une case informations, un bouton → l'affiche publicitaire.
 // La publication sur les plateformes vient ensuite, sous l'affiche.
@@ -49,7 +61,25 @@ const target = (id: StudioTarget) => TARGETS.find((x) => x.id === id)!;
 
 const FEATURE_TITLES = FEATURES.map((f) => f.title);
 const MAX_FEATURES = 4; // places prévues sur l'affiche
-const MAIN_SIZE: [number, number] = [1080, 1350]; // affiche principale (Facebook / Instagram)
+const TEMPLATE_KEY = 'studio.template'; // dernier modèle choisi (sur cet appareil)
+
+const readTemplateId = () => {
+  try {
+    return localStorage.getItem(TEMPLATE_KEY) || DEFAULT_TEMPLATE.id;
+  } catch {
+    return DEFAULT_TEMPLATE.id;
+  }
+};
+
+// Modèle du gérant prêt à dessiner : son image de fond chargée.
+function toTemplate(tpl: CustomTemplate): Promise<PosterTemplate | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ kind: 'custom', id: tpl.id, name: tpl.name, tpl, bgImg: img });
+    img.onerror = () => resolve(null);
+    img.src = URL.createObjectURL(tpl.bg);
+  });
+}
 
 const EMPTY: PosterData = {
   deal: 'vente', type: 'Appartement', headline: '', city: 'مكناس', district: '', surface: 0, surfaceMax: 0, bedrooms: 0, bathrooms: 0, price: '', features: [],
@@ -75,6 +105,9 @@ export const PublishStudioView: React.FC = () => {
   const [dateTime, setDateTime] = useState('');
   const [posts, setPosts] = useState<StudioPost[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [customTpls, setCustomTpls] = useState<PosterTemplate[]>([]);
+  const [templateId, setTemplateId] = useState(readTemplateId);
+  const [editor, setEditor] = useState<{ initial?: CustomTemplate } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
@@ -94,6 +127,42 @@ export const PublishStudioView: React.FC = () => {
   useEffect(() => setPosts([]), [poster, selected]);
 
   const imgs = useMemo(() => photos.map((p) => p.img), [photos]);
+
+  // ---------- Modèles ----------
+  const reloadTemplates = async () => {
+    const list = (await Promise.all((await listTemplates()).map(toTemplate))).filter((t): t is PosterTemplate => !!t);
+    setCustomTpls((prev) => {
+      prev.forEach((t) => t.kind === 'custom' && t.bgImg instanceof HTMLImageElement && URL.revokeObjectURL(t.bgImg.src));
+      return list;
+    });
+  };
+  useEffect(() => {
+    reloadTemplates();
+  }, []);
+  const templates = useMemo(() => [...BUILTIN_TEMPLATES, ...customTpls], [customTpls]);
+  const template = templates.find((t) => t.id === templateId) ?? DEFAULT_TEMPLATE;
+  const mainSize = nativeSize(template); // affiche principale : format d'origine du modèle
+  const chooseTemplate = (id: string) => {
+    setTemplateId(id);
+    try {
+      localStorage.setItem(TEMPLATE_KEY, id);
+    } catch {
+      // stockage indisponible : le choix vaut pour cette visite
+    }
+  };
+  const handleSaveTemplate = async (t: CustomTemplate) => {
+    await saveTemplate(t);
+    await reloadTemplates();
+    chooseTemplate(t.id);
+    setEditor(null);
+    setToast('تم حفظ القالب');
+  };
+  const handleDeleteTemplate = async (t: PosterTemplate) => {
+    if (t.kind !== 'custom' || !window.confirm(`حذف القالب «${t.name}»؟`)) return;
+    await deleteTemplate(t.id);
+    await reloadTemplates();
+    chooseTemplate(DEFAULT_TEMPLATE.id);
+  };
 
   // ---------- Photos ----------
   const addPhotos = async (list: FileList | null) => {
@@ -139,15 +208,15 @@ export const PublishStudioView: React.FC = () => {
   const handleMake = () =>
     run('make', async () => {
       if (!photos.length) throw new Error('أضف صورة واحدة على الأقل');
-      const blob = await posterBlob(data, imgs, ...MAIN_SIZE);
+      const blob = await templateBlob(data, imgs, ...mainSize, template);
       setPoster({ blob, url: URL.createObjectURL(blob) });
       topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
   // Nom en lettres latines : les navigateurs ignorent souvent les noms de fichier en arabe.
   const fileName = (id: StudioTarget | 'affiche', ext = 'jpg') =>
-    `alwasset777-${id}-${(id === 'affiche' ? MAIN_SIZE : target(id).size).join('x')}.${ext}`;
-  const blobFor = (id: StudioTarget) => posterBlob(data, imgs, ...target(id).size);
+    `alwasset777-${id}-${(id === 'affiche' ? mainSize : target(id).size).join('x')}.${ext}`;
+  const blobFor = (id: StudioTarget) => templateBlob(data, imgs, ...target(id).size, template);
 
   const handleShare = () =>
     run('share', async () => {
@@ -201,7 +270,7 @@ export const PublishStudioView: React.FC = () => {
             updatePost(id, { status: 'publié' });
           } else {
             // YouTube n'accepte que la vidéo : l'affiche devient un Short de 8 secondes.
-            const video = id === 'youtube' ? await uploadMedia(batch, await posterVideo(data, imgs, ...target(id).size), fileName(id, 'mp4')) : undefined;
+            const video = id === 'youtube' ? await uploadMedia(batch, await templateVideo(data, imgs, ...target(id).size, template), fileName(id, 'mp4')) : undefined;
             const r = await schedulePost({
               network: id,
               text: fullText(p),
@@ -425,7 +494,19 @@ export const PublishStudioView: React.FC = () => {
             />
           </section>
 
-          {/* ================= 2. Informations ================= */}
+          {/* ================= 2. Modèle ================= */}
+          <TemplatePicker
+            templates={templates}
+            selectedId={template.id}
+            data={data}
+            photos={imgs}
+            onSelect={chooseTemplate}
+            onAdd={() => setEditor({})}
+            onEdit={(t) => t.kind === 'custom' && setEditor({ initial: t.tpl })}
+            onDelete={handleDeleteTemplate}
+          />
+
+          {/* ================= 3. Informations ================= */}
           <section className={card}>
             <h2 className="text-lg font-black">معلومات العقار</h2>
             <div className="grid grid-cols-3 gap-2">
@@ -501,7 +582,7 @@ export const PublishStudioView: React.FC = () => {
             </label>
           </section>
 
-          {/* ================= 3. Le bouton ================= */}
+          {/* ================= 4. Le bouton ================= */}
           <div className="fixed bottom-0 inset-x-0 z-40 p-3 bg-gradient-to-t from-white via-white/95 to-transparent">
             <button
               onClick={handleMake}
@@ -515,6 +596,8 @@ export const PublishStudioView: React.FC = () => {
           </div>
         </>
       )}
+
+      {editor && <TemplateEditor initial={editor.initial} data={data} photos={imgs} onSave={handleSaveTemplate} onClose={() => setEditor(null)} />}
 
       {toast && <div className="fixed top-6 inset-x-0 mx-auto w-fit max-w-[90vw] bg-[#121212] text-white text-sm font-bold px-5 py-3 rounded-2xl shadow-xl z-50">{toast}</div>}
     </div>

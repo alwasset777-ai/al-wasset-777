@@ -28,8 +28,8 @@ export interface PosterData {
 const RED = '#e3131b';
 const BLACK = '#121212';
 const GRAY = '#5f5f5f';
-const AR = 'Tajawal, sans-serif';
-const LAT = 'Inter, Tajawal, sans-serif';
+export const AR = 'Tajawal, sans-serif';
+export const LAT = 'Inter, Tajawal, sans-serif';
 
 export const TYPE_LABELS: Record<PropertyType, { ar: string; fr: string }> = {
   Appartement: { ar: 'شقة', fr: 'Appartement' },
@@ -66,33 +66,35 @@ export const FEATURES: { title: string; sub: string; icon: IconNode }[] = [
   { title: 'قريب من المدارس', sub: 'و المرافق العمومية', icon: School },
   { title: 'إطلالة رائعة', sub: 'منظر مفتوح', icon: Mountain },
 ];
-const featureInfo = (title: string) => FEATURES.find((f) => f.title === title) ?? { title, sub: '', icon: CircleCheck };
+export const featureInfo = (title: string) => FEATURES.find((f) => f.title === title) ?? { title, sub: '', icon: CircleCheck };
 
 export const headlineOf = (d: PosterData) => d.headline.trim() || `${TYPE_LABELS[d.type || 'Appartement'].ar} ${DEAL_LABELS[d.deal].ar}`;
 
 // ---------- Ressources (polices + logo) ----------
 let logoImg: HTMLImageElement | null = null;
+let markImg: HTMLImageElement | null = null; // logo « PUB الوسيط 777 », marque sur tous les modèles
+export const markLogo = () => markImg;
+const loadImage = (src: string) =>
+  new Promise<HTMLImageElement | null>((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
 let assetsReady: Promise<unknown> | null = null;
 export function ensureFonts(): Promise<unknown> {
   assetsReady ||= Promise.all([
-    ...['500 40px Tajawal', '700 40px Tajawal', '800 40px Tajawal', '900 40px Tajawal', '700 40px Inter', '800 40px Inter', '900 40px Inter'].map((f) =>
+    ...['500 40px Tajawal', '700 40px Tajawal', '800 40px Tajawal', '900 40px Tajawal', '700 40px Inter', '800 40px Inter', '900 40px Inter', '700 40px "Playfair Display"'].map((f) =>
       document.fonts?.load(f).catch(() => null)
     ),
-    new Promise<void>((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        logoImg = img;
-        resolve();
-      };
-      img.onerror = () => resolve();
-      img.src = A.poster.logo;
-    }),
+    loadImage(A.poster.logo).then((img) => (logoImg = img)),
+    loadImage(A.poster.markLogo).then((img) => (markImg = img)),
   ]);
   return assetsReady;
 }
 
 // ---------- Outils de dessin ----------
-function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+export function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const rad = Math.max(0, Math.min(r, w / 2, h / 2));
   ctx.beginPath();
   ctx.moveTo(x + rad, y);
@@ -103,9 +105,9 @@ function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
   ctx.closePath();
 }
 
-type Img = CanvasImageSource & { width: number; height: number };
+export type Img = CanvasImageSource & { width: number; height: number };
 
-function coverInPath(ctx: CanvasRenderingContext2D, img: Img | undefined, path: () => void, x: number, y: number, w: number, h: number) {
+export function coverInPath(ctx: CanvasRenderingContext2D, img: Img | undefined, path: () => void, x: number, y: number, w: number, h: number) {
   ctx.save();
   path();
   ctx.clip();
@@ -124,11 +126,11 @@ function coverInPath(ctx: CanvasRenderingContext2D, img: Img | undefined, path: 
   ctx.restore();
 }
 
-function coverRect(ctx: CanvasRenderingContext2D, img: Img | undefined, x: number, y: number, w: number, h: number, r: number) {
+export function coverRect(ctx: CanvasRenderingContext2D, img: Img | undefined, x: number, y: number, w: number, h: number, r: number) {
   coverInPath(ctx, img, () => rr(ctx, x, y, w, h, r), x, y, w, h);
 }
 
-function fitFont(ctx: CanvasRenderingContext2D, text: string, weight: number, size: number, family: string, maxW: number, min = size * 0.5): number {
+export function fitFont(ctx: CanvasRenderingContext2D, text: string, weight: number, size: number, family: string, maxW: number, min = size * 0.5): number {
   let s = size;
   ctx.font = `${weight} ${s}px ${family}`;
   while (s > min && ctx.measureText(text).width > maxW) {
@@ -138,7 +140,7 @@ function fitFont(ctx: CanvasRenderingContext2D, text: string, weight: number, si
   return s;
 }
 
-const hasArabic = (s: string) => /[؀-ۿ]/.test(s);
+export const hasArabic = (s: string) => /[؀-ۿ]/.test(s);
 
 // Prix lisible : « 950 000 » s'afficherait « 000 950 » en sens arabe.
 export function formatPrice(price: string): string {
@@ -190,7 +192,7 @@ function brush(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
 }
 
 // Icône lucide (traits) dessinée sur le canvas.
-function drawIcon(ctx: CanvasRenderingContext2D, node: IconNode, cx: number, cy: number, size: number, color: string, width = 2) {
+export function drawIcon(ctx: CanvasRenderingContext2D, node: IconNode, cx: number, cy: number, size: number, color: string, width = 2) {
   ctx.save();
   ctx.translate(cx - size / 2, cy - size / 2);
   ctx.scale(size / 24, size / 24);
@@ -227,7 +229,7 @@ function drawIcon(ctx: CanvasRenderingContext2D, node: IconNode, cx: number, cy:
 }
 
 // Logo de marque (simple-icons) blanc dans une pastille de couleur.
-function brandDot(ctx: CanvasRenderingContext2D, path: string, cx: number, cy: number, r: number, bg: string | CanvasGradient) {
+export function brandDot(ctx: CanvasRenderingContext2D, path: string, cx: number, cy: number, r: number, bg: string | CanvasGradient) {
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -257,7 +259,7 @@ function pin(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number) {
 }
 
 let qrCache: { text: string; cells: boolean[][] } | null = null;
-function qr(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number) {
+export function qr(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number) {
   if (qrCache?.text !== text) {
     const q = qrcode(0, 'M');
     q.addData(text);
@@ -535,24 +537,30 @@ function footer(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, 
   ctx.restore();
 }
 
-// Décor : silhouette d'immeubles (bas gauche) et bandes rouge/noire (coin bas droit).
+// Décor : marque « PUB الوسيط 777 » (ou silhouette d'immeubles) en bas à gauche et bandes rouge/noire (coin bas droit).
 function decor(ctx: CanvasRenderingContext2D, bottom: number, w: number, h: number, u: number) {
   ctx.save();
-  ctx.strokeStyle = '#d9d9d9';
-  ctx.lineWidth = 2 * u;
   const bw = Math.min(w * 0.2, 200 * u);
-  const blocks = [0.5, 0.85, 0.6, 1, 0.45];
-  blocks.forEach((k, i) => {
-    const bx = 10 * u + (bw / blocks.length) * i;
-    const bh = h * k;
-    ctx.strokeRect(bx, bottom - bh, bw / blocks.length - 6 * u, bh);
-    for (let fy = bottom - bh + 12 * u; fy < bottom - 10 * u; fy += 18 * u) {
-      ctx.beginPath();
-      ctx.moveTo(bx + 6 * u, fy);
-      ctx.lineTo(bx + bw / blocks.length - 12 * u, fy);
-      ctx.stroke();
-    }
-  });
+  if (markImg) {
+    // Largeur limitée : la marque ne touche pas le pinceau du slogan
+    const mh = Math.min(h, (Math.min(w * 0.16, 165 * u) * markImg.height) / markImg.width);
+    ctx.drawImage(markImg, 10 * u, bottom - mh - 4 * u, (mh * markImg.width) / markImg.height, mh);
+  } else {
+    ctx.strokeStyle = '#d9d9d9';
+    ctx.lineWidth = 2 * u;
+    const blocks = [0.5, 0.85, 0.6, 1, 0.45];
+    blocks.forEach((k, i) => {
+      const bx = 10 * u + (bw / blocks.length) * i;
+      const bh = h * k;
+      ctx.strokeRect(bx, bottom - bh, bw / blocks.length - 6 * u, bh);
+      for (let fy = bottom - bh + 12 * u; fy < bottom - 10 * u; fy += 18 * u) {
+        ctx.beginPath();
+        ctx.moveTo(bx + 6 * u, fy);
+        ctx.lineTo(bx + bw / blocks.length - 12 * u, fy);
+        ctx.stroke();
+      }
+    });
+  }
   const s = Math.min(160 * u, h * 1.2);
   ctx.lineWidth = 16 * u;
   ctx.strokeStyle = RED;
@@ -725,6 +733,7 @@ function drawHorizontalBase(ctx: CanvasRenderingContext2D, d: PosterData, photos
   priceBrush(ctx, d, W - 4, pBot - 8, 420, 120);
   socialBar(ctx, 812, W, 48, 0.9);
   footer(ctx, 612, 704, W - 612, 104, 0.85);
+  if (markImg) ctx.drawImage(markImg, 14, 862, (36 * markImg.width) / markImg.height, 36);
 }
 
 function drawHorizontal(ctx: CanvasRenderingContext2D, d: PosterData, photos: Img[], w: number, h: number) {
@@ -780,10 +789,16 @@ export async function posterBlob(d: PosterData, photos: Img[], w: number, h: num
 
 // YouTube n'accepte que la vidéo : l'affiche devient un court Short de quelques secondes (zoom lent).
 export async function posterVideo(d: PosterData, photos: Img[], w: number, h: number, seconds = 8): Promise<Blob> {
-  if (typeof MediaRecorder === 'undefined') throw new Error("Ce navigateur ne permet pas d'enregistrer une vidéo");
   await ensureFonts();
   const still = document.createElement('canvas');
   drawPoster(still, d, photos, w, h);
+  return posterVideoFrom(still, seconds);
+}
+
+// Vidéo à partir d'une affiche déjà dessinée (tous les modèles).
+export async function posterVideoFrom(still: HTMLCanvasElement, seconds = 8): Promise<Blob> {
+  if (typeof MediaRecorder === 'undefined') throw new Error("Ce navigateur ne permet pas d'enregistrer une vidéo");
+  const { width: w, height: h } = still;
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
