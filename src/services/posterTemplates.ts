@@ -12,6 +12,7 @@ import {
 } from './posterMaker';
 
 const SERIF = '"Playfair Display", Georgia, serif';
+const PHONES_LINE = A.poster.phones.join('  /  '); // les deux numéros de l'agence
 
 // ---------- Modèles ajoutés par le gérant ----------
 export type BlockKind = 'photo' | 'headline' | 'subtitle' | 'price' | 'address' | 'specs' | 'features' | 'phone' | 'logo' | 'qr' | 'icon' | 'label';
@@ -266,7 +267,7 @@ function drawArdoise(ctx: CanvasRenderingContext2D, d: PosterData, p: Img[]) {
     say(ctx, placeOf(d), 412, 776, { size: 32, color: '#fff', weight: 700, align: 'right', maxW: 380 });
   }
   say(ctx, 'للتواصل و الاستفسار', 460, 840, { size: 28, color: '#eef3f5', weight: 700, align: 'right', maxW: 430 });
-  say(ctx, A.poster.phones[0], 460, 892, { size: 38, color: '#fff', weight: 800, align: 'right', font: 'lat', maxW: 430 });
+  say(ctx, PHONES_LINE, 460, 892, { size: 38, color: '#fff', weight: 800, align: 'right', font: 'lat', maxW: 430 });
   specBar(ctx, specList(d), 40, 1190, 1000, 132, '#fff');
 }
 
@@ -284,9 +285,10 @@ function drawTaupe(ctx: CanvasRenderingContext2D, d: PosterData, p: Img[]) {
   rr(ctx, -60, 300, 440, 270, 70);
   ctx.fillStyle = C2;
   ctx.fill();
-  say(ctx, priceOf(d), 190, 405, { size: 62, color: '#fff', weight: 900, maxW: 340 });
-  say(ctx, 'للتواصل و الاستفسار', 190, 462, { size: 26, color: '#f6f1ec', weight: 700, maxW: 340 });
-  say(ctx, A.poster.phones[0], 190, 512, { size: 34, color: '#fff', weight: 800, font: 'lat', maxW: 340 });
+  say(ctx, priceOf(d), 190, 392, { size: 62, color: '#fff', weight: 900, maxW: 340 });
+  say(ctx, 'للتواصل و الاستفسار', 190, 442, { size: 26, color: '#f6f1ec', weight: 700, maxW: 340 });
+  say(ctx, A.poster.phones[0], 190, 492, { size: 34, color: '#fff', weight: 800, font: 'lat', maxW: 340 });
+  say(ctx, A.poster.phones[1] ?? '', 190, 534, { size: 34, color: '#fff', weight: 800, font: 'lat', maxW: 340 });
   markBadge(ctx, 52, 1066, 84);
   specBar(ctx, specList(d), 40, 1186, 1000, 136, '#fff');
 }
@@ -313,7 +315,7 @@ function drawMarine(ctx: CanvasRenderingContext2D, d: PosterData, p: Img[]) {
   ctx.arc(130 + lw + 70, 512, 44, 0, Math.PI * 2);
   ctx.fill();
   drawIcon(ctx, Phone, 130 + lw + 70, 512, 42, '#fff', 2.2);
-  say(ctx, A.poster.phones[0], 130 + lw + 130, 528, { size: 44, color: N, weight: 800, align: 'left', font: 'lat', maxW: 960 - (130 + lw + 130) });
+  say(ctx, PHONES_LINE, 130 + lw + 130, 528, { size: 44, color: N, weight: 800, align: 'left', font: 'lat', maxW: 960 - (130 + lw + 130) });
   coverRect(ctx, pick(p, 0), 0, 610, 1080, 820, 0);
   [60, 390, 720].forEach((x, i) => {
     rr(ctx, x, 1330, 300, 300, 14);
@@ -413,7 +415,8 @@ function blockText(b: TemplateBlock, d: PosterData): string {
     case 'label':
       return b.text ?? '';
     case 'phone':
-      return b.item !== undefined ? A.poster.phones[b.item] ?? '' : A.poster.phones.join('\n');
+      // item -1 : les deux numéros sur une ligne ; item n : un seul numéro ; sinon un numéro par ligne
+      return b.item === -1 ? PHONES_LINE : b.item !== undefined ? A.poster.phones[b.item] ?? '' : A.poster.phones.join('\n');
     default:
       return '';
   }
