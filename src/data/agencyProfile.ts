@@ -17,4 +17,13 @@ export const agencyProfile = {
   sloganAr: 'التجربة دليل الكفاءة',
   sloganFr: "L'expérience, preuve de compétence",
   brandHashtags: ['#الوسيط_777', '#AlWassit777', '#عقارات_مكناس', '#ImmobilierMeknes'],
+  // Identité visuelle des affiches publicitaires (reprise de l'affiche officielle de l'agence).
+  poster: {
+    sloganAr: 'مع الوسيط حلك بسيط',
+    addressAr: 'شارع باريس بجانب سينما كاميرا قيصارية سليكت رقم 52 حمرية مكناس',
+    phones: ['+212 777-777848', '+212 777-777959'],
+    whatsappUrl: 'https://wa.me/212777777848',
+    social: { instagram: 'alwasset777', facebook: 'al waseet777Immobilier', youtube: 'alwasset777' },
+    logo: '/brand/logo-alwasset777.webp',
+  },
 };
