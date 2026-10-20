@@ -1,10 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import { PosterData, ensureFonts } from '../services/posterMaker';
-import { PosterTemplate, renderPreview } from '../services/posterTemplates';
+import { PosterTemplate, nativeSize, renderPreview } from '../services/posterTemplates';
 
-// Case « القالب » : vignettes de chaque modèle avec les photos et informations du bien.
+// Choix du modèle d'une plateforme : vignettes de chaque modèle avec les photos et informations du bien.
+// Les modèles au format de la plateforme passent en premier.
 interface Props {
+  title: string;
+  aspect: number; // largeur / hauteur de la plateforme
   templates: PosterTemplate[];
   selectedId: string;
   data: PosterData;
@@ -15,8 +18,13 @@ interface Props {
   onDelete: (t: PosterTemplate) => void;
 }
 
-export const TemplatePicker: React.FC<Props> = ({ templates, selectedId, data, photos, onSelect, onAdd, onEdit, onDelete }) => {
+export const TemplatePicker: React.FC<Props> = ({ title, aspect, templates: all, selectedId, data, photos, onSelect, onAdd, onEdit, onDelete }) => {
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  const fits = (t: PosterTemplate) => {
+    const [w, h] = nativeSize(t);
+    return t.id === 'wasset' || Math.abs(w / h - aspect) / aspect < 0.04; // « الوسيط » s'adapte à tous les formats
+  };
+  const templates = useMemo(() => [...all.filter(fits), ...all.filter((t) => !fits(t))], [all, aspect]);
 
   useEffect(() => {
     let alive = true;
@@ -41,26 +49,29 @@ export const TemplatePicker: React.FC<Props> = ({ templates, selectedId, data, p
 
   return (
     <section className="bg-white rounded-3xl p-4 sm:p-5 border border-[#ececec] shadow-sm space-y-3">
-      <h2 className="text-lg font-black">القالب</h2>
-      <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
+      <h2 className="text-lg font-black">{title}</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {templates.map((t) => {
           const on = t.id === selectedId;
           return (
-            <button key={t.id} onClick={() => onSelect(t.id)} className="shrink-0 snap-start flex flex-col items-center gap-1.5 cursor-pointer">
-              <span className={`relative block h-44 rounded-xl overflow-hidden bg-[#eee] ${on ? 'ring-4 ring-[#e3131b]' : 'ring-1 ring-[#e5e5e5]'}`}>
-                {thumbs[t.id] ? <img src={thumbs[t.id]} alt="" className="h-full w-auto" /> : <span className="block h-full w-36 animate-pulse" />}
+            <button key={t.id} onClick={() => onSelect(t.id)} className="flex flex-col items-center gap-1.5 cursor-pointer">
+              <span className={`relative w-full h-56 flex items-center justify-center rounded-xl overflow-hidden bg-[#eee] ${on ? 'ring-4 ring-[#e3131b]' : 'ring-1 ring-[#e5e5e5]'}`}>
+                {thumbs[t.id] ? <img src={thumbs[t.id]} alt="" className="max-h-full max-w-full" /> : <span className="block h-full w-full animate-pulse" />}
                 {on && (
                   <span className="absolute top-1.5 left-1.5 w-7 h-7 rounded-full bg-[#e3131b] text-white flex items-center justify-center">
                     <Check className="w-4 h-4" />
                   </span>
                 )}
               </span>
-              <span className={`text-xs font-bold ${on ? 'text-[#e3131b]' : 'text-[#555]'}`}>{t.name}</span>
+              <span className={`text-xs font-bold ${on ? 'text-[#e3131b]' : 'text-[#555]'}`}>
+                {t.name}
+                {!fits(t) && <span className="text-[#999] font-semibold"> · مقاس آخر</span>}
+              </span>
             </button>
           );
         })}
-        <button onClick={onAdd} className="shrink-0 snap-start flex flex-col items-center gap-1.5 cursor-pointer">
-          <span className="h-44 w-32 rounded-xl border-2 border-dashed border-[#f3a3a6] bg-[#fff5f5] text-[#e3131b] flex flex-col items-center justify-center gap-1">
+        <button onClick={onAdd} className="flex flex-col items-center gap-1.5 cursor-pointer">
+          <span className="h-56 w-full rounded-xl border-2 border-dashed border-[#f3a3a6] bg-[#fff5f5] text-[#e3131b] flex flex-col items-center justify-center gap-1">
             <Plus className="w-8 h-8" />
             <span className="text-sm font-black">قالب جديد</span>
           </span>

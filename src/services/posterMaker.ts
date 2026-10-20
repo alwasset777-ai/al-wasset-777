@@ -8,11 +8,14 @@ import {
   ArrowUpDown, Building2, Car, CircleCheck, CookingPot, FileCheck, Flame, Mountain, School, ShieldCheck, Sofa, SquareParking, Sun, Trees, Waves,
 } from 'lucide';
 import { siFacebook, siInstagram, siWhatsapp, siYoutube } from 'simple-icons';
-import { ListingType, PropertyType } from '../types';
+import { PropertyType } from '../types';
 import { agencyProfile as A } from '../data/agencyProfile';
 
+// Transaction affichée : vente, location ou location meublée (« مشروع جديد » n'est plus proposé).
+export type PosterDeal = 'vente' | 'location' | 'meuble';
+
 export interface PosterData {
-  deal: ListingType;
+  deal: PosterDeal;
   type: PropertyType | '';
   headline: string; // grand titre ; vide = « type + transaction »
   city: string;
@@ -43,11 +46,17 @@ export const TYPE_LABELS: Record<PropertyType, { ar: string; fr: string }> = {
   Ferme: { ar: 'ضيعة فلاحية', fr: 'Ferme' },
 };
 
-export const DEAL_LABELS: Record<ListingType, { ar: string; fr: string }> = {
-  vente: { ar: 'للبيع', fr: 'À VENDRE' },
-  location: { ar: 'للكراء', fr: 'À LOUER' },
-  neuf: { ar: 'مشروع جديد', fr: 'PROJET NEUF' },
+// ar : dans le titre de l'affiche ; btn : sur le bouton du formulaire.
+export const DEAL_LABELS: Record<PosterDeal, { ar: string; fr: string; btn: string }> = {
+  vente: { ar: 'للبيع', fr: 'À VENDRE', btn: 'للبيع' },
+  location: { ar: 'للكراء', fr: 'À LOUER', btn: 'للكراء' },
+  meuble: { ar: 'مفروشة للكراء', fr: 'MEUBLÉ À LOUER', btn: 'كراء مفروش' },
 };
+
+// Accord de « مفروش » avec le type (منزل مفروش، شقة مفروشة).
+const MASCULINE: PropertyType[] = ['Maison', 'Local Commercial', 'Riad', 'Terrain'];
+const dealAr = (d: PosterData) =>
+  d.deal === 'meuble' && MASCULINE.includes(d.type || 'Appartement') ? 'مفروش للكراء' : DEAL_LABELS[d.deal].ar;
 
 // Atouts proposés : titre (sur l'affiche), sous-titre et icône.
 export const FEATURES: { title: string; sub: string; icon: IconNode }[] = [
@@ -68,7 +77,7 @@ export const FEATURES: { title: string; sub: string; icon: IconNode }[] = [
 ];
 export const featureInfo = (title: string) => FEATURES.find((f) => f.title === title) ?? { title, sub: '', icon: CircleCheck };
 
-export const headlineOf = (d: PosterData) => d.headline.trim() || `${TYPE_LABELS[d.type || 'Appartement'].ar} ${DEAL_LABELS[d.deal].ar}`;
+export const headlineOf = (d: PosterData) => d.headline.trim() || `${TYPE_LABELS[d.type || 'Appartement'].ar} ${dealAr(d)}`;
 
 // ---------- Ressources (polices + logo) ----------
 let logoImg: HTMLImageElement | null = null;

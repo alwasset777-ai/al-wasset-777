@@ -116,7 +116,7 @@ export const TemplateEditor: React.FC<Props> = ({ initial, data, photos, onSave,
     const base: TemplateBlock = { id: `${Date.now()}-${n}`, kind, x: 0.2 + off, y: 0.15 + off, w: 0.6, h: 0.08 };
     const b: TemplateBlock =
       kind === 'photo'
-        ? { ...base, w: 0.5, h: 0.3, photo: Math.min(4, photoCount + 1), shape: 'round' }
+        ? { ...base, w: 0.5, h: 0.3, photo: Math.min(5, photoCount + 1), shape: 'round' }
         : kind === 'logo'
           ? { ...base, w: 0.34, h: (0.34 * ratio) / 2.1, fill: '#ffffff' }
           : kind === 'qr'
@@ -293,7 +293,7 @@ export const TemplateEditor: React.FC<Props> = ({ initial, data, photos, onSave,
                   <>
                     <div className="flex flex-wrap gap-2 items-center">
                       <span className="text-xs font-bold text-[#5f5f5f]">أي صورة:</span>
-                      {[1, 2, 3, 4].map((n) => (
+                      {[1, 2, 3, 4, 5].map((n) => (
                         <button key={n} onClick={() => update(sel.id, { photo: n })} className={btn(sel.photo === n)}>
                           {n === 1 ? '1 (الرئيسية)' : n}
                         </button>

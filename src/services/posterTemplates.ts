@@ -23,7 +23,7 @@ export interface TemplateBlock {
   y: number;
   w: number;
   h: number;
-  photo?: number; // 1 = photo principale
+  photo?: number; // 1 = photo principale (1 → 5)
   shape?: 'rect' | 'round' | 'circle';
   color?: string;
   fill?: string | null; // fond plein : cache le texte d'exemple de l'image
