@@ -10,9 +10,10 @@ import {
   AR, DEAL_LABELS, Img, LAT, PosterData, TYPE_LABELS, coverInPath, coverRect, drawIcon, drawPoster, ensureFonts, featureInfo, fitFont,
   formatPrice, hasArabic, headlineOf, markLogo, markLogoAlpha, posterVideoFrom, qr, rr,
 } from './posterMaker';
+import { KIT_STYLES, KitStyle, drawKit } from './kitTemplates';
 
 const SERIF = '"Playfair Display", Georgia, serif';
-const PHONES_LINE = A.poster.phones.join('  /  '); // les deux numéros de l'agence
+export const PHONES_LINE = A.poster.phones.join('  /  '); // les deux numéros de l'agence
 
 // ---------- Modèles ajoutés par le gérant ----------
 export type BlockKind = 'photo' | 'headline' | 'subtitle' | 'price' | 'address' | 'specs' | 'features' | 'phone' | 'logo' | 'qr' | 'icon' | 'label';
@@ -73,7 +74,8 @@ export type BuiltinId = 'wasset' | 'ardoise' | 'marine' | 'taupe' | 'sauge';
 export type PosterTemplate =
   | { kind: 'builtin'; id: BuiltinId; name: string }
   | { kind: 'custom'; id: string; name: string; tpl: CustomTemplate; bgImg: Img }
-  | { kind: 'image'; id: string; name: string; size: [number, number]; blocks: TemplateBlock[]; bgImg: Img };
+  | { kind: 'image'; id: string; name: string; size: [number, number]; blocks: TemplateBlock[]; bgImg: Img }
+  | { kind: 'kit'; id: string; name: string; style: KitStyle }; // adaptable : dessiné à la taille de chaque plateforme
 
 interface BuiltinSpec {
   id: BuiltinId;
@@ -86,15 +88,15 @@ interface BuiltinSpec {
 export const DEFAULT_TEMPLATE: PosterTemplate = { kind: 'builtin', id: 'wasset', name: 'الوسيط' };
 
 // ---------- Outils ----------
-const pick = (p: Img[], i: number): Img | undefined => p[i] ?? (p.length ? p[i % p.length] : undefined);
+export const pick = (p: Img[], i: number): Img | undefined => p[i] ?? (p.length ? p[i % p.length] : undefined);
 
 const typeOf = (d: PosterData) => d.type || 'Appartement';
-const subOf = (d: PosterData) => `${TYPE_LABELS[typeOf(d)].fr} · ${DEAL_LABELS[d.deal].fr}`;
-const priceOf = (d: PosterData) => formatPrice(d.price) || 'فرصة مميزة';
-const placeOf = (d: PosterData) => [d.district, d.city].filter(Boolean).join('، ');
+export const subOf = (d: PosterData) => `${TYPE_LABELS[typeOf(d)].fr} · ${DEAL_LABELS[d.deal].fr}`;
+export const priceOf = (d: PosterData) => formatPrice(d.price) || 'فرصة مميزة';
+export const placeOf = (d: PosterData) => [d.district, d.city].filter(Boolean).join('، ');
 
-type Spec = { icon: IconNode; text: string };
-function specList(d: PosterData, n = 4): Spec[] {
+export type Spec = { icon: IconNode; text: string };
+export function specList(d: PosterData, n = 4): Spec[] {
   const out: Spec[] = [];
   if (d.surface) out.push({ icon: Maximize, text: d.surfaceMax > d.surface ? `${d.surface}-${d.surfaceMax} م²` : `${d.surface} م²` });
   if (d.bedrooms) out.push({ icon: BedDouble, text: `${d.bedrooms} ${d.bedrooms === 1 ? 'غرفة' : 'غرف'}` });
@@ -112,7 +114,7 @@ interface SayOpts {
   font?: 'ar' | 'lat' | 'serif';
   maxW?: number;
 }
-function say(ctx: CanvasRenderingContext2D, t: string, x: number, y: number, o: SayOpts): number {
+export function say(ctx: CanvasRenderingContext2D, t: string, x: number, y: number, o: SayOpts): number {
   const fam = o.font === 'serif' ? SERIF : o.font === 'lat' ? LAT : hasArabic(t) ? AR : LAT;
   ctx.save();
   ctx.direction = hasArabic(t) ? 'rtl' : 'ltr';
@@ -128,7 +130,7 @@ function say(ctx: CanvasRenderingContext2D, t: string, x: number, y: number, o: 
 }
 
 // Icône + texte centrés sur cx (l'icône à droite du texte, sens arabe).
-function iconText(ctx: CanvasRenderingContext2D, icon: IconNode, t: string, cx: number, y: number, size: number, color: string, maxW: number) {
+export function iconText(ctx: CanvasRenderingContext2D, icon: IconNode, t: string, cx: number, y: number, size: number, color: string, maxW: number) {
   ctx.save();
   const fam = hasArabic(t) ? AR : LAT;
   const s = fitFont(ctx, t, 700, size, fam, maxW - size * 1.4, size * 0.5);
@@ -141,7 +143,7 @@ function iconText(ctx: CanvasRenderingContext2D, icon: IconNode, t: string, cx: 
 }
 
 // Texte qui remplit une zone (plusieurs lignes si nécessaire), taille maximale possible.
-function boxText(
+export function boxText(
   ctx: CanvasRenderingContext2D,
   text: string,
   x: number,
@@ -190,7 +192,7 @@ function boxText(
 }
 
 // Marque « PUB الوسيط 777 » sur une pastille blanche. Renvoie la largeur occupée.
-function markBadge(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, align: 'left' | 'center' | 'right' = 'left', plain = false): number {
+export function markBadge(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, align: 'left' | 'center' | 'right' = 'left', plain = false): number {
   const m = markLogo();
   if (!m) return 0;
   const round = Math.abs(m.width - m.height) < 4; // logo rond : il a déjà son propre fond blanc
@@ -211,7 +213,7 @@ function markBadge(ctx: CanvasRenderingContext2D, x: number, y: number, h: numbe
   return bw;
 }
 
-function circlePhoto(ctx: CanvasRenderingContext2D, img: Img | undefined, cx: number, cy: number, r: number, ring: number, ringColor: string) {
+export function circlePhoto(ctx: CanvasRenderingContext2D, img: Img | undefined, cx: number, cy: number, r: number, ring: number, ringColor: string) {
   coverInPath(
     ctx,
     img,
@@ -392,7 +394,18 @@ const BUILTINS: BuiltinSpec[] = [
   { id: 'sauge', name: 'أخضر', size: [1080, 1350], frame: '#6e8d82', draw: drawSauge },
 ];
 
-export const BUILTIN_TEMPLATES: PosterTemplate[] = BUILTINS.map((b) => ({ kind: 'builtin', id: b.id, name: b.name }));
+export const BUILTIN_TEMPLATES: PosterTemplate[] = [
+  { kind: 'builtin', id: 'wasset', name: 'الوسيط' },
+  ...KIT_STYLES.map((style): PosterTemplate => ({ kind: 'kit', id: style.id, name: style.name, style })),
+  ...BUILTINS.filter((b) => b.id !== 'wasset').map((b): PosterTemplate => ({ kind: 'builtin', id: b.id, name: b.name })),
+];
+
+// Le modèle convient-il au format de la plateforme ? (« الوسيط » et les modèles adaptables : toujours)
+export function fitsAspect(t: PosterTemplate, aspect: number): boolean {
+  if (t.kind === 'kit' || (t.kind === 'builtin' && t.id === 'wasset')) return true;
+  const [w, h] = nativeSize(t);
+  return Math.abs(w / h - aspect) / aspect < 0.04;
+}
 
 // ---------- Rendu d'un modèle du gérant ----------
 function blockText(b: TemplateBlock, d: PosterData): string {
@@ -525,10 +538,12 @@ const CUSTOM_W = 1080;
 export function nativeSize(t: PosterTemplate): [number, number] {
   if (t.kind === 'custom') return [CUSTOM_W, Math.round((CUSTOM_W * t.tpl.height) / t.tpl.width)];
   if (t.kind === 'image') return t.size;
+  if (t.kind === 'kit') return [1080, 1350];
   return BUILTINS.find((b) => b.id === t.id)!.size;
 }
 
 function frameOf(t: PosterTemplate): string {
+  if (t.kind === 'kit') return t.style.bg;
   return t.kind !== 'builtin' ? '#ffffff' : BUILTINS.find((b) => b.id === t.id)!.frame;
 }
 
@@ -551,6 +566,12 @@ function drawNative(ctx: CanvasRenderingContext2D, d: PosterData, p: Img[], t: P
 // les autres sont centrés sur leur couleur de fond.
 export function renderPoster(canvas: HTMLCanvasElement, d: PosterData, p: Img[], w: number, h: number, t: PosterTemplate) {
   if (t.kind === 'builtin' && t.id === 'wasset') return drawPoster(canvas, d, p, w, h);
+  if (t.kind === 'kit') {
+    canvas.width = w;
+    canvas.height = h;
+    drawKit(canvas.getContext('2d')!, t.style, d, p, w, h);
+    return;
+  }
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d')!;
@@ -569,10 +590,17 @@ export function renderPoster(canvas: HTMLCanvasElement, d: PosterData, p: Img[],
 }
 
 // Aperçu au format d'origine du modèle (vignettes, éditeur).
-export function renderPreview(canvas: HTMLCanvasElement, d: PosterData, p: Img[], t: PosterTemplate, width: number) {
+export function renderPreview(canvas: HTMLCanvasElement, d: PosterData, p: Img[], t: PosterTemplate, width: number, aspect?: number) {
   const [W, H] = nativeSize(t);
   if (t.kind === 'builtin' && t.id === 'wasset') {
-    drawPoster(canvas, d, p, W, H);
+    if (aspect) drawPoster(canvas, d, p, 1080, Math.round(1080 / aspect));
+    else drawPoster(canvas, d, p, W, H);
+    return;
+  }
+  if (t.kind === 'kit') {
+    // Aperçu au format de la plateforme (aspect = largeur / hauteur)
+    const h = Math.round(width / (aspect ?? W / H));
+    renderPoster(canvas, d, p, width, h, t);
     return;
   }
   canvas.width = width;
