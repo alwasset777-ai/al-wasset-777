@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Download, ImagePlus, Loader2, Plus, Rocket, Send, Share2, Sparkles, Star, X } from 'lucide-react';
+import { ArrowRight, Check, Download, ImagePlus, Loader2, Pencil, Plus, Send, Share2, Sparkles, Star, X } from 'lucide-react';
 import { siBluesky, siFacebook, siGoogle, siInstagram, siThreads, siTiktok, siWhatsapp, siYoutube } from 'simple-icons';
-import { Language, ListingType, PropertyType } from '../types';
+import { ListingType, PropertyType } from '../types';
 import { ServerStatus, fetchServerStatus } from '../services/adsApi';
 import { isFirebaseEnabled } from '../services/firebase';
 import { DEAL_LABELS, FEATURES, PosterData, TYPE_LABELS, drawPoster, ensureFonts, headlineOf, posterBlob, posterVideo } from '../services/posterMaker';
-import { STUDIO_LANGUAGES, STUDIO_PLATFORMS, StudioLanguage, StudioNetwork } from '../services/studioPlatforms';
+import { STUDIO_PLATFORMS, StudioNetwork } from '../services/studioPlatforms';
 import {
   StudioPhoto,
   StudioPost,
@@ -21,9 +21,8 @@ import {
 } from '../services/studioApi';
 import { LoginCard, SignOutButton, useAuthUser } from './AuthGate';
 
-interface PublishStudioViewProps {
-  language: Language;
-}
+// « صانع الإعلانات » : une case photos, une case informations, un bouton → l'affiche publicitaire.
+// La publication sur les plateformes vient ensuite, sous l'affiche.
 
 interface TargetSpec {
   id: StudioTarget;
@@ -32,7 +31,6 @@ interface TargetSpec {
   color: string;
   bg?: string;
   size: [number, number];
-  format: string;
 }
 
 const LOGOS: Record<StudioTarget, string> = {
@@ -42,15 +40,16 @@ const LOGOS: Record<StudioTarget, string> = {
 
 const TARGETS: TargetSpec[] = [
   ...STUDIO_PLATFORMS.map((p) => ({
-    id: p.id, label: p.label, path: LOGOS[p.id], color: p.color, size: p.size, format: p.format,
+    id: p.id, label: p.label, path: LOGOS[p.id], color: p.color, size: p.size,
     bg: p.id === 'instagram' ? 'linear-gradient(45deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5)' : undefined,
   })),
-  { id: 'whatsapp', label: 'WhatsApp', path: LOGOS.whatsapp, color: '#25d366', size: [1080, 1920], format: 'Statut' },
+  { id: 'whatsapp', label: 'WhatsApp', path: LOGOS.whatsapp, color: '#25d366', size: [1080, 1920] },
 ];
 const target = (id: StudioTarget) => TARGETS.find((x) => x.id === id)!;
 
 const FEATURE_TITLES = FEATURES.map((f) => f.title);
 const MAX_FEATURES = 4; // places prévues sur l'affiche
+const MAIN_SIZE: [number, number] = [1080, 1350]; // affiche principale (Facebook / Instagram)
 
 const EMPTY: PosterData = {
   deal: 'vente', type: 'Appartement', headline: '', city: 'مكناس', district: '', surface: 0, surfaceMax: 0, bedrooms: 0, bathrooms: 0, price: '', features: [],
@@ -62,29 +61,23 @@ const BrandLogo: React.FC<{ path: string; className?: string }> = ({ path, class
   </svg>
 );
 
-export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }) => {
-  const isAr = language === 'ar';
-  const isEn = language === 'en';
-  const t = (fr: string, ar: string, en: string) => (isAr ? ar : isEn ? en : fr);
+const RED = 'bg-[#e3131b]';
 
+export const PublishStudioView: React.FC = () => {
   const user = useAuthUser();
   const [status, setStatus] = useState<ServerStatus | null>(null);
   const [photos, setPhotos] = useState<StudioPhoto[]>([]);
   const [data, setData] = useState<PosterData>(EMPTY);
   const [customFeature, setCustomFeature] = useState('');
-  const [notes, setNotes] = useState('');
-  const [lang, setLang] = useState<StudioLanguage>('ar+fr');
+  const [poster, setPoster] = useState<{ blob: Blob; url: string } | null>(null);
   const [selected, setSelected] = useState<StudioTarget[]>(['facebook', 'instagram', 'tiktok', 'whatsapp']);
-  const [active, setActive] = useState<StudioTarget>('instagram');
   const [when, setWhen] = useState<'now' | 'later'>('now');
   const [dateTime, setDateTime] = useState('');
   const [posts, setPosts] = useState<StudioPost[]>([]);
-  const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const previewRef = useRef<HTMLCanvasElement>(null);
-  const reviewRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
   const photosRef = useRef(photos);
   photosRef.current = photos;
 
@@ -97,35 +90,17 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
     const id = setTimeout(() => setToast(null), 4500);
     return () => clearTimeout(id);
   }, [toast]);
-  useEffect(() => {
-    if (!selected.includes(active) && selected.length) setActive(selected[0]);
-  }, [selected, active]);
+  useEffect(() => () => poster && URL.revokeObjectURL(poster.url), [poster]);
+  useEffect(() => setPosts([]), [poster, selected]);
 
   const imgs = useMemo(() => photos.map((p) => p.img), [photos]);
-  const activeSpec = target(selected.includes(active) ? active : selected[0] ?? 'instagram');
-
-  // Aperçu en direct de l'affiche, redessinée à chaque modification.
-  useEffect(() => {
-    let cancelled = false;
-    ensureFonts().then(() => {
-      if (!cancelled && previewRef.current) drawPoster(previewRef.current, data, imgs, ...activeSpec.size);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [data, imgs, activeSpec]);
-
-  // Toute modification invalide les textes déjà préparés.
-  useEffect(() => {
-    setPosts([]);
-  }, [data, photos, selected, lang]);
 
   // ---------- Photos ----------
   const addPhotos = async (list: FileList | null) => {
     if (!list) return;
     const room = 4 - photos.length;
     const files = Array.from(list).filter((f) => f.type.startsWith('image/')).slice(0, Math.max(0, room));
-    if (Array.from(list).length > room) setToast(t('4 photos maximum', 'أقصى عدد 4 صور', '4 photos maximum'));
+    if (Array.from(list).length > room) setToast('أقصى عدد 4 صور');
     const loaded = (await Promise.all(files.map((f) => loadPhoto(f).catch(() => null)))).filter((p): p is StudioPhoto => !!p);
     setPhotos((prev) => [...prev, ...loaded].slice(0, 4));
   };
@@ -136,22 +111,17 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
   };
   const makeMain = (id: string) => setPhotos((prev) => [...prev.filter((x) => x.id === id), ...prev.filter((x) => x.id !== id)]);
 
-  // ---------- Fiche ----------
+  // ---------- Informations ----------
   const set = <K extends keyof PosterData>(k: K, v: PosterData[K]) => setData((prev) => ({ ...prev, [k]: v }));
   const toggleFeature = (f: string) => {
     if (data.features.includes(f)) return set('features', data.features.filter((x) => x !== f));
-    if (data.features.length >= MAX_FEATURES)
-      return setToast(t('4 atouts maximum sur l’image', 'أقصى عدد 4 مميزات في الصورة', '4 highlights maximum'));
+    if (data.features.length >= MAX_FEATURES) return setToast('أقصى عدد 4 مميزات في الصورة');
     set('features', [...data.features, f]);
   };
   const addCustomFeature = () => {
     const f = customFeature.trim();
     if (f && !data.features.includes(f)) toggleFeature(f);
     setCustomFeature('');
-  };
-  const toggleTarget = (id: StudioTarget) => {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-    setActive(id);
   };
 
   const run = async (key: string, job: () => Promise<void>) => {
@@ -165,9 +135,26 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
     }
   };
 
+  // ---------- Le bouton : photos + informations + modèle → affiche ----------
+  const handleMake = () =>
+    run('make', async () => {
+      if (!photos.length) throw new Error('أضف صورة واحدة على الأقل');
+      const blob = await posterBlob(data, imgs, ...MAIN_SIZE);
+      setPoster({ blob, url: URL.createObjectURL(blob) });
+      topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
   // Nom en lettres latines : les navigateurs ignorent souvent les noms de fichier en arabe.
-  const fileName = (id: StudioTarget, ext = 'jpg') => `alwasset777-${id}-${target(id).size.join('x')}.${ext}`;
+  const fileName = (id: StudioTarget | 'affiche', ext = 'jpg') =>
+    `alwasset777-${id}-${(id === 'affiche' ? MAIN_SIZE : target(id).size).join('x')}.${ext}`;
   const blobFor = (id: StudioTarget) => posterBlob(data, imgs, ...target(id).size);
+
+  const handleShare = () =>
+    run('share', async () => {
+      if (!poster) return;
+      const how = await shareImage(poster.blob, fileName('affiche'), headlineOf(data));
+      if (how === 'downloaded') setToast('تم تحميل الصورة');
+    });
 
   const downloadAll = () =>
     run('download', async () => {
@@ -181,45 +168,33 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
       }
     });
 
-  // ---------- Préparation ----------
-  const handlePrepare = () =>
-    run('prepare', async () => {
-      const created = await generatePosts(photos, data, notes, selected, lang);
-      setPosts(created);
-      const previews: Record<string, string> = {};
-      await ensureFonts();
-      for (const id of selected) {
-        const [w, h] = target(id).size;
-        const c = document.createElement('canvas');
-        drawPoster(c, data, imgs, Math.round(w * 0.4), Math.round(h * 0.4));
-        previews[id] = c.toDataURL('image/jpeg', 0.85);
-      }
-      setThumbs(previews);
-      if (created.every((p) => p.source === 'modèle'))
-        setToast(t('IA indisponible : textes modèles Al Wassit', 'تم استعمال نصوص المكتب الجاهزة (الذكاء الاصطناعي غير متوفر)', 'AI unavailable: template texts used'));
-      setTimeout(() => reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-    });
-
-  const updatePost = (id: StudioTarget, patch: Partial<StudioPost>) =>
-    setPosts((prev) => prev.map((p) => (p.target === id ? { ...p, ...patch } : p)));
-
-  // ---------- Publication ----------
+  // ---------- Publication sur les plateformes ----------
   const viaMetricool = !!status?.metricool;
   const metaDirect = (id: StudioTarget) => !viaMetricool && when === 'now' && (id === 'facebook' || id === 'instagram') && !!status?.meta[id];
   const toPublish = posts.filter((p) => p.target !== 'whatsapp' && p.status !== 'programmé' && p.status !== 'publié');
   const needsLogin = isFirebaseEnabled && user === null;
   const canPublish = !!user && isFirebaseEnabled && toPublish.length > 0 && (viaMetricool || toPublish.some((p) => metaDirect(p.target)));
 
+  const updatePost = (id: StudioTarget, patch: Partial<StudioPost>) =>
+    setPosts((prev) => prev.map((p) => (p.target === id ? { ...p, ...patch } : p)));
+
+  const handlePrepare = () =>
+    run('prepare', async () => {
+      const created = await generatePosts(photos, data, '', selected, 'ar+fr');
+      setPosts(created);
+      if (created.every((p) => p.source === 'modèle')) setToast('تم استعمال نصوص المكتب الجاهزة (الذكاء الاصطناعي غير متوفر)');
+    });
+
   const handlePublish = () =>
     run('publish', async () => {
-      if (when === 'later' && !dateTime) throw new Error(t('Choisissez la date et l’heure', 'اختر التاريخ والساعة', 'Pick a date and time'));
+      if (when === 'later' && !dateTime) throw new Error('اختر التاريخ والساعة');
       const batch = `${Date.now()}`;
       let ok = 0;
       for (const p of toPublish) {
         const id = p.target as StudioNetwork;
         updatePost(id, { status: 'envoi', error: undefined });
         try {
-          if (!viaMetricool && !metaDirect(id)) throw new Error(t('Nécessite Metricool', 'يحتاج ربط Metricool', 'Needs Metricool'));
+          if (!viaMetricool && !metaDirect(id)) throw new Error('يحتاج ربط Metricool');
           const imageUrl = await uploadMedia(batch, await blobFor(id), fileName(id));
           if (!viaMetricool) {
             await publishMetaDirect(id as 'facebook' | 'instagram', fullText(p), imageUrl);
@@ -243,83 +218,187 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
           updatePost(id, { status: 'erreur', error: (e as Error).message });
         }
       }
-      setToast(t(`${ok}/${toPublish.length} publications envoyées`, `تم إرسال ${ok} من ${toPublish.length} منشورات`, `${ok}/${toPublish.length} posts sent`));
+      setToast(`تم إرسال ${ok} من ${toPublish.length} منشورات`);
     });
 
-  const handleShare = (p: StudioPost) =>
+  const sharePost = (p: StudioPost) =>
     run(`share-${p.target}`, async () => {
       const how = await shareImage(await blobFor(p.target), fileName(p.target), fullText(p));
       if (how === 'downloaded') {
         await navigator.clipboard?.writeText(fullText(p)).catch(() => {});
-        setToast(t('Image téléchargée, texte copié : collez-les dans WhatsApp', 'تم تحميل الصورة ونسخ النص: ألصقهما في واتساب', 'Image downloaded, text copied'));
+        setToast('تم تحميل الصورة ونسخ النص: ألصقهما في واتساب');
       }
     });
 
   // ---------- Affichage ----------
-  const card = 'bg-white rounded-3xl p-5 border border-[#f0e4e2] shadow-xs space-y-4';
-  const input = 'w-full p-2.5 rounded-xl bg-[#fff8f7] border border-[#f0e4e2] text-sm focus:outline-none focus:border-[#ff6f61]';
-  const label = 'text-[11px] font-bold text-[#7a5c58]';
-  const ratio = activeSpec.size[1] / activeSpec.size[0];
-  const previewMax = ratio > 1.5 ? 300 : ratio > 1.1 ? 380 : 520;
-  const slot = (i: number, big = false) => {
+  const card = 'bg-white rounded-3xl p-4 sm:p-5 border border-[#ececec] shadow-sm space-y-4';
+  const input = 'w-full p-3 rounded-2xl bg-[#f6f6f6] border border-[#ececec] text-base focus:outline-none focus:border-[#e3131b]';
+  const label = 'text-xs font-bold text-[#5f5f5f]';
+  const chip = (on: boolean) =>
+    `px-3.5 py-2 rounded-full text-sm font-bold border cursor-pointer transition-colors ${on ? 'bg-[#121212] text-white border-transparent' : 'border-[#e5e5e5] text-[#333] bg-white'}`;
+
+  const slot = (i: number) => {
     const p = photos[i];
+    const big = i === 0;
+    const size = big ? 'col-span-3 aspect-[16/10]' : 'aspect-square';
     if (!p)
       return (
         <button
           key={`empty-${i}`}
           onClick={() => inputRef.current?.click()}
-          className={`${big ? 'col-span-3 aspect-[16/10]' : 'aspect-square'} rounded-2xl border-2 border-dashed border-[#ffb4aa] bg-[#fff8f7] hover:bg-[#fff0ed] flex flex-col items-center justify-center gap-1 text-[#ff6f61] cursor-pointer`}
+          className={`${size} rounded-2xl border-2 border-dashed border-[#f3a3a6] bg-[#fff5f5] flex flex-col items-center justify-center gap-1 text-[#e3131b] cursor-pointer`}
         >
-          {big ? <ImagePlus className="w-8 h-8" /> : <Plus className="w-5 h-5" />}
-          <span className={`${big ? 'text-sm' : 'text-[10px]'} font-extrabold`}>
-            {big ? t('Photo principale', 'الصورة الرئيسية', 'Main photo') : t('Photo', 'صورة', 'Photo')}
-          </span>
+          {big ? <ImagePlus className="w-9 h-9" /> : <Plus className="w-6 h-6" />}
+          <span className={`${big ? 'text-base' : 'text-xs'} font-extrabold`}>{big ? 'أضف الصورة الرئيسية' : 'صورة'}</span>
         </button>
       );
     return (
-      <div key={p.id} className={`${big ? 'col-span-3 aspect-[16/10]' : 'aspect-square'} relative rounded-2xl overflow-hidden group`}>
+      <div key={p.id} className={`${size} relative rounded-2xl overflow-hidden`}>
         <img src={p.url} alt="" className="w-full h-full object-cover" />
-        <button onClick={() => removePhoto(p.id)} className="absolute top-2 end-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center cursor-pointer">
+        <button onClick={() => removePhoto(p.id)} aria-label="حذف" className="absolute top-2 left-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center cursor-pointer">
           <X className="w-4 h-4" />
         </button>
         {big ? (
-          <span className="absolute bottom-2 start-2 px-2 py-0.5 rounded-lg bg-[#ff6f61] text-white text-[10px] font-black">{t('Principale', 'رئيسية', 'Main')}</span>
+          <span className={`absolute bottom-2 right-2 px-2.5 py-1 rounded-lg ${RED} text-white text-xs font-black`}>الرئيسية</span>
         ) : (
-          <button onClick={() => makeMain(p.id)} title={t('Mettre en principale', 'اجعلها الرئيسية', 'Make main')} className="absolute bottom-1.5 start-1.5 w-7 h-7 rounded-full bg-white/90 text-amber-500 flex items-center justify-center cursor-pointer">
-            <Star className="w-3.5 h-3.5" />
+          <button onClick={() => makeMain(p.id)} aria-label="اجعلها الرئيسية" className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white/90 text-amber-500 flex items-center justify-center cursor-pointer">
+            <Star className="w-4 h-4" />
           </button>
         )}
       </div>
     );
   };
 
+  const numberField = (k: 'surface' | 'surfaceMax' | 'bedrooms' | 'bathrooms', text: string) => (
+    <label className="space-y-1">
+      <span className={label}>{text}</span>
+      <input type="number" min={0} inputMode="numeric" value={data[k] || ''} onChange={(e) => set(k, Number(e.target.value) || 0)} className={input} />
+    </label>
+  );
+
   return (
-    <div className="space-y-6 pb-16">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-[#ff6f61] text-xs font-black">
-            <Rocket className="w-4 h-4" /> {t('Studio de publication', 'استوديو النشر', 'Publishing studio')}
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#281715]">
-            {t('Une annonce, toutes vos plateformes', 'إعلان واحد، كل منصاتك', 'One ad, all your platforms')}
-          </h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
-          <span className={`px-2.5 py-1 rounded-full ${status?.metricool ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-            {status?.metricool ? '✓' : '✗'} Metricool
-          </span>
-          <span className={`px-2.5 py-1 rounded-full ${status?.ai ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-            {status?.ai ? '✓' : '✗'} {t('IA', 'الذكاء الاصطناعي', 'AI')}
-          </span>
-          {user && <SignOutButton user={user} />}
-        </div>
-      </div>
+    <div ref={topRef} dir="rtl" className="font-tajawal max-w-2xl mx-auto space-y-5 pb-28 scroll-mt-24">
+      {/* ================= Résultat : l'affiche ================= */}
+      {poster ? (
+        <>
+          <section className={card}>
+            <img src={poster.url} alt="الإعلان" className="w-full rounded-2xl shadow-lg" />
+            <div className="grid grid-cols-3 gap-2">
+              <button onClick={() => downloadFile(poster.blob, fileName('affiche'))} className="py-3.5 rounded-2xl bg-[#121212] text-white font-black flex flex-col items-center gap-1 cursor-pointer">
+                <Download className="w-5 h-5" /> <span className="text-sm">تحميل</span>
+              </button>
+              <button onClick={handleShare} disabled={!!busy} className="py-3.5 rounded-2xl bg-[#25d366] text-white font-black flex flex-col items-center gap-1 cursor-pointer disabled:opacity-50">
+                {busy === 'share' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Share2 className="w-5 h-5" />} <span className="text-sm">مشاركة</span>
+              </button>
+              <button onClick={() => setPoster(null)} className="py-3.5 rounded-2xl bg-[#f1f1f1] text-[#121212] font-black flex flex-col items-center gap-1 cursor-pointer">
+                <Pencil className="w-5 h-5" /> <span className="text-sm">تعديل</span>
+              </button>
+            </div>
+          </section>
 
-      {needsLogin && <LoginCard title={t('Connexion du gérant', 'دخول المدير', 'Manager sign-in')} />}
+          {/* ---------- Publication ---------- */}
+          <section className={card}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-black">انشر على المنصات</h2>
+              {user && <SignOutButton user={user} />}
+            </div>
+            <div className="grid grid-cols-4 gap-3">
+              {TARGETS.map((p) => {
+                const on = selected.includes(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelected((prev) => (prev.includes(p.id) ? prev.filter((x) => x !== p.id) : [...prev, p.id]))}
+                    className="flex flex-col items-center gap-1 cursor-pointer"
+                    aria-pressed={on}
+                  >
+                    <span
+                      className={`relative w-14 h-14 rounded-2xl flex items-center justify-center ${on ? 'text-white shadow-md' : 'bg-[#f1f1f1] text-[#b5b5b5]'}`}
+                      style={on ? { background: p.bg || p.color } : undefined}
+                    >
+                      <BrandLogo path={p.path} className="w-7 h-7" />
+                      {on && (
+                        <span className={`absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full ${RED} border-2 border-white flex items-center justify-center`}>
+                          <Check className="w-3 h-3 text-white" strokeWidth={4} />
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-[11px] font-bold text-[#333]">{p.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button onClick={downloadAll} disabled={!!busy || !selected.length} className="w-full py-3 rounded-2xl border border-[#e5e5e5] text-sm font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
+              {busy === 'download' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              تحميل الإعلان بمقاس كل منصة
+            </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_440px] gap-6 items-start">
-        <div className="space-y-5">
-          {/* ---------- Photos ---------- */}
+            {needsLogin && <LoginCard title="دخول المدير للنشر" />}
+
+            {!posts.length ? (
+              <button onClick={handlePrepare} disabled={!selected.length || !!busy} className="w-full py-3.5 rounded-2xl bg-[#121212] text-white font-black flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
+                {busy === 'prepare' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                {busy === 'prepare' ? 'جاري كتابة النصوص…' : `اكتب نصوص المنشورات (${selected.length})`}
+              </button>
+            ) : (
+              <div className="space-y-3">
+                {posts.map((p) => {
+                  const spec = target(p.target);
+                  return (
+                    <div key={p.target} className="rounded-2xl border border-[#ececec] p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ background: spec.bg || spec.color }}>
+                          <BrandLogo path={spec.path} className="w-4 h-4" />
+                        </span>
+                        <span className="font-black">{spec.label}</span>
+                        {p.status === 'envoi' && <Loader2 className="w-4 h-4 animate-spin text-[#e3131b]" />}
+                        {(p.status === 'programmé' || p.status === 'publié') && (
+                          <span className="text-green-700 font-bold flex items-center gap-1 text-xs">
+                            <Check className="w-3.5 h-3.5" />
+                            {p.status === 'publié' ? 'تم النشر' : `مبرمج ${p.scheduledFor?.replace('T', ' ').slice(0, 16) ?? ''}`}
+                          </span>
+                        )}
+                      </div>
+                      {(p.target === 'youtube' || p.target === 'tiktok') && (
+                        <input value={p.title} onChange={(e) => updatePost(p.target, { title: e.target.value })} placeholder="العنوان" className={`${input} text-sm font-bold`} />
+                      )}
+                      <textarea rows={4} value={fullText(p)} onChange={(e) => updatePost(p.target, { text: e.target.value, hashtags: [] })} className={`${input} text-sm`} />
+                      {p.target === 'whatsapp' && (
+                        <button onClick={() => sharePost(p)} disabled={!!busy} className="w-full py-2.5 rounded-xl bg-[#25d366] text-white text-sm font-black flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
+                          <Share2 className="w-4 h-4" /> شارك في واتساب
+                        </button>
+                      )}
+                      {p.error && <p className="text-xs text-red-600 font-bold">{p.error}</p>}
+                    </div>
+                  );
+                })}
+                <div className="flex flex-wrap items-center gap-4 text-sm font-bold">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" checked={when === 'now'} onChange={() => setWhen('now')} /> الآن
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" checked={when === 'later'} onChange={() => setWhen('later')} /> برمجة
+                  </label>
+                  {when === 'later' && <input type="datetime-local" value={dateTime} onChange={(e) => setDateTime(e.target.value)} className={`${input} text-sm`} dir="ltr" />}
+                </div>
+                {!viaMetricool && (
+                  <p className="text-xs text-amber-700 font-semibold">
+                    Metricool غير مربوط: النشر الآن ممكن على فيسبوك وإنستغرام فقط (إذا كان ربط Meta مفعّلاً). للمنصات الأخرى حمّل الصور وانشرها يدوياً.
+                  </p>
+                )}
+                {toPublish.length > 0 && (
+                  <button onClick={handlePublish} disabled={!canPublish || !!busy} className="w-full py-4 rounded-2xl bg-green-600 text-white font-black flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
+                    {busy === 'publish' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                    {busy === 'publish' ? 'جاري الإرسال…' : when === 'now' ? `انشر على ${toPublish.length} منصات` : `برمج ${toPublish.length} منشورات`}
+                  </button>
+                )}
+              </div>
+            )}
+          </section>
+        </>
+      ) : (
+        <>
+          {/* ================= 1. Photos ================= */}
           <section
             className={card}
             onDragOver={(e) => e.preventDefault()}
@@ -329,10 +408,10 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
             }}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-extrabold">{t('1. Photos du bien', '1. صور العقار', '1. Property photos')}</h2>
-              <span className="text-[11px] font-bold text-[#99807d]">{photos.length}/4</span>
+              <h2 className="text-lg font-black">صور العقار</h2>
+              <span className="text-xs font-bold text-[#999]">{photos.length}/4</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">{[0, 1, 2, 3].map((i) => slot(i, i === 0))}</div>
+            <div className="grid grid-cols-3 gap-2">{[0, 1, 2, 3].map(slot)}</div>
             <input
               ref={inputRef}
               type="file"
@@ -346,79 +425,59 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
             />
           </section>
 
-          {/* ---------- Informations ---------- */}
+          {/* ================= 2. Informations ================= */}
           <section className={card}>
-            <h2 className="text-sm font-extrabold">{t('2. Informations du bien', '2. معلومات العقار', '2. Property details')}</h2>
+            <h2 className="text-lg font-black">معلومات العقار</h2>
             <div className="grid grid-cols-3 gap-2">
               {(Object.keys(DEAL_LABELS) as ListingType[]).map((k) => (
                 <button
                   key={k}
                   onClick={() => set('deal', k)}
-                  className={`py-2.5 rounded-xl text-sm font-black border cursor-pointer ${data.deal === k ? 'bg-[#ff6f61] text-white border-transparent' : 'border-[#f0e4e2] text-[#5a4340]'}`}
+                  className={`py-3 rounded-2xl text-base font-black border cursor-pointer ${data.deal === k ? `${RED} text-white border-transparent` : 'border-[#e5e5e5] text-[#333]'}`}
                 >
-                  {isAr ? DEAL_LABELS[k].ar : DEAL_LABELS[k].fr}
+                  {DEAL_LABELS[k].ar}
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {(Object.keys(TYPE_LABELS) as PropertyType[]).map((k) => (
-                <button
-                  key={k}
-                  onClick={() => set('type', k)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer ${data.type === k ? 'bg-[#281715] text-white border-transparent' : 'border-[#f0e4e2] text-[#5a4340]'}`}
-                >
-                  {isAr ? TYPE_LABELS[k].ar : TYPE_LABELS[k].fr}
+                <button key={k} onClick={() => set('type', k)} className={chip(data.type === k)}>
+                  {TYPE_LABELS[k].ar}
                 </button>
               ))}
             </div>
-            <label className="block space-y-1">
-              <span className={label}>{t('Grand titre de l’affiche', 'العنوان الكبير في الصورة', 'Poster headline')}</span>
-              <input value={data.headline} onChange={(e) => set('headline', e.target.value)} placeholder={headlineOf({ ...data, headline: '' })} className={`${input} font-black`} />
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <label className="space-y-1">
-                <span className={label}>{t('Quartier', 'الحي', 'District')}</span>
+                <span className={label}>الحي</span>
                 <input value={data.district} onChange={(e) => set('district', e.target.value)} placeholder="حمرية" className={input} />
               </label>
               <label className="space-y-1">
-                <span className={label}>{t('Ville', 'المدينة', 'City')}</span>
+                <span className={label}>المدينة</span>
                 <input value={data.city} onChange={(e) => set('city', e.target.value)} className={input} />
               </label>
-              <label className="space-y-1 col-span-2 sm:col-span-1">
-                <span className={label}>{t('Prix', 'الثمن', 'Price')}</span>
-                <input value={data.price} onChange={(e) => set('price', e.target.value)} placeholder="950 000 DH" className={`${input} font-bold`} />
+              <label className="space-y-1 col-span-2">
+                <span className={label}>الثمن (اختياري)</span>
+                <input value={data.price} onChange={(e) => set('price', e.target.value)} placeholder="950 000 درهم" className={`${input} font-bold`} />
               </label>
-              <label className="space-y-1">
-                <span className={label}>{t('Surface (m²)', 'المساحة (م²)', 'Area (m²)')}</span>
-                <input type="number" min={0} inputMode="numeric" value={data.surface || ''} onChange={(e) => set('surface', Number(e.target.value) || 0)} className={input} />
-              </label>
-              <label className="space-y-1">
-                <span className={label}>{t('Jusqu’à (m², facultatif)', 'إلى (م²، اختياري)', 'Up to (m², optional)')}</span>
-                <input type="number" min={0} inputMode="numeric" value={data.surfaceMax || ''} onChange={(e) => set('surfaceMax', Number(e.target.value) || 0)} className={input} />
-              </label>
-              <label className="space-y-1">
-                <span className={label}>{t('Chambres', 'الغرف', 'Bedrooms')}</span>
-                <input type="number" min={0} inputMode="numeric" value={data.bedrooms || ''} onChange={(e) => set('bedrooms', Number(e.target.value) || 0)} className={input} />
-              </label>
-              <label className="space-y-1">
-                <span className={label}>{t('Salles de bain', 'الحمامات', 'Bathrooms')}</span>
-                <input type="number" min={0} inputMode="numeric" value={data.bathrooms || ''} onChange={(e) => set('bathrooms', Number(e.target.value) || 0)} className={input} />
-              </label>
+              {numberField('surface', 'المساحة (م²)')}
+              {numberField('surfaceMax', 'إلى (م²، اختياري)')}
+              {numberField('bedrooms', 'الغرف')}
+              {numberField('bathrooms', 'الحمامات')}
             </div>
             <div className="space-y-2">
               <span className={label}>
-                {t('Atouts sur l’image', 'المميزات في الصورة', 'Highlights on the image')} ({data.features.length}/{MAX_FEATURES})
+                المميزات ({data.features.length}/{MAX_FEATURES})
               </span>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {[...FEATURE_TITLES, ...data.features.filter((f) => !FEATURE_TITLES.includes(f))].map((f) => {
                   const on = data.features.includes(f);
                   return (
                     <button
                       key={f}
                       onClick={() => toggleFeature(f)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer flex items-center gap-1 ${on ? 'bg-[#fff0ed] text-[#ff6f61] border-[#ffb4aa]' : 'border-[#f0e4e2] text-[#7a5c58]'}`}
+                      className={`px-3.5 py-2 rounded-full text-sm font-bold border cursor-pointer flex items-center gap-1 ${on ? 'bg-[#fff0f0] text-[#e3131b] border-[#f3a3a6]' : 'border-[#e5e5e5] text-[#555] bg-white'}`}
                     >
-                      {on && <Check className="w-3 h-3" />} {f}
+                      {on && <Check className="w-3.5 h-3.5" />} {f}
                     </button>
                   );
                 })}
@@ -428,204 +487,41 @@ export const PublishStudioView: React.FC<PublishStudioViewProps> = ({ language }
                   value={customFeature}
                   onChange={(e) => setCustomFeature(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addCustomFeature()}
-                  placeholder={t('Autre atout…', 'ميزة أخرى…', 'Other highlight…')}
+                  placeholder="ميزة أخرى…"
                   className={input}
                 />
-                <button onClick={addCustomFeature} className="px-3 rounded-xl bg-[#281715] text-white cursor-pointer" aria-label="+">
-                  <Plus className="w-4 h-4" />
+                <button onClick={addCustomFeature} aria-label="إضافة" className="px-4 rounded-2xl bg-[#121212] text-white cursor-pointer">
+                  <Plus className="w-5 h-5" />
                 </button>
               </div>
             </div>
             <label className="block space-y-1">
-              <span className={label}>{t('Notes pour le texte (non affichées sur l’image)', 'ملاحظات للنص (لا تظهر في الصورة)', 'Notes for the text (not on the image)')}</span>
-              <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className={input} />
+              <span className={label}>العنوان الكبير (اختياري)</span>
+              <input value={data.headline} onChange={(e) => set('headline', e.target.value)} placeholder={headlineOf({ ...data, headline: '' })} className={`${input} font-black`} />
             </label>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={label}>{t('Langue du texte', 'لغة النص', 'Text language')}</span>
-              {STUDIO_LANGUAGES.map((l) => (
-                <button
-                  key={l.id}
-                  onClick={() => setLang(l.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold border cursor-pointer ${lang === l.id ? 'bg-[#281715] text-white border-transparent' : 'border-[#f0e4e2] text-[#5a4340]'}`}
-                >
-                  {l.label}
-                </button>
-              ))}
-            </div>
           </section>
 
-          {/* ---------- Plateformes ---------- */}
-          <section className={card}>
-            <h2 className="text-sm font-extrabold">{t('3. Où publier ?', '3. أين تنشر؟', '3. Where to publish?')}</h2>
-            <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-              {TARGETS.map((p) => {
-                const on = selected.includes(p.id);
-                return (
-                  <button key={p.id} onClick={() => toggleTarget(p.id)} className="flex flex-col items-center gap-1.5 cursor-pointer group" aria-pressed={on}>
-                    <span
-                      className={`relative w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${on ? 'text-white shadow-lg scale-105' : 'bg-[#f6efee] text-[#b9a8a5] group-hover:text-[#7a5c58]'}`}
-                      style={on ? { background: p.bg || p.color } : undefined}
-                    >
-                      <BrandLogo path={p.path} className="w-7 h-7" />
-                      {on && (
-                        <span className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-[#ff6f61] border-2 border-white flex items-center justify-center">
-                          <Check className="w-3 h-3 text-white" strokeWidth={4} />
-                        </span>
-                      )}
-                    </span>
-                    <span className={`text-[10px] font-bold leading-tight text-center ${on ? 'text-[#281715]' : 'text-[#99807d]'}`}>{p.label}</span>
-                    <span className="text-[9px] font-semibold text-[#b9a8a5] -mt-1" dir="ltr">{p.format}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        </div>
-
-        {/* ---------- Aperçu en direct ---------- */}
-        <aside className="lg:sticky lg:top-24 space-y-4">
-          <div className="bg-[#281715] rounded-3xl p-4 space-y-3">
-            <div className="flex items-center justify-between text-white">
-              <span className="text-xs font-black">{t('Aperçu en direct', 'معاينة مباشرة', 'Live preview')}</span>
-              <span className="text-[10px] font-bold text-white/60" dir="ltr">
-                {activeSpec.label} · {activeSpec.size[0]}×{activeSpec.size[1]}
-              </span>
-            </div>
-            {selected.length > 1 && (
-              <div className="flex flex-wrap gap-1.5">
-                {selected.map((id) => {
-                  const p = target(id);
-                  return (
-                    <button
-                      key={id}
-                      onClick={() => setActive(id)}
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all ${activeSpec.id === id ? 'bg-white text-[#281715]' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-                      title={p.label}
-                    >
-                      <BrandLogo path={p.path} className="w-4.5 h-4.5" />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <div className="flex justify-center">
-              <canvas ref={previewRef} className="w-full h-auto rounded-2xl shadow-2xl" style={{ maxWidth: previewMax }} />
-            </div>
-            <button onClick={downloadAll} disabled={!!busy || !selected.length} className="w-full py-2.5 rounded-xl bg-white/10 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
-              {busy === 'download' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              {t('Télécharger les images', 'تحميل الصور بكل المقاسات', 'Download all sizes')}
-            </button>
-          </div>
-
-          <div className="bg-white rounded-3xl p-4 border border-[#f0e4e2] space-y-3">
-            <div className="flex flex-wrap items-center gap-3 text-sm font-bold">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" checked={when === 'now'} onChange={() => setWhen('now')} /> {t('Maintenant', 'الآن', 'Now')}
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" checked={when === 'later'} onChange={() => setWhen('later')} /> {t('Programmer', 'برمجة', 'Schedule')}
-              </label>
-            </div>
-            {when === 'later' && (
-              <input type="datetime-local" value={dateTime} onChange={(e) => setDateTime(e.target.value)} className={input} dir="ltr" />
-            )}
+          {/* ================= 3. Le bouton ================= */}
+          <div className="fixed bottom-0 inset-x-0 z-40 p-3 bg-gradient-to-t from-white via-white/95 to-transparent">
             <button
-              onClick={handlePrepare}
-              disabled={!selected.length || !!busy}
-              className="w-full py-4 rounded-2xl bg-[#ff6f61] text-white font-black flex items-center justify-center gap-2 shadow-lg shadow-[#ff6f61]/30 disabled:opacity-50 cursor-pointer"
+              onClick={handleMake}
+              disabled={!!busy}
+              className={`max-w-2xl mx-auto w-full py-4 rounded-2xl ${RED} text-white text-lg font-black flex items-center justify-center gap-2 shadow-xl shadow-red-600/30 cursor-pointer disabled:opacity-60`}
             >
-              {busy === 'prepare' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-              {busy === 'prepare'
-                ? t('Préparation…', 'جاري التحضير…', 'Preparing…')
-                : t(`Préparer ${selected.length} publications`, `جهّز ${selected.length} منشورات`, `Prepare ${selected.length} posts`)}
+              {busy === 'make' ? <Loader2 className="w-6 h-6 animate-spin" /> : <Sparkles className="w-6 h-6" />}
+              {busy === 'make' ? 'جاري التصميم…' : 'اصنع الإعلان'}
+              <ArrowRight className="w-5 h-5 rotate-180" />
             </button>
           </div>
-        </aside>
-      </div>
-
-      {/* ---------- Vérification et publication ---------- */}
-      {posts.length > 0 && (
-        <section ref={reviewRef} className="space-y-4 scroll-mt-24">
-          <h2 className="text-lg font-black">{t('4. Vérifiez, puis publiez', '4. راجع ثم انشر', '4. Review, then publish')}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {posts.map((p) => {
-              const spec = target(p.target);
-              const max = p.target === 'whatsapp' ? 4000 : STUDIO_PLATFORMS.find((x) => x.id === p.target)!.maxChars;
-              const len = fullText(p).length;
-              return (
-                <div key={p.target} className="bg-white rounded-3xl p-4 border border-[#f0e4e2] flex gap-4">
-                  <img src={thumbs[p.target]} alt="" className="w-28 sm:w-32 self-start rounded-xl shadow-md" />
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="w-7 h-7 rounded-lg flex items-center justify-center text-white" style={{ background: spec.bg || spec.color }}>
-                        <BrandLogo path={spec.path} className="w-4 h-4" />
-                      </span>
-                      <span className="font-black">{spec.label}</span>
-                      <span className="text-[10px] text-[#99807d]" dir="ltr">{spec.size.join('×')}</span>
-                      {p.status === 'envoi' && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#ff6f61]" />}
-                      {(p.status === 'programmé' || p.status === 'publié') && (
-                        <span className="text-green-700 font-bold flex items-center gap-1">
-                          <Check className="w-3.5 h-3.5" />
-                          {p.status === 'publié' ? t('Publié', 'تم النشر', 'Published') : `${t('Programmé', 'مبرمج', 'Scheduled')} ${p.scheduledFor?.replace('T', ' ').slice(0, 16) ?? ''}`}
-                        </span>
-                      )}
-                      <span className={`ms-auto text-[10px] font-bold ${len > max ? 'text-red-600' : 'text-[#99807d]'}`}>{len}/{max}</span>
-                    </div>
-                    {(p.target === 'youtube' || p.target === 'tiktok') && (
-                      <input value={p.title} onChange={(e) => updatePost(p.target, { title: e.target.value })} placeholder={t('Titre', 'العنوان', 'Title')} className={`${input} font-bold`} />
-                    )}
-                    <textarea rows={5} value={p.text} onChange={(e) => updatePost(p.target, { text: e.target.value })} className={`${input} text-xs`} />
-                    {p.hashtags.length > 0 && (
-                      <input
-                        value={p.hashtags.join(' ')}
-                        onChange={(e) => updatePost(p.target, { hashtags: e.target.value.split(/\s+/).filter(Boolean) })}
-                        className={`${input} text-xs text-[#ff6f61] font-semibold`}
-                        dir="auto"
-                      />
-                    )}
-                    {p.target === 'youtube' && (
-                      <p className="text-[10px] text-[#99807d]">{t('YouTube : l’image devient une vidéo Short de 8 s.', 'يوتيوب: تتحول الصورة إلى فيديو قصير (8 ثوانٍ) تلقائياً.', 'YouTube: the image becomes an 8 s Short.')}</p>
-                    )}
-                    {p.target === 'whatsapp' && (
-                      <button onClick={() => handleShare(p)} disabled={!!busy} className="w-full py-2.5 rounded-xl bg-[#25d366] text-white text-xs font-black flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
-                        {busy === `share-${p.target}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
-                        {t('Partager sur WhatsApp', 'شارك في واتساب (حالة أو مجموعات)', 'Share on WhatsApp')}
-                      </button>
-                    )}
-                    {p.error && <p className="text-xs text-red-600 font-bold">{p.error}</p>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {!viaMetricool && (
-            <p className="text-xs text-amber-700 font-semibold">
-              {t(
-                'Metricool n’est pas relié : seuls Facebook et Instagram (si Meta est configuré) peuvent être publiés maintenant. Pour les autres, téléchargez les images.',
-                'Metricool غير مربوط: يمكن النشر الآن على فيسبوك وإنستغرام فقط (إذا كان ربط Meta مفعّلاً). للمنصات الأخرى حمّل الصور وانشرها يدوياً.',
-                'Metricool not linked: only Facebook and Instagram (if Meta is set up) can be published now. Download the images for the others.'
-              )}
-            </p>
-          )}
-          {toPublish.length > 0 && (
-            <button
-              onClick={handlePublish}
-              disabled={!canPublish || !!busy}
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-green-600 text-white font-black flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 cursor-pointer"
-            >
-              {busy === 'publish' ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-              {busy === 'publish'
-                ? t('Envoi…', 'جاري الإرسال…', 'Sending…')
-                : when === 'now'
-                ? t(`Publier sur ${toPublish.length} plateformes`, `انشر على ${toPublish.length} منصات`, `Publish to ${toPublish.length} platforms`)
-                : t(`Programmer ${toPublish.length} publications`, `برمج ${toPublish.length} منشورات`, `Schedule ${toPublish.length} posts`)}
-            </button>
-          )}
-        </section>
+        </>
       )}
 
-      {toast && <div className="fixed top-24 inset-x-0 mx-auto w-fit max-w-[90vw] bg-[#281715] text-white text-sm font-bold px-5 py-3 rounded-2xl shadow-xl z-50">{toast}</div>}
+      {toast && <div className="fixed top-6 inset-x-0 mx-auto w-fit max-w-[90vw] bg-[#121212] text-white text-sm font-bold px-5 py-3 rounded-2xl shadow-xl z-50">{toast}</div>}
     </div>
   );
 };
+
+// Pré-chargement des polices et du logo dès l'ouverture, pour que le premier rendu soit immédiat.
+if (typeof window !== 'undefined') ensureFonts();
+// Rendu d'aperçu utilisé par les tests visuels.
+export { drawPoster };
