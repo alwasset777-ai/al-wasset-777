@@ -7,7 +7,7 @@ export const StudioApp: React.FC = () => (
   <div dir="rtl" className="min-h-screen bg-[#f6f6f6] font-tajawal">
     <header className="sticky top-0 z-30 bg-[#111] text-white shadow-md">
       <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-        <img src={A.poster.markLogo} alt="الوسيط 777" className="h-11 w-auto rounded-xl bg-white px-1.5" />
+        <img src={A.poster.markLogo} alt="الوسيط 777" className="w-12 h-12 rounded-full bg-white" />
         <div className="leading-tight">
           <h1 className="font-black text-lg">صانع إعلانات الوسيط 777</h1>
           <p className="text-xs text-white/60">صور + معلومات ← صورة إعلانية جاهزة</p>

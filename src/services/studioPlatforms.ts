@@ -20,7 +20,7 @@ export const STUDIO_PLATFORMS: StudioPlatformSpec[] = [
   { id: 'youtube', label: 'YouTube', maxChars: 5000, maxHashtags: 5, needs: 'video', title: true, color: '#ff0000', size: [1080, 1920], format: 'Short' },
   { id: 'threads', label: 'Threads', maxChars: 500, maxHashtags: 3, needs: 'none', color: '#111111', size: [1080, 1350], format: '4:5' },
   { id: 'linkedin', label: 'LinkedIn', maxChars: 3000, maxHashtags: 5, needs: 'none', color: '#0a66c2', size: [1080, 1350], format: '4:5' },
-  { id: 'twitter', label: 'X', maxChars: 280, maxHashtags: 2, needs: 'none', color: '#000000', size: [1080, 1080], format: '1:1' },
+  { id: 'twitter', label: 'X', maxChars: 280, maxHashtags: 2, needs: 'none', color: '#000000', size: [1600, 900], format: '16:9' },
   { id: 'gmb', label: 'Google Business', maxChars: 1500, maxHashtags: 0, needs: 'none', color: '#4285f4', size: [1200, 900], format: '4:3' },
   { id: 'bluesky', label: 'Bluesky', maxChars: 300, maxHashtags: 2, needs: 'none', color: '#1185fe', size: [1200, 675], format: '16:9' },
 ];

@@ -83,6 +83,8 @@ export const headlineOf = (d: PosterData) => d.headline.trim() || `${TYPE_LABELS
 let logoImg: HTMLImageElement | null = null;
 let markImg: HTMLImageElement | null = null; // logo « PUB الوسيط 777 », marque sur tous les modèles
 export const markLogo = () => markImg;
+let markAlphaImg: HTMLImageElement | null = null;
+export const markLogoAlpha = () => markAlphaImg ?? markImg;
 const loadImage = (src: string) =>
   new Promise<HTMLImageElement | null>((resolve) => {
     const img = new Image();
@@ -98,6 +100,7 @@ export function ensureFonts(): Promise<unknown> {
     ),
     loadImage(A.poster.logo).then((img) => (logoImg = img)),
     loadImage(A.poster.markLogo).then((img) => (markImg = img)),
+    loadImage(A.poster.markLogoAlpha).then((img) => (markAlphaImg = img)),
   ]);
   return assetsReady;
 }

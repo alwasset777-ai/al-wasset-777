@@ -7,6 +7,7 @@ import { isFirebaseEnabled } from '../services/firebase';
 import { DEAL_LABELS, FEATURES, PosterData, PosterDeal, TYPE_LABELS, drawPoster, ensureFonts, headlineOf } from '../services/posterMaker';
 import { BUILTIN_TEMPLATES, CustomTemplate, DEFAULT_TEMPLATE, PosterTemplate, templateBlob, templateVideo } from '../services/posterTemplates';
 import { deleteTemplate, listTemplates, saveTemplate } from '../services/templateStore';
+import { loadImageTemplates } from '../services/imageTemplates';
 import { StudioNetwork, studioSpec } from '../services/studioPlatforms';
 import {
   StudioPhoto,
@@ -109,6 +110,7 @@ export const PublishStudioView: React.FC = () => {
   const [customFeature, setCustomFeature] = useState('');
   const [prefs, setPrefs] = useState<Prefs>(readPrefs);
   const [customTpls, setCustomTpls] = useState<PosterTemplate[]>([]);
+  const [imageTpls, setImageTpls] = useState<PosterTemplate[]>([]); // modèles Canva intégrés
   const [pickerFor, setPickerFor] = useState<Target | null>(null);
   const [editor, setEditor] = useState<{ initial?: CustomTemplate } | null>(null);
   const [posters, setPosters] = useState<Poster[] | null>(null);
@@ -160,8 +162,9 @@ export const PublishStudioView: React.FC = () => {
   };
   useEffect(() => {
     reloadTemplates();
+    loadImageTemplates().then(setImageTpls);
   }, []);
-  const templates = useMemo(() => [...BUILTIN_TEMPLATES, ...customTpls], [customTpls]);
+  const templates = useMemo(() => [...imageTpls, ...BUILTIN_TEMPLATES, ...customTpls], [imageTpls, customTpls]);
   const tplOf = (id: Target) => templates.find((t) => t.id === prefs.templates[id]) ?? DEFAULT_TEMPLATE;
   const chooseTemplate = (id: Target, templateId: string) => setPrefs((p) => ({ ...p, templates: { ...p.templates, [id]: templateId } }));
   const toggleTarget = (id: Target) =>

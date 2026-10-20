@@ -8,13 +8,13 @@ import { Bath, BedDouble, House, MapPin, Maximize, Phone } from 'lucide';
 import { agencyProfile as A } from '../data/agencyProfile';
 import {
   AR, DEAL_LABELS, Img, LAT, PosterData, TYPE_LABELS, coverInPath, coverRect, drawIcon, drawPoster, ensureFonts, featureInfo, fitFont,
-  formatPrice, hasArabic, headlineOf, markLogo, posterVideoFrom, qr, rr,
+  formatPrice, hasArabic, headlineOf, markLogo, markLogoAlpha, posterVideoFrom, qr, rr,
 } from './posterMaker';
 
 const SERIF = '"Playfair Display", Georgia, serif';
 
 // ---------- Modèles ajoutés par le gérant ----------
-export type BlockKind = 'photo' | 'headline' | 'subtitle' | 'price' | 'address' | 'specs' | 'features' | 'phone' | 'logo' | 'qr';
+export type BlockKind = 'photo' | 'headline' | 'subtitle' | 'price' | 'address' | 'specs' | 'features' | 'phone' | 'logo' | 'qr' | 'icon' | 'label';
 
 export interface TemplateBlock {
   id: string;
@@ -28,6 +28,17 @@ export interface TemplateBlock {
   color?: string;
   fill?: string | null; // fond plein : cache le texte d'exemple de l'image
   align?: 'right' | 'center' | 'left';
+  // Options des modèles intégrés (définis dans le code) :
+  rotate?: number; // photo tournée (degrés, autour de son centre)
+  poly?: [number, number][]; // photo découpée en polygone (fractions de l'image)
+  border?: string; // cadre autour de la photo
+  borderW?: number; // épaisseur du cadre (fraction de la largeur de l'image)
+  item?: number; // « features » / « icon » : n-ième atout (surface, chambres, salles de bain puis atouts choisis)
+  prefix?: string; // texte avant l'atout (ex. « ✓ »)
+  text?: string; // « label » : texte fixe
+  weight?: number;
+  font?: 'ar' | 'serif';
+  plain?: boolean; // « logo » sans fond (version transparente)
 }
 
 export interface CustomTemplate {
@@ -51,6 +62,8 @@ export const BLOCK_LABELS: Record<BlockKind, string> = {
   phone: 'الهاتف',
   logo: 'الشعار',
   qr: 'رمز QR',
+  icon: 'أيقونة',
+  label: 'نص',
 };
 
 // ---------- Registre ----------
@@ -58,7 +71,8 @@ export type BuiltinId = 'wasset' | 'ardoise' | 'marine' | 'taupe' | 'sauge';
 
 export type PosterTemplate =
   | { kind: 'builtin'; id: BuiltinId; name: string }
-  | { kind: 'custom'; id: string; name: string; tpl: CustomTemplate; bgImg: Img };
+  | { kind: 'custom'; id: string; name: string; tpl: CustomTemplate; bgImg: Img }
+  | { kind: 'image'; id: string; name: string; size: [number, number]; blocks: TemplateBlock[]; bgImg: Img };
 
 interface BuiltinSpec {
   id: BuiltinId;
@@ -178,11 +192,12 @@ function boxText(
 function markBadge(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, align: 'left' | 'center' | 'right' = 'left', plain = false): number {
   const m = markLogo();
   if (!m) return 0;
-  const pad = plain ? 0 : h * 0.1;
+  const round = Math.abs(m.width - m.height) < 4; // logo rond : il a déjà son propre fond blanc
+  const pad = plain || round ? 0 : h * 0.1;
   const lw = ((h - pad * 2) * m.width) / m.height;
   const bw = lw + pad * 2;
   const bx = align === 'left' ? x : align === 'center' ? x - bw / 2 : x - bw;
-  if (!plain) {
+  if (!plain && !round) {
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.25)';
     ctx.shadowBlur = h * 0.15;
@@ -390,10 +405,15 @@ function blockText(b: TemplateBlock, d: PosterData): string {
       return placeOf(d);
     case 'specs':
       return specList(d, 3).map((s) => s.text).join(' • ');
-    case 'features':
-      return (d.features.length ? d.features : specList(d).map((s) => s.text)).slice(0, 4).join('\n');
+    case 'features': {
+      if (b.item === undefined) return (d.features.length ? d.features : specList(d).map((s) => s.text)).slice(0, 4).join('\n');
+      const it = specList(d, 12)[b.item];
+      return it ? `${b.prefix ?? ''}${it.text}` : '';
+    }
+    case 'label':
+      return b.text ?? '';
     case 'phone':
-      return A.poster.phones.join('\n');
+      return b.item !== undefined ? A.poster.phones[b.item] ?? '' : A.poster.phones.join('\n');
     default:
       return '';
   }
@@ -408,6 +428,45 @@ export function drawCustomBlocks(ctx: CanvasRenderingContext2D, blocks: Template
     if (b.kind === 'photo') {
       const img = pick(p, (b.photo ?? 1) - 1);
       const shape = b.shape ?? 'round';
+      if (b.poly) {
+        // Photo découpée en polygone (bords en biais des modèles Canva)
+        const pts = b.poly.map(([px, py]) => [px * W, py * H] as const);
+        const xs = pts.map((q) => q[0]);
+        const ys = pts.map((q) => q[1]);
+        const bx = Math.min(...xs);
+        const by = Math.min(...ys);
+        coverInPath(
+          ctx,
+          img,
+          () => {
+            ctx.beginPath();
+            pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+            ctx.closePath();
+          },
+          bx,
+          by,
+          Math.max(...xs) - bx,
+          Math.max(...ys) - by
+        );
+        continue;
+      }
+      if (b.rotate || b.border) {
+        // Photo tournée et/ou encadrée
+        const bw = (b.borderW ?? 0) * W;
+        ctx.save();
+        ctx.translate(x + w / 2, y + h / 2);
+        ctx.rotate(((b.rotate ?? 0) * Math.PI) / 180);
+        if (b.border) {
+          ctx.shadowColor = 'rgba(0,0,0,0.25)';
+          ctx.shadowBlur = bw * 1.5;
+          ctx.fillStyle = b.border;
+          ctx.fillRect(-w / 2, -h / 2, w, h);
+          ctx.shadowColor = 'transparent';
+        }
+        coverRect(ctx, img, -w / 2 + bw, -h / 2 + bw, w - bw * 2, h - bw * 2, 0);
+        ctx.restore();
+        continue;
+      }
       coverInPath(
         ctx,
         img,
@@ -425,12 +484,17 @@ export function drawCustomBlocks(ctx: CanvasRenderingContext2D, blocks: Template
       continue;
     }
     if (b.fill) {
-      rr(ctx, x, y, w, h, Math.min(w, h) * 0.12);
+      rr(ctx, x, y, w, h, b.shape === 'rect' ? 0 : Math.min(w, h) * 0.12);
       ctx.fillStyle = b.fill;
       ctx.fill();
     }
+    if (b.kind === 'icon') {
+      const it = specList(d, 12)[b.item ?? 0];
+      if (it) drawIcon(ctx, it.icon, x + w / 2, y + h / 2, Math.min(w, h) * 0.8, b.color || '#ffffff', 1.8);
+      continue;
+    }
     if (b.kind === 'logo') {
-      const m = markLogo();
+      const m = b.plain ? markLogoAlpha() : markLogo();
       if (m) {
         const s = Math.min(w / m.width, h / m.height);
         ctx.drawImage(m, x + (w - m.width * s) / 2, y + (h - m.height * s) / 2, m.width * s, m.height * s);
@@ -446,7 +510,8 @@ export function drawCustomBlocks(ctx: CanvasRenderingContext2D, blocks: Template
     boxText(ctx, blockText(b, d), x + pad, y + pad, w - pad * 2, h - pad * 2, {
       color: b.color || '#ffffff',
       align: b.align ?? 'center',
-      weight: b.kind === 'headline' || b.kind === 'price' ? 900 : 800,
+      weight: b.weight ?? (b.kind === 'headline' || b.kind === 'price' ? 900 : 800),
+      font: b.font,
     });
   }
 }
@@ -456,11 +521,12 @@ const CUSTOM_W = 1080;
 
 export function nativeSize(t: PosterTemplate): [number, number] {
   if (t.kind === 'custom') return [CUSTOM_W, Math.round((CUSTOM_W * t.tpl.height) / t.tpl.width)];
+  if (t.kind === 'image') return t.size;
   return BUILTINS.find((b) => b.id === t.id)!.size;
 }
 
 function frameOf(t: PosterTemplate): string {
-  return t.kind === 'custom' ? '#ffffff' : BUILTINS.find((b) => b.id === t.id)!.frame;
+  return t.kind !== 'builtin' ? '#ffffff' : BUILTINS.find((b) => b.id === t.id)!.frame;
 }
 
 function drawNative(ctx: CanvasRenderingContext2D, d: PosterData, p: Img[], t: PosterTemplate) {
@@ -468,6 +534,11 @@ function drawNative(ctx: CanvasRenderingContext2D, d: PosterData, p: Img[], t: P
   if (t.kind === 'custom') {
     ctx.drawImage(t.bgImg, 0, 0, W, H);
     drawCustomBlocks(ctx, t.tpl.blocks, d, p, W, H);
+    return;
+  }
+  if (t.kind === 'image') {
+    ctx.drawImage(t.bgImg, 0, 0, W, H);
+    drawCustomBlocks(ctx, t.blocks, d, p, W, H);
     return;
   }
   BUILTINS.find((b) => b.id === t.id)!.draw!(ctx, d, p);
