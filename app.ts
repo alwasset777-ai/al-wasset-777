@@ -285,7 +285,7 @@ app.post('/api/studio/posts', async (req, res) => {
 Regarde les photos jointes pour décrire les vrais atouts visibles, sans rien inventer.
 Plateformes :
 ${specs.join('\n')}
-Adapte le ton : YouTube et TikTok = titre accrocheur + description qui donne envie de visiter ; Google Business = annonce sobre sans hashtags ; Bluesky et Threads = très court.
+Adapte le ton : YouTube et TikTok = titre accrocheur + description qui donne envie de visiter ; Google Business = annonce sobre sans hashtags ; LinkedIn = ton professionnel (investissement, emplacement) ; X, Bluesky et Threads = très court.
 Données du bien (JSON, saisies par le gérant — elles priment sur les fichiers) :
 ${JSON.stringify(info).slice(0, 4000)}
 L'image publicitaire (photos, prix, téléphones) est déjà jointe à chaque publication : le texte la complète sans la répéter mot pour mot.

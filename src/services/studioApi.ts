@@ -6,10 +6,12 @@ import { agencyProfile as A } from '../data/agencyProfile';
 import { buildHashtags, generateTemplateText } from './adGenerator';
 import { getIdToken, isFirebaseEnabled, requireStorage } from './firebase';
 import { DEAL_LABELS, PosterData, TYPE_LABELS, formatPrice } from './posterMaker';
-import { StudioLanguage, StudioNetwork, studioSpec } from './studioPlatforms';
+import { STUDIO_NETWORK_IDS, StudioLanguage, StudioNetwork, studioSpec } from './studioPlatforms';
 
-// Plateformes de Metricool + WhatsApp (partage depuis le téléphone, sans API de publication).
-export type StudioTarget = StudioNetwork | 'whatsapp';
+// Plateformes de Metricool + WhatsApp et UpScrolled (partage depuis le téléphone, sans API de publication).
+export type StudioTarget = StudioNetwork | 'whatsapp' | 'upscrolled';
+
+export const isNetwork = (t: StudioTarget): t is StudioNetwork => STUDIO_NETWORK_IDS.includes(t as StudioNetwork);
 
 export interface StudioPhoto {
   id: string;
@@ -81,7 +83,7 @@ function toProperty(d: PosterData, description: string): Property {
     titleFr: `${TYPE_LABELS[type].fr} ${DEAL_LABELS[d.deal].fr.toLowerCase()}${d.district ? ` – ${d.district}` : ''}`,
     titleAr: `${TYPE_LABELS[type].ar} ${DEAL_LABELS[d.deal].ar}${d.district ? ` في ${d.district}` : ''}`,
     type,
-    listingType: d.deal,
+    listingType: d.deal === 'vente' ? 'vente' : 'location',
     price: 0,
     priceFormattedFr: price || 'Prix sur demande',
     priceFormattedAr: price || 'الثمن عند الطلب',
@@ -106,11 +108,14 @@ function toProperty(d: PosterData, description: string): Property {
 
 // Plateforme du moteur de modèles la plus proche (longueur et ton), quand l'IA n'est pas disponible.
 const TEMPLATE_OF: Record<StudioTarget, AdPlatform> = {
-  facebook: 'facebook', instagram: 'instagram', tiktok: 'tiktok', youtube: 'facebook', threads: 'threads', gmb: 'avito', bluesky: 'x', whatsapp: 'whatsapp',
+  facebook: 'facebook', instagram: 'instagram', tiktok: 'tiktok', youtube: 'facebook', threads: 'threads', linkedin: 'linkedin', twitter: 'x',
+  gmb: 'avito', bluesky: 'x', whatsapp: 'whatsapp', upscrolled: 'upscrolled',
 };
 
 function templatePost(p: Property, target: StudioTarget, lang: StudioLanguage): StudioPost {
-  const spec = target === 'whatsapp' ? { maxChars: 4000, maxHashtags: 0, title: false } : studioSpec(target);
+  const spec = !isNetwork(target)
+    ? { maxChars: target === 'whatsapp' ? 4000 : 2200, maxHashtags: target === 'whatsapp' ? 0 : 10, title: false }
+    : studioSpec(target);
   const tpl = TEMPLATE_OF[target];
   // Bilingue : texte arabe puis français, hashtags des deux langues.
   const langs: AdLanguage[] = lang === 'ar+fr' ? ['ar', 'fr'] : [lang];
@@ -133,8 +138,8 @@ export async function generatePosts(
   targets: StudioTarget[],
   lang: StudioLanguage
 ): Promise<StudioPost[]> {
-  const networks = targets.filter((t): t is StudioNetwork => t !== 'whatsapp');
-  const info = { ...d, type: d.type || 'Appartement', listingType: d.deal, features: d.features.join('، '), description };
+  const networks = targets.filter(isNetwork);
+  const info = { ...d, type: d.type || 'Appartement', listingType: d.deal === 'meuble' ? 'location meublée' : d.deal, features: d.features.join('، '), description };
   let ai: { platform: StudioNetwork; text: string; hashtags: string[]; title: string }[] = [];
   if (networks.length) {
     try {

@@ -1,5 +1,5 @@
 // Programmation des publications via Metricool (Facebook, Instagram, TikTok, YouTube, Threads,
-// Google Business, Bluesky). Metricool publie à l'heure prévue, même si l'application est fermée.
+// LinkedIn, X, Google Business, Bluesky). Metricool publie à l'heure prévue, même si l'application est fermée.
 // Le jeton reste côté serveur (variables d'environnement), jamais dans le navigateur.
 import type { StudioNetwork } from './src/services/studioPlatforms.js';
 
@@ -66,7 +66,10 @@ function mediaFor(p: StudioPostInput): string[] {
     case 'bluesky':
       return p.images.slice(0, 4);
     case 'threads':
+    case 'linkedin':
       return p.images.slice(0, 10);
+    case 'twitter':
+      return p.images.slice(0, 4);
     case 'gmb':
       return p.images.slice(0, 1);
   }
@@ -95,6 +98,10 @@ function networkData(p: StudioPostInput): Record<string, unknown> {
       };
     case 'threads':
       return { threadsData: {} };
+    case 'linkedin':
+      return { linkedinData: { documentTitle: '', publishImagesAsPDF: false, previewIncluded: true, type: 'post' } };
+    case 'twitter':
+      return { twitterData: { tags: [] } };
     case 'gmb':
       return { gmbData: { type: 'publication' } };
     case 'bluesky':

@@ -25,5 +25,6 @@ export const agencyProfile = {
     whatsappUrl: 'https://wa.me/212777777848',
     social: { instagram: 'alwasset777', facebook: 'al waseet777Immobilier', youtube: 'alwasset777' },
     logo: '/brand/logo-alwasset777.webp',
+    markLogo: '/brand/logo-pub-alwasset777.webp', // logo « PUB » : icône de l'application et marque des modèles
   },
 };
