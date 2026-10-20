@@ -39,7 +39,7 @@ const X_TEMPLATES: ImageTemplateDef[] = [
       ...row(3, [1140, 560, 90, 90], [1250, 565, 245, 80], '#111111'),
       { kind: 'price', r: [50, 790, 520, 100], color: '#ffffff', align: 'left' },
       { kind: 'address', r: [580, 790, 440, 100], color: '#ffffff', weight: 700 },
-      { kind: 'phone', item: 0, r: [1040, 790, 520, 100], color: '#ffffff', align: 'right' },
+      { kind: 'phone', item: -1, r: [1040, 790, 520, 100], color: '#ffffff', align: 'right' },
     ],
   },
   {
@@ -58,7 +58,7 @@ const X_TEMPLATES: ImageTemplateDef[] = [
       { kind: 'subtitle', r: [680, 640, 890, 60], color: '#dfe6f5', align: 'right', weight: 700 },
       { kind: 'price', r: [660, 748, 290, 60], color: '#ffffff' },
       { kind: 'address', r: [610, 846, 360, 48], color: '#1f2d50', align: 'left' },
-      { kind: 'phone', item: 0, r: [1020, 846, 520, 48], color: '#1f2d50', align: 'left' },
+      { kind: 'phone', item: -1, r: [1020, 846, 520, 48], color: '#1f2d50', align: 'left' },
     ],
   },
   {
@@ -74,7 +74,7 @@ const X_TEMPLATES: ImageTemplateDef[] = [
       { kind: 'photo', photo: 4, r: [754, 402, 178, 178], rotate: 12, border: '#ffffff', borderW: 0.0075 },
       { kind: 'subtitle', r: [1100, 195, 400, 95], color: '#f0960f', align: 'right', weight: 700 },
       { kind: 'headline', r: [1040, 290, 460, 220], color: '#ffffff', align: 'right' },
-      { kind: 'phone', item: 0, r: [1235, 575, 252, 52], color: '#111111' },
+      { kind: 'phone', item: -1, r: [1235, 575, 252, 52], color: '#111111' },
       { kind: 'label', text: 'المميزات', r: [88, 572, 300, 80], color: '#111111', align: 'left', weight: 900 },
       check(0, [90, 672, 300, 38], '#111111'),
       check(1, [90, 711, 300, 38], '#111111'),
@@ -104,7 +104,7 @@ const X_TEMPLATES: ImageTemplateDef[] = [
       ...row(1, [745, 560, 55, 55], [830, 560, 310, 55], '#ffffff'),
       ...row(2, [745, 630, 55, 55], [830, 630, 310, 55], '#ffffff'),
       { kind: 'price', r: [730, 728, 350, 100], color: '#ffffff', align: 'left' },
-      { kind: 'phone', item: 0, r: [730, 848, 410, 46], color: '#f3e9df', align: 'left', weight: 700 },
+      { kind: 'phone', item: -1, r: [730, 848, 410, 46], color: '#f3e9df', align: 'left', weight: 700 },
     ],
   },
   {

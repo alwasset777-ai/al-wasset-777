@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import { PosterData, ensureFonts } from '../services/posterMaker';
-import { PosterTemplate, nativeSize, renderPreview } from '../services/posterTemplates';
+import { PosterTemplate, fitsAspect, renderPreview } from '../services/posterTemplates';
 
 // Choix du modèle d'une plateforme : vignettes de chaque modèle avec les photos et informations du bien.
-// Les modèles au format de la plateforme passent en premier.
+// Seuls les modèles qui conviennent au format de la plateforme sont proposés (pas de bandes autour).
 interface Props {
   title: string;
   aspect: number; // largeur / hauteur de la plateforme
@@ -20,11 +20,7 @@ interface Props {
 
 export const TemplatePicker: React.FC<Props> = ({ title, aspect, templates: all, selectedId, data, photos, onSelect, onAdd, onEdit, onDelete }) => {
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
-  const fits = (t: PosterTemplate) => {
-    const [w, h] = nativeSize(t);
-    return t.id === 'wasset' || Math.abs(w / h - aspect) / aspect < 0.04; // « الوسيط » s'adapte à tous les formats
-  };
-  const templates = useMemo(() => [...all.filter(fits), ...all.filter((t) => !fits(t))], [all, aspect]);
+  const templates = useMemo(() => all.filter((t) => fitsAspect(t, aspect)), [all, aspect]);
 
   useEffect(() => {
     let alive = true;
@@ -33,7 +29,7 @@ export const TemplatePicker: React.FC<Props> = ({ title, aspect, templates: all,
       const out: Record<string, string> = {};
       for (const t of templates) {
         const c = document.createElement('canvas');
-        renderPreview(c, data, photos, t, 300);
+        renderPreview(c, data, photos, t, 300, aspect);
         out[t.id] = c.toDataURL('image/jpeg', 0.75);
         await new Promise((r) => setTimeout(r, 0)); // laisse respirer l'interface
       }
@@ -43,7 +39,7 @@ export const TemplatePicker: React.FC<Props> = ({ title, aspect, templates: all,
       alive = false;
       clearTimeout(id);
     };
-  }, [templates, data, photos]);
+  }, [templates, data, photos, aspect]);
 
   const current = templates.find((t) => t.id === selectedId);
 
@@ -65,7 +61,6 @@ export const TemplatePicker: React.FC<Props> = ({ title, aspect, templates: all,
               </span>
               <span className={`text-xs font-bold ${on ? 'text-[#e3131b]' : 'text-[#555]'}`}>
                 {t.name}
-                {!fits(t) && <span className="text-[#999] font-semibold"> · مقاس آخر</span>}
               </span>
             </button>
           );

@@ -5,7 +5,7 @@ import { PropertyType } from '../types';
 import { ServerStatus, fetchServerStatus } from '../services/adsApi';
 import { isFirebaseEnabled } from '../services/firebase';
 import { DEAL_LABELS, FEATURES, PosterData, PosterDeal, TYPE_LABELS, drawPoster, ensureFonts, headlineOf } from '../services/posterMaker';
-import { BUILTIN_TEMPLATES, CustomTemplate, DEFAULT_TEMPLATE, PosterTemplate, templateBlob, templateVideo } from '../services/posterTemplates';
+import { BUILTIN_TEMPLATES, CustomTemplate, DEFAULT_TEMPLATE, PosterTemplate, fitsAspect, templateBlob, templateVideo } from '../services/posterTemplates';
 import { deleteTemplate, listTemplates, saveTemplate } from '../services/templateStore';
 import { loadImageTemplates } from '../services/imageTemplates';
 import { StudioNetwork, studioSpec } from '../services/studioPlatforms';
@@ -165,7 +165,12 @@ export const PublishStudioView: React.FC = () => {
     loadImageTemplates().then(setImageTpls);
   }, []);
   const templates = useMemo(() => [...imageTpls, ...BUILTIN_TEMPLATES, ...customTpls], [imageTpls, customTpls]);
-  const tplOf = (id: Target) => templates.find((t) => t.id === prefs.templates[id]) ?? DEFAULT_TEMPLATE;
+  // Modèle choisi pour la plateforme, s'il convient à son format ; sinon « الوسيط » (adaptable).
+  const tplOf = (id: Target) => {
+    const t = templates.find((x) => x.id === prefs.templates[id]);
+    const [w, h] = target(id).size;
+    return t && fitsAspect(t, w / h) ? t : DEFAULT_TEMPLATE;
+  };
   const chooseTemplate = (id: Target, templateId: string) => setPrefs((p) => ({ ...p, templates: { ...p.templates, [id]: templateId } }));
   const toggleTarget = (id: Target) =>
     setPrefs((p) => ({ ...p, selected: p.selected.includes(id) ? p.selected.filter((x) => x !== id) : [...p.selected, id] }));

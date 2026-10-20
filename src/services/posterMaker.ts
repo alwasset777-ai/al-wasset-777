@@ -175,7 +175,7 @@ function rng(seed: number) {
 }
 
 // Coup de pinceau : bande aux bords irréguliers, extrémités effilochées et quelques traînées.
-function brush(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, seed: number, tilt = 0) {
+export function brush(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, seed: number, tilt = 0) {
   const r = rng(seed);
   ctx.save();
   ctx.translate(x + w / 2, y + h / 2);
