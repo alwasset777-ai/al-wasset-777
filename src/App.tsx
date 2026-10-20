@@ -275,7 +275,7 @@ export const App: React.FC = () => {
               <AdsAgentView properties={properties} language={language} />
             )}
 
-            {currentTab === 'studio' && <PublishStudioView language={language} />}
+            {currentTab === 'studio' && <PublishStudioView />}
 
             {currentTab === 'crm' && (
               <CrmView

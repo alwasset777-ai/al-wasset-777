@@ -142,7 +142,11 @@ const hasArabic = (s: string) => /[؀-ۿ]/.test(s);
 
 // Prix lisible : « 950 000 » s'afficherait « 000 950 » en sens arabe.
 export function formatPrice(price: string): string {
-  return price.trim().replace(/(\d)[\s  ]+(?=\d{3}(?!\d))/g, '$1.');
+  const p = price
+    .trim()
+    .replace(/(\d)[\s  ]+(?=\d{3}(?!\d))/g, '$1.')
+    .replace(/\d{4,}/g, (n) => n.replace(/\B(?=(\d{3})+(?!\d))/g, '.')); // 950000 → 950.000
+  return /^[\d.,]+$/.test(p) ? `${p} DH` : p; // chiffre seul : devise ajoutée
 }
 
 // Générateur pseudo-aléatoire déterministe : le même pinceau à chaque rendu.
@@ -660,8 +664,9 @@ function drawVertical(ctx: CanvasRenderingContext2D, d: PosterData, photos: Img[
   const room = h - S - y0 - socialH - footH - 36 * u;
   const M = Math.max(230 * u, room * 0.56);
   const B = Math.max(180 * u, room - M);
-  features(ctx, d.features, 18 * u, y0, 0.4 * w - 18 * u, M, u);
-  const p2x = 0.42 * w;
+  // Sans atouts choisis, la 2e photo prend toute la largeur.
+  if (d.features.length) features(ctx, d.features, 18 * u, y0, 0.4 * w - 18 * u, M, u);
+  const p2x = d.features.length ? 0.42 * w : 16 * u;
   const p2w = w - p2x - 16 * u;
   coverRect(ctx, photos[1] ?? photos[0], p2x, y0, p2w, M, 6 * u);
   priceBrush(ctx, d, w - 6 * u, y0 + M - 12 * u, Math.min(p2w * 0.72, 520 * u), Math.min(M * 0.34, 140 * u));
@@ -708,8 +713,8 @@ function drawHorizontalBase(ctx: CanvasRenderingContext2D, d: PosterData, photos
   brush(ctx, 4, 300, colW - 30, 80, BLACK, 5, 0.012);
   tokens(ctx, specTokens(d, 46, 62), 4 + (colW - 30) / 2, 360, colW - 100);
   address(ctx, d, colW / 2, 428, 44, colW - 140, 1);
-  features(ctx, d.features, 14, 452, 590, 196, 0.8, 2);
-  contactBox(ctx, 14, 660, 586, 140, 0.9);
+  if (d.features.length) features(ctx, d.features, 14, 452, 590, 196, 0.8, 2);
+  contactBox(ctx, 14, d.features.length ? 660 : 556, 586, 140, 0.9);
 
   // Colonne droite : 2e et 3e photos, prix, adresse et slogan
   const extra = [photos[1] ?? photos[0], photos[2]].filter(Boolean) as Img[];
