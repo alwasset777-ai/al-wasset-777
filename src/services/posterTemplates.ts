@@ -192,11 +192,12 @@ function boxText(
 function markBadge(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, align: 'left' | 'center' | 'right' = 'left', plain = false): number {
   const m = markLogo();
   if (!m) return 0;
-  const pad = plain ? 0 : h * 0.1;
+  const round = Math.abs(m.width - m.height) < 4; // logo rond : il a déjà son propre fond blanc
+  const pad = plain || round ? 0 : h * 0.1;
   const lw = ((h - pad * 2) * m.width) / m.height;
   const bw = lw + pad * 2;
   const bx = align === 'left' ? x : align === 'center' ? x - bw / 2 : x - bw;
-  if (!plain) {
+  if (!plain && !round) {
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.25)';
     ctx.shadowBlur = h * 0.15;
