@@ -4,10 +4,10 @@ import { siFacebook, siInstagram, siThreads, siTiktok, siX, siYoutube } from 'si
 import { PropertyType } from '../types';
 import { ServerStatus, fetchServerStatus } from '../services/adsApi';
 import { isFirebaseEnabled } from '../services/firebase';
-import { DEAL_LABELS, FEATURES, PosterData, PosterDeal, TYPE_LABELS, drawPoster, ensureFonts, headlineOf } from '../services/posterMaker';
+import { DEAL_LABELS, FEATURES, PosterData, PosterDeal, TYPE_LABELS, ensureFonts, headlineOf } from '../services/posterMaker';
 import { BUILTIN_TEMPLATES, CustomTemplate, DEFAULT_TEMPLATE, PosterTemplate, fitsAspect, templateBlob, templateVideo } from '../services/posterTemplates';
 import { deleteTemplate, listTemplates, saveTemplate } from '../services/templateStore';
-import { loadImageTemplates } from '../services/imageTemplates';
+import { agency, loadAgency, onAgencyChange } from '../services/agencySettings';
 import { StudioNetwork, studioSpec } from '../services/studioPlatforms';
 import {
   StudioPhoto,
@@ -26,6 +26,8 @@ import {
 import { LoginCard, SignOutButton, useAuthUser } from './AuthGate';
 import { TemplateEditor } from './TemplateEditor';
 import { TemplatePicker } from './TemplatePicker';
+import { AgencyCard, AgencySettingsHost } from './AgencySettingsPanel';
+import { useBackClose } from '../hooks/useBackClose';
 
 // « صانع الإعلانات » : une case photos (5 au maximum), une case informations, les plateformes avec
 // le modèle choisi pour chacune, puis un bouton → une affiche par plateforme, à sa taille.
@@ -65,7 +67,7 @@ const FEATURE_TITLES = FEATURES.map((f) => f.title);
 const PREFS_KEY = 'studio.platforms'; // plateformes cochées + modèle de chacune (sur cet appareil)
 
 const EMPTY: PosterData = {
-  deal: 'vente', type: 'Appartement', headline: '', city: 'مكناس', district: '', surface: 0, surfaceMax: 0, bedrooms: 0, bathrooms: 0, price: '', features: [],
+  deal: 'vente', type: 'Appartement', headline: '', city: '', district: '', surface: 0, surfaceMax: 0, bedrooms: 0, bathrooms: 0, price: '', features: [],
 };
 
 interface Prefs {
@@ -110,7 +112,6 @@ export const PublishStudioView: React.FC = () => {
   const [customFeature, setCustomFeature] = useState('');
   const [prefs, setPrefs] = useState<Prefs>(readPrefs);
   const [customTpls, setCustomTpls] = useState<PosterTemplate[]>([]);
-  const [imageTpls, setImageTpls] = useState<PosterTemplate[]>([]); // modèles Canva intégrés
   const [pickerFor, setPickerFor] = useState<Target | null>(null);
   const [editor, setEditor] = useState<{ initial?: CustomTemplate } | null>(null);
   const [posters, setPosters] = useState<Poster[] | null>(null);
@@ -150,6 +151,19 @@ export const PublishStudioView: React.FC = () => {
   }, [prefs]);
 
   const imgs = useMemo(() => photos.map((p) => p.img), [photos]);
+
+  // ---------- Agence (paramètres) : les vignettes sont redessinées quand elle change ----------
+  const [agencyVersion, setAgencyVersion] = useState(0);
+  useEffect(() => {
+    const off = onAgencyChange(() => setAgencyVersion((v) => v + 1));
+    const fillCity = () => setData((prev) => (prev.city ? prev : { ...prev, city: agency().city }));
+    const offCity = onAgencyChange(fillCity);
+    loadAgency().then(fillCity);
+    return () => {
+      off();
+      offCity();
+    };
+  }, []);
   const selected = TARGETS.filter((t) => prefs.selected.includes(t.id)).map((t) => t.id);
 
   // ---------- Modèles ----------
@@ -162,10 +176,9 @@ export const PublishStudioView: React.FC = () => {
   };
   useEffect(() => {
     reloadTemplates();
-    loadImageTemplates().then(setImageTpls);
   }, []);
-  const templates = useMemo(() => [...imageTpls, ...BUILTIN_TEMPLATES, ...customTpls], [imageTpls, customTpls]);
-  // Modèle choisi pour la plateforme, s'il convient à son format ; sinon « الوسيط » (adaptable).
+  const templates = useMemo(() => [...BUILTIN_TEMPLATES, ...customTpls], [customTpls]);
+  // Modèle choisi pour la plateforme, s'il convient à son format ; sinon le premier modèle (adaptable).
   const tplOf = (id: Target) => {
     const t = templates.find((x) => x.id === prefs.templates[id]);
     const [w, h] = target(id).size;
@@ -254,9 +267,13 @@ export const PublishStudioView: React.FC = () => {
     setPosters(null);
     setPosts([]);
   };
+  // Bouton « retour » du téléphone : ferme le choix du modèle, l'éditeur ou la page des résultats.
+  useBackClose(!!posters, backToForm);
+  useBackClose(!!pickerFor, () => setPickerFor(null));
+  useBackClose(!!editor, () => setEditor(null));
 
   // Nom en lettres latines : les navigateurs ignorent souvent les noms de fichier en arabe.
-  const fileName = (id: Target, ext = 'jpg') => `alwasset777-${id}-${target(id).size.join('x')}.${ext}`;
+  const fileName = (id: Target, ext = 'jpg') => `annonce-${id}-${target(id).size.join('x')}.${ext}`;
   const posterOf = (id: StudioTarget) => posters?.find((p) => p.target === id);
 
   const sharePoster = (p: Poster, text = headlineOf(data)) =>
@@ -290,7 +307,7 @@ export const PublishStudioView: React.FC = () => {
     run('prepare', async () => {
       const created = await generatePosts(photos, data, '', selected, 'ar+fr');
       setPosts(created);
-      if (created.every((p) => p.source === 'modèle')) setToast('تم استعمال نصوص المكتب الجاهزة (الذكاء الاصطناعي غير متوفر)');
+      if (user && created.every((p) => p.source === 'modèle')) setToast('تم استعمال النصوص الجاهزة (الذكاء الاصطناعي غير متوفر)');
     });
 
   const handlePublish = () =>
@@ -362,6 +379,9 @@ export const PublishStudioView: React.FC = () => {
       {posters ? (
         <>
           {/* ================= Résultat : une affiche par plateforme ================= */}
+          <button onClick={backToForm} className="px-4 py-2.5 rounded-2xl bg-white border border-[#ececec] shadow-sm font-black text-sm flex items-center gap-1.5 cursor-pointer">
+            <ArrowRight className="w-5 h-5" /> رجوع
+          </button>
           <section className={card}>
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-lg font-black">الإعلانات جاهزة ({posters.length})</h2>
@@ -409,7 +429,14 @@ export const PublishStudioView: React.FC = () => {
               <h2 className="text-lg font-black">النشر</h2>
               {user && <SignOutButton user={user} />}
             </div>
-            {needsLogin && <LoginCard title="دخول المدير للنشر" />}
+            {needsLogin && (
+              <details className="text-sm">
+                <summary className="cursor-pointer font-bold text-[#888]">دخول المدير (النشر التلقائي)</summary>
+                <div className="pt-3">
+                  <LoginCard title="دخول المدير للنشر" />
+                </div>
+              </details>
+            )}
 
             {!posts.length ? (
               <button onClick={handlePrepare} disabled={!!busy} className="w-full py-3.5 rounded-2xl bg-[#121212] text-white font-black flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
@@ -438,7 +465,7 @@ export const PublishStudioView: React.FC = () => {
                         <input value={p.title} onChange={(e) => updatePost(p.target, { title: e.target.value })} placeholder="العنوان" className={`${input} text-sm font-bold`} />
                       )}
                       <textarea rows={4} value={fullText(p)} onChange={(e) => updatePost(p.target, { text: e.target.value, hashtags: [] })} className={`${input} text-sm`} />
-                      {!isNetwork(p.target) && poster && (
+                      {(!isNetwork(p.target) || !user) && poster && (
                         <button
                           onClick={() => sharePoster(poster, fullText(p))}
                           disabled={!!busy}
@@ -452,7 +479,7 @@ export const PublishStudioView: React.FC = () => {
                     </div>
                   );
                 })}
-                {toPublish.length > 0 && (
+                {!!user && toPublish.length > 0 && (
                   <>
                     <div className="flex flex-wrap items-center gap-4 text-sm font-bold">
                       <label className="flex items-center gap-2 cursor-pointer">
@@ -480,6 +507,8 @@ export const PublishStudioView: React.FC = () => {
         </>
       ) : (
         <>
+          <AgencyCard />
+
           {/* ================= 1. Photos : un seul carré d'ajout ================= */}
           <section
             className={card}
@@ -670,8 +699,8 @@ export const PublishStudioView: React.FC = () => {
               <span className="font-black flex-1">
                 {picking.label} <span className="text-xs text-[#999]" dir="ltr">{picking.size.join('×')}</span>
               </span>
-              <button onClick={() => setPickerFor(null)} aria-label="إغلاق" className="w-9 h-9 rounded-full bg-white flex items-center justify-center cursor-pointer">
-                <X className="w-5 h-5" />
+              <button onClick={() => setPickerFor(null)} className="px-3 py-2 rounded-xl bg-white font-bold text-sm flex items-center gap-1 cursor-pointer">
+                <ArrowRight className="w-4 h-4" /> رجوع
               </button>
             </div>
             <TemplatePicker
@@ -688,10 +717,13 @@ export const PublishStudioView: React.FC = () => {
               onAdd={() => setEditor({})}
               onEdit={(t) => t.kind === 'custom' && setEditor({ initial: t.tpl })}
               onDelete={handleDeleteTemplate}
+              version={String(agencyVersion)}
             />
           </div>
         </div>
       )}
+
+      <AgencySettingsHost />
 
       {editor && <TemplateEditor initial={editor.initial} data={data} photos={imgs} onSave={handleSaveTemplate} onClose={() => setEditor(null)} />}
 
@@ -700,7 +732,5 @@ export const PublishStudioView: React.FC = () => {
   );
 };
 
-// Pré-chargement des polices et du logo dès l'ouverture, pour que le premier rendu soit immédiat.
+// Pré-chargement des polices et des informations de l'agence dès l'ouverture, pour que le premier rendu soit immédiat.
 if (typeof window !== 'undefined') ensureFonts();
-// Rendu d'aperçu utilisé par les tests visuels.
-export { drawPoster };

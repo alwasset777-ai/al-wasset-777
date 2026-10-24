@@ -27,6 +27,8 @@ import { AgentChat } from './components/AgentChat';
 import { PostAdModal } from './components/PostAdModal';
 import { DocumentModal } from './components/DocumentModal';
 import { ScheduleVisitModal } from './components/ScheduleVisitModal';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { useBackClose } from './hooks/useBackClose';
 
 export const App: React.FC = () => {
   const [language, setLanguage] = useState<Language>('fr');
@@ -68,6 +70,10 @@ export const App: React.FC = () => {
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Bouton « retour » du téléphone : fiche du bien → page précédente, autre page → accueil.
+  useBackClose(currentTab !== 'home', () => handleTabChange('home'));
+  useBackClose(!!selectedProperty, () => setSelectedProperty(null));
 
   const handleToggleFavorite = (id: number) => {
     setFavorites((prev) => 
@@ -203,6 +209,15 @@ export const App: React.FC = () => {
           />
         ) : (
           <>
+            {currentTab !== 'home' && (
+              <button
+                onClick={() => handleTabChange('home')}
+                className="mb-4 flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#f0e4e2] text-sm font-bold text-[#281715] hover:bg-[#fff0ed] hover:text-[#ff6f61] transition-colors cursor-pointer"
+              >
+                {language === 'ar' ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
+                <span>{language === 'ar' ? 'رجوع' : language === 'en' ? 'Back' : 'Retour'}</span>
+              </button>
+            )}
             {currentTab === 'home' && (
               <HomeView
                 properties={properties}

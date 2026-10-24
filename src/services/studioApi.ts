@@ -1,11 +1,9 @@
-// « استوديو النشر » : textes des publications (IA ou modèles Al Wassit), hébergement des affiches
+// « استوديو النشر » : textes des publications (IA ou textes prêts avec les informations de l'agence), hébergement des affiches
 // (Firebase Storage) et publication via Metricool (server.ts → metricool.ts) ou directement via Meta.
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { AdLanguage, AdPlatform, Property } from '../types';
-import { agencyProfile as A } from '../data/agencyProfile';
-import { buildHashtags, generateTemplateText } from './adGenerator';
+import { agency, agencyPhones } from './agencySettings';
 import { getIdToken, isFirebaseEnabled, requireStorage } from './firebase';
-import { DEAL_LABELS, PosterData, TYPE_LABELS, formatPrice } from './posterMaker';
+import { DEAL_LABELS, PosterData, TYPE_LABELS, formatPrice, headlineOf } from './posterMaker';
 import { STUDIO_NETWORK_IDS, StudioLanguage, StudioNetwork, studioSpec } from './studioPlatforms';
 
 // Plateformes de Metricool + WhatsApp et UpScrolled (partage depuis le téléphone, sans API de publication).
@@ -74,58 +72,65 @@ function photosForAI(photos: StudioPhoto[]): InlineFile[] {
   });
 }
 
-// Bien « virtuel » à partir de la fiche : sert aux modèles de texte quand l'IA n'est pas disponible.
-function toProperty(d: PosterData, description: string): Property {
-  const type = d.type || 'Appartement';
+// Textes prêts quand l'IA n'est pas disponible (ou pour les agences sans compte gérant) :
+// construits avec la fiche du bien et les informations de l'agence (paramètres).
+const tag = (s: string) => s.replace(/[\s'’-]+/g, '_').replace(/[^\p{L}\p{N}_]/gu, '');
+
+function agencyText(d: PosterData, lang: 'ar' | 'fr', short: boolean): string {
+  const a = agency();
+  const type = TYPE_LABELS[d.type || 'Appartement'];
   const price = formatPrice(d.price);
-  return {
-    id: 0,
-    titleFr: `${TYPE_LABELS[type].fr} ${DEAL_LABELS[d.deal].fr.toLowerCase()}${d.district ? ` – ${d.district}` : ''}`,
-    titleAr: `${TYPE_LABELS[type].ar} ${DEAL_LABELS[d.deal].ar}${d.district ? ` في ${d.district}` : ''}`,
-    type,
-    listingType: d.deal === 'vente' ? 'vente' : 'location',
-    price: 0,
-    priceFormattedFr: price || 'Prix sur demande',
-    priceFormattedAr: price || 'الثمن عند الطلب',
-    city: d.city,
-    district: d.district || d.city,
-    address: '',
-    surface: d.surface,
-    rooms: d.bedrooms,
-    bedrooms: d.bedrooms,
-    bathrooms: d.bathrooms,
-    status: 'Disponible',
-    images: [],
-    descriptionFr: description,
-    descriptionAr: description,
-    features: d.features,
-    lat: 0,
-    lng: 0,
-    agent: { name: A.managerFr, agency: A.nameFr, phone: A.phonesLocal[0], whatsapp: A.whatsapp, email: '', avatar: '', rating: 5, reviewCount: 0 },
-    dateAdded: new Date().toISOString(),
-  };
+  const place = [d.district, d.city].filter(Boolean).join(lang === 'ar' ? '، ' : ', ');
+  const phones = agencyPhones();
+  if (lang === 'ar') {
+    const specs = [d.surface ? `📐 ${d.surface} م²` : '', d.bedrooms ? `🛏 ${d.bedrooms} غرف` : '', d.bathrooms ? `🛁 ${d.bathrooms} حمامات` : ''].filter(Boolean).join(' • ');
+    if (short) return [`🏠 ${headlineOf(d)}${place ? ` – ${place}` : ''}`, price ? `💰 ${price}` : '', phones[0] ? `📞 ${phones[0]}` : ''].filter(Boolean).join('\n');
+    return [
+      `🏠 ${headlineOf(d)}`,
+      place ? `📍 ${place}` : '',
+      specs,
+      ...d.features.map((f) => `✅ ${f}`),
+      price ? `💰 الثمن: ${price}` : '',
+      phones.length ? `📞 للتواصل: ${phones.join(' / ')}` : '',
+      [a.name, a.address].filter((x) => x.trim()).join(' – '),
+    ].filter(Boolean).join('\n');
+  }
+  const deal = DEAL_LABELS[d.deal].fr.toLowerCase();
+  const specs = [d.surface ? `📐 ${d.surface} m²` : '', d.bedrooms ? `🛏 ${d.bedrooms} ch.` : '', d.bathrooms ? `🛁 ${d.bathrooms} sdb` : ''].filter(Boolean).join(' • ');
+  if (short) return [`🏠 ${type.fr} ${deal}${place ? ` – ${place}` : ''}`, price ? `💰 ${price}` : ''].filter(Boolean).join('\n');
+  return [
+    `🏠 ${type.fr} ${deal}`,
+    place ? `📍 ${place}` : '',
+    specs,
+    price ? `💰 Prix : ${price}` : '',
+    phones.length ? `📞 Contact : ${phones.join(' / ')}` : '',
+    a.name.trim(),
+  ].filter(Boolean).join('\n');
 }
 
-// Plateforme du moteur de modèles la plus proche (longueur et ton), quand l'IA n'est pas disponible.
-const TEMPLATE_OF: Record<StudioTarget, AdPlatform> = {
-  facebook: 'facebook', instagram: 'instagram', tiktok: 'tiktok', youtube: 'facebook', threads: 'threads', linkedin: 'linkedin', twitter: 'x',
-  gmb: 'avito', bluesky: 'x', whatsapp: 'whatsapp', upscrolled: 'upscrolled',
-};
-
-function templatePost(p: Property, target: StudioTarget, lang: StudioLanguage): StudioPost {
+function templatePost(d: PosterData, target: StudioTarget, lang: StudioLanguage): StudioPost {
   const spec = !isNetwork(target)
     ? { maxChars: target === 'whatsapp' ? 4000 : 2200, maxHashtags: target === 'whatsapp' ? 0 : 10, title: false }
     : studioSpec(target);
-  const tpl = TEMPLATE_OF[target];
-  // Bilingue : texte arabe puis français, hashtags des deux langues.
-  const langs: AdLanguage[] = lang === 'ar+fr' ? ['ar', 'fr'] : [lang];
-  const hashtags = Array.from(new Set(langs.flatMap((l) => buildHashtags(p, tpl, l)))).slice(0, spec.maxHashtags);
-  const budget = Math.floor((spec.maxChars - hashtags.join(' ').length - 2) / langs.length);
+  const short = spec.maxChars < 600;
+  const langs: ('ar' | 'fr')[] = lang === 'ar+fr' ? (short ? ['ar'] : ['ar', 'fr']) : lang === 'fr' ? ['fr'] : ['ar'];
+  const type = TYPE_LABELS[d.type || 'Appartement'];
+  const city = d.city || agency().city;
+  const tags = [
+    city ? `#عقارات_${tag(city)}` : '',
+    `#${tag(type.ar)}_${DEAL_LABELS[d.deal].ar.split(' ').pop()}`,
+    city && /^[a-z]/i.test(city) ? `#Immobilier${tag(city).replace(/_/g, '')}` : '',
+    '#ImmobilierMaroc',
+    '#عقارات_المغرب',
+    agency().name.trim() ? `#${tag(agency().name)}` : '',
+  ].filter((h) => h.length > 1);
+  const hashtags = Array.from(new Set(tags)).slice(0, spec.maxHashtags);
+  const budget = spec.maxChars - hashtags.join(' ').length - 2;
   return {
     target,
-    text: langs.map((l) => generateTemplateText(p, tpl, l).slice(0, budget)).join('\n\n'),
+    text: langs.map((l) => agencyText(d, l, short)).join('\n\n').slice(0, budget),
     hashtags,
-    title: spec.title ? `${p.titleAr} – ${p.priceFormattedAr}`.slice(0, 90) : '',
+    title: spec.title ? [headlineOf(d), formatPrice(d.price)].filter(Boolean).join(' – ').slice(0, 90) : '',
     source: 'modèle',
     status: 'brouillon',
   };
@@ -139,19 +144,26 @@ export async function generatePosts(
   lang: StudioLanguage
 ): Promise<StudioPost[]> {
   const networks = targets.filter(isNetwork);
-  const info = { ...d, type: d.type || 'Appartement', listingType: d.deal === 'meuble' ? 'location meublée' : d.deal, features: d.features.join('، '), description };
+  const a = agency();
+  const info = {
+    ...d,
+    type: d.type || 'Appartement',
+    listingType: d.deal === 'meuble' ? 'location meublée' : d.deal,
+    features: d.features.join('، '),
+    description,
+    agence: { nom: a.name, telephones: agencyPhones(), adresse: [a.address, a.city].filter(Boolean).join(', ') },
+  };
   let ai: { platform: StudioNetwork; text: string; hashtags: string[]; title: string }[] = [];
   if (networks.length) {
     try {
       ai = (await post<{ posts: typeof ai }>('/api/studio/posts', { files: photosForAI(photos), info, platforms: networks, language: lang })).posts;
     } catch {
-      // IA indisponible : modèles Al Wassit ci-dessous.
+      // IA indisponible : textes prêts ci-dessous.
     }
   }
-  const p = toProperty(d, description);
   return targets.map((target): StudioPost => {
     const found = ai.find((x) => x.platform === target);
-    return found ? { target, text: found.text, hashtags: found.hashtags, title: found.title, source: 'ia', status: 'brouillon' } : templatePost(p, target, lang);
+    return found ? { target, text: found.text, hashtags: found.hashtags, title: found.title, source: 'ia', status: 'brouillon' } : templatePost(d, target, lang);
   });
 }
 

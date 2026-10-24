@@ -16,9 +16,10 @@ interface Props {
   onAdd: () => void;
   onEdit: (t: PosterTemplate) => void;
   onDelete: (t: PosterTemplate) => void;
+  version?: string; // change quand le logo change : vignettes redessinées
 }
 
-export const TemplatePicker: React.FC<Props> = ({ title, aspect, templates: all, selectedId, data, photos, onSelect, onAdd, onEdit, onDelete }) => {
+export const TemplatePicker: React.FC<Props> = ({ title, aspect, templates: all, selectedId, data, photos, onSelect, onAdd, onEdit, onDelete, version }) => {
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const templates = useMemo(() => all.filter((t) => fitsAspect(t, aspect)), [all, aspect]);
 
@@ -39,7 +40,7 @@ export const TemplatePicker: React.FC<Props> = ({ title, aspect, templates: all,
       alive = false;
       clearTimeout(id);
     };
-  }, [templates, data, photos, aspect]);
+  }, [templates, data, photos, aspect, version]);
 
   const current = templates.find((t) => t.id === selectedId);
 
