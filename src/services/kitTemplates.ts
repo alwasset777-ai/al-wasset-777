@@ -18,7 +18,7 @@ export interface KitStyle {
   panel: string; // bande des atouts
   hero: 'full' | 'boxed'; // grande photo en plein fond ou encadrée
   heading: 'brush' | 'banner' | 'pill' | 'plain';
-  layout?: 'stack' | 'diagonal' | 'curves' | 'hex' | 'wave' | 'panel' | 'grid'; // disposition (par défaut : stack)
+  layout?: 'stack' | 'diagonal' | 'curves' | 'hex' | 'wave' | 'panel' | 'grid' | 'tower' | 'mosaic' | 'ribbon'; // disposition (par défaut : stack)
   icons: 'circle' | 'card';
   frame: string; // cadre des petites photos
   veil: string; // voile sur le haut de la photo pleine (lisibilité du titre)
@@ -73,6 +73,23 @@ export const KIT_STYLES: KitStyle[] = [
   {
     id: 'kit-grid', name: 'أخضر فاتح', bg: '#eef7e8', primary: '#2e8b4e', accent: '#bfe3a8', onPrimary: '#ffffff', onAccent: '#1f5c34',
     ink: '#1f5c34', panel: '#e1f1d6', hero: 'boxed', heading: 'brush', icons: 'circle', frame: '#ffffff', veil: 'rgba(0,0,0,0)', layout: 'grid',
+  },
+  // 3e série (TikTok)
+  {
+    id: 'kit-teal', name: 'أخضر زمردي وذهبي', bg: '#ffffff', primary: '#0f7a6c', accent: '#f2c94c', onPrimary: '#ffffff', onAccent: '#0f3b36',
+    ink: '#0f3b36', panel: '#ffffff', hero: 'full', heading: 'pill', icons: 'circle', frame: '#ffffff', veil: 'rgba(0,0,0,0)',
+  },
+  {
+    id: 'kit-tower', name: 'كحلي وأحمر', bg: '#eef4fb', primary: '#13285c', accent: '#d7262e', onPrimary: '#ffffff', onAccent: '#ffffff',
+    ink: '#13285c', panel: '#ffffff', hero: 'boxed', heading: 'banner', icons: 'circle', frame: '#ffffff', veil: 'rgba(0,0,0,0)', layout: 'tower',
+  },
+  {
+    id: 'kit-mosaic', name: 'كحلي وأصفر بالصور', bg: '#ffffff', primary: '#15295a', accent: '#f4c430', onPrimary: '#ffffff', onAccent: '#15295a',
+    ink: '#15295a', panel: '#ffffff', hero: 'boxed', heading: 'banner', icons: 'circle', frame: '#ffffff', veil: 'rgba(0,0,0,0)', layout: 'mosaic',
+  },
+  {
+    id: 'kit-ribbon', name: 'كحلي وذهبي راقي', bg: '#ffffff', primary: '#13213f', accent: '#c9a14a', onPrimary: '#ffffff', onAccent: '#ffffff',
+    ink: '#13213f', panel: '#faf7f0', hero: 'full', heading: 'plain', icons: 'card', frame: '#ffffff', veil: 'rgba(0,0,0,0)', layout: 'ribbon',
   },
 ];
 
@@ -686,4 +703,222 @@ const grid: Collage = (ctx, s, d, p, W, H) => {
   if (story) boxText(ctx, A.poster.sloganAr, W * 0.15, top + h + 20 * u, W * 0.7, H * 0.05, { color: s.primary, weight: 900 });
 };
 
-const COLLAGES: Record<Exclude<KitStyle['layout'], 'stack' | undefined>, Collage> = { diagonal, curves, hex, wave, panel, grid };
+// --- 7. Tour : bandeaux inclinés, grande photo, colonne de petites photos, bandeau prix rouge ---
+function slant(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, k = 0.18) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x + h * k, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w - h * k, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.closePath();
+  ctx.fill();
+}
+
+const tower: Collage = (ctx, s, d, p, W, H) => {
+  const { top, h, wide, u, story } = frame(W, H);
+  if (wide) return landscape(ctx, s, d, p, W, H); // trop serré en paysage : disposition classique aux mêmes couleurs
+  ctx.fillStyle = s.bg;
+  ctx.fillRect(0, 0, W, H);
+  coverInPath(ctx, pick(p, 4), () => ctx.rect(0, 0, W, H), 0, 0, W, H);
+  ctx.fillStyle = 'rgba(238,244,251,0.86)';
+  ctx.fillRect(0, 0, W, H);
+  const pad = 30 * u;
+  const logo = (wide ? h * 0.24 : W * 0.26);
+  markBadge(ctx, pad, top + pad, logo);
+  // Titre : deux bandeaux inclinés
+  const tx = pad + logo + 24 * u;
+  const tw = W - tx - pad;
+  const th = h * (wide ? 0.15 : 0.08);
+  slant(ctx, tx, top + pad, tw, th, s.primary);
+  boxText(ctx, headlineOf(d), tx + th * 0.3, top + pad + th * 0.1, tw - th * 0.6, th * 0.8, { color: '#ffffff', weight: 900 });
+  slant(ctx, tx + tw * 0.12, top + pad + th + 8 * u, tw * 0.76, th * 0.62, s.accent);
+  boxText(ctx, placeOf(d) || subOf(d), tx + tw * 0.18, top + pad + th + 8 * u + th * 0.08, tw * 0.64, th * 0.46, { color: '#ffffff', weight: 900 });
+  // Photos : colonne gauche + grande photo
+  const py = top + Math.max(logo, th * 1.7) + pad * 1.6;
+  const priceH = h * (wide ? 0.14 : 0.075);
+  const featH = h * (wide ? 0.16 : 0.085);
+  const placeH = h * (wide ? 0 : 0.05);
+  const footH = h * (wide ? 0.12 : 0.075);
+  const pBottom = top + h - footH - placeH - priceH - featH - pad * 2.2;
+  const colW = (W - pad * 2) * (wide ? 0.24 : 0.36);
+  const n = 3;
+  const cg = 12 * u;
+  const chh = (pBottom - py - cg * (n - 1)) / n;
+  for (let i = 0; i < n; i++) {
+    const y = py + i * (chh + cg);
+    rr(ctx, pad, y, colW, chh, 14 * u);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    coverRect(ctx, pick(p, i + 1), pad + 6 * u, y + 6 * u, colW - 12 * u, chh - 12 * u, 10 * u);
+  }
+  coverRect(ctx, pick(p, 0), pad + colW + 16 * u, py, W - pad * 2 - colW - 16 * u, pBottom - py, 14 * u);
+  // Atouts (icônes en cercle)
+  const fy = pBottom + pad * 0.5;
+  features(ctx, s, d, pad, fy, W - pad * 2, featH, u);
+  // Prix : bandeau rouge incliné
+  const prY = fy + featH + pad * 0.4;
+  slant(ctx, pad, prY, W - pad * 2, priceH, s.accent, 0.3);
+  boxText(ctx, priceOf(d), pad + priceH * 0.4, prY + priceH * 0.12, W - pad * 2 - priceH * 0.8, priceH * 0.76, { color: '#ffffff', weight: 900 });
+  if (!wide) placeChip(ctx, d, pad + W * 0.1, prY + priceH + 12 * u, W - pad * 2 - W * 0.2, placeH * 0.9, '#ffffff', s.primary);
+  // Pied : téléphones
+  const fyy = top + h - footH;
+  ctx.fillStyle = s.primary;
+  ctx.fillRect(0, fyy, W, footH);
+  slant(ctx, -footH * 0.3, fyy, W * 0.08, footH, s.accent, 0.4);
+  slant(ctx, W * 0.94, fyy, W * 0.1, footH, s.accent, 0.4);
+  drawIcon(ctx, Phone, W * 0.14, fyy + footH / 2, footH * 0.5, '#ffffff', 2.4);
+  boxText(ctx, PHONES_LINE, W * 0.2, fyy + footH * 0.18, W * 0.72, footH * 0.64, { color: '#ffffff', weight: 900 });
+  if (story) {
+    ctx.fillStyle = s.primary;
+    ctx.fillRect(0, fyy + footH, W, H - fyy - footH);
+  }
+};
+
+// --- 8. Mosaïque : photo + titre en angle, liste d'atouts, pinceau prix, 6 photos étiquetées ---
+const mosaic: Collage = (ctx, s, d, p, W, H) => {
+  const { top, h, wide, u, story } = frame(W, H);
+  ctx.fillStyle = s.bg;
+  ctx.fillRect(0, 0, W, H);
+  const pad = 26 * u;
+  const footH = h * (wide ? 0.12 : 0.075);
+  const gridH = h * (wide ? 0 : 0.3);
+  const upH = h - footH - gridH - (wide ? 0 : pad);
+  const photoW = wide ? W * 0.45 : W * 0.6;
+  // Grande photo (gauche) + logo
+  coverRect(ctx, pick(p, 0), 0, top + h * 0.09, photoW, upH - h * 0.09, 0);
+  markBadge(ctx, pad, top + pad * 0.5, h * (wide ? 0.13 : 0.075));
+  // Titre en angle (haut droite)
+  const tx = photoW - W * 0.06;
+  const tw = W - tx;
+  const th = upH * 0.2;
+  ctx.fillStyle = s.primary;
+  ctx.beginPath();
+  ctx.moveTo(tx + th * 0.5, top);
+  ctx.lineTo(W, top);
+  ctx.lineTo(W, top + th);
+  ctx.lineTo(tx, top + th);
+  ctx.closePath();
+  ctx.fill();
+  boxText(ctx, headlineOf(d), tx + th * 0.4, top + th * 0.08, tw - th * 0.5, th * 0.84, { color: '#ffffff', weight: 900 });
+  ctx.fillStyle = s.accent;
+  ctx.fillRect(tx + 14 * u, top + th, tw, th * 0.48);
+  boxText(ctx, placeOf(d) || subOf(d), tx + 30 * u, top + th + th * 0.06, tw - 50 * u, th * 0.36, { color: s.primary, weight: 900 });
+  // Liste d'atouts (carrés bleus)
+  const list = specList(d, 3);
+  const ly = top + th * 1.6;
+  const lh = upH * 0.5;
+  const rowH = lh / 3;
+  const lx = photoW + 14 * u;
+  const lw = W - lx - pad;
+  list.forEach((it, i) => {
+    const y = ly + rowH * i;
+    const b = rowH * 0.7;
+    rr(ctx, lx + lw - b, y + (rowH - b) / 2, b, b, 12 * u);
+    ctx.fillStyle = s.primary;
+    ctx.fill();
+    drawIcon(ctx, it.icon, lx + lw - b / 2, y + rowH / 2, b * 0.55, '#ffffff', 2);
+    boxText(ctx, it.text, lx, y + rowH * 0.18, lw - b - 14 * u, rowH * 0.64, { color: s.ink, weight: 900, align: 'right' });
+    if (i < 2) line(ctx, [lx, y + rowH], [lx + lw - b - 10 * u, y + rowH], s.accent, 2 * u);
+  });
+  // Prix au pinceau jaune
+  const py = ly + lh + 10 * u;
+  const ph = Math.min(upH - (py - top) - 20 * u, upH * 0.2);
+  brush(ctx, lx - 20 * u, py, W - lx + 10 * u, ph, s.accent, 9, -0.03);
+  boxText(ctx, priceOf(d), lx + 10 * u, py + ph * 0.12, W - lx - 40 * u, ph * 0.76, { color: s.primary, weight: 900 });
+  // 6 photos étiquetées (vertical) ou bandeau de 3 (paysage)
+  const labels = specList(d, 12).slice(3).map((x) => x.text);
+  if (!wide) {
+    const gy = top + upH + pad * 0.6;
+    const cw = (W - pad * 2 - 24 * u) / 3;
+    const ch = (gridH - 12 * u) / 2;
+    for (let i = 0; i < 6; i++) {
+      const x = pad + (i % 3) * (cw + 12 * u);
+      const y = gy + Math.floor(i / 3) * (ch + 12 * u);
+      coverRect(ctx, pick(p, i + 1), x, y, cw, ch, 12 * u);
+      const lab = labels[i];
+      if (lab) chip(ctx, lab, x + 8 * u, y + ch - ch * 0.22 - 8 * u, cw * 0.7, ch * 0.22, s.primary, '#ffffff', 8 * u, 800);
+    }
+  }
+  // Pied
+  const fy = top + h - footH;
+  ctx.fillStyle = s.primary;
+  ctx.fillRect(0, fy, W, H - fy);
+  const r = footH * 0.36;
+  ctx.beginPath();
+  ctx.arc(W - pad - r, fy + footH / 2, r, 0, Math.PI * 2);
+  ctx.lineWidth = 5 * u;
+  ctx.strokeStyle = '#ffffff';
+  ctx.stroke();
+  drawIcon(ctx, Phone, W - pad - r, fy + footH / 2, r * 1.05, '#ffffff', 2.4);
+  boxText(ctx, PHONES_LINE, pad, fy + footH * 0.2, W - pad * 3 - r * 2, footH * 0.6, { color: '#ffffff', weight: 900, align: 'right' });
+  if (story) boxText(ctx, A.poster.sloganAr, W * 0.15, fy + footH + 20 * u, W * 0.7, H * 0.045, { color: s.accent, weight: 900 });
+};
+
+// --- 9. Ruban : coin bleu nuit avec logo, grand titre, photos, rubans dorés et liste cochée ---
+const ribbon: Collage = (ctx, s, d, p, W, H) => {
+  const { top, h, wide, u, story } = frame(W, H);
+  ctx.fillStyle = s.bg;
+  ctx.fillRect(0, 0, W, H);
+  const pad = 30 * u;
+  const heroH = h * (wide ? 0.62 : 0.42);
+  const heroW = wide ? W * 0.55 : W;
+  coverInPath(ctx, pick(p, 0), () => ctx.rect(0, 0, heroW, top + heroH), 0, 0, heroW, top + heroH);
+  // Coin bleu nuit
+  ctx.fillStyle = s.primary;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(W * (wide ? 0.3 : 0.48), 0);
+  ctx.lineTo(0, top + heroH * (wide ? 0.6 : 0.5));
+  ctx.closePath();
+  ctx.fill();
+  markBadge(ctx, pad, top + pad, (wide ? h * 0.2 : W * 0.24));
+  // Titre (droite en paysage / bandeau blanc sous la photo en vertical)
+  const tX = wide ? heroW + pad : pad;
+  const tW = wide ? W - heroW - pad * 2 : W - pad * 2;
+  const tY = wide ? top + pad : top + heroH + pad * 0.6;
+  const tH = h * (wide ? 0.3 : 0.11);
+  boxText(ctx, headlineOf(d), tX, tY, tW, tH, { color: s.primary, weight: 900 });
+  line(ctx, [tX + tW * 0.1, tY + tH + 12 * u], [tX + tW * 0.3, tY + tH + 12 * u], s.accent, 3 * u);
+  line(ctx, [tX + tW * 0.7, tY + tH + 12 * u], [tX + tW * 0.9, tY + tH + 12 * u], s.accent, 3 * u);
+  boxText(ctx, placeOf(d) || subOf(d), tX + tW * 0.3, tY + tH - 4 * u, tW * 0.4, h * 0.035, { color: s.ink, weight: 700 });
+  // Ruban doré + liste cochée
+  const rY = tY + tH + h * 0.05;
+  const rW = wide ? tW : W * 0.62;
+  const rX = wide ? tX : W - pad - rW;
+  const rH = h * (wide ? 0.08 : 0.05);
+  const cX = rX + rW - rH * 0.75; // pastille entièrement dans l'affiche
+  slant(ctx, rX + rH * 0.6, rY, rW - rH * 1.2, rH, s.accent, 0.4);
+  ctx.beginPath();
+  ctx.arc(cX, rY + rH / 2, rH * 0.75, 0, Math.PI * 2);
+  ctx.fillStyle = s.primary;
+  ctx.fill();
+  drawIcon(ctx, specList(d, 1)[0]?.icon ?? Phone, cX, rY + rH / 2, rH * 0.75, '#ffffff', 2);
+  boxText(ctx, priceOf(d), rX + rH, rY + rH * 0.12, rW - rH * 2.4, rH * 0.76, { color: '#ffffff', weight: 900 });
+  const list = specList(d, 5);
+  const lY = rY + rH + 16 * u;
+  const lH = h * (wide ? 0.05 : 0.034);
+  list.forEach((it, i) => {
+    const y = lY + i * lH;
+    boxText(ctx, `${it.text}  ✓`, rX, y, rW, lH * 0.9, { color: s.ink, weight: 700, align: 'right' });
+  });
+  // Petites photos
+  const fH = h * (wide ? 0.12 : 0.08);
+  const fy = top + h - fH;
+  const thY = wide ? top + heroH + pad : lY + list.length * lH + 16 * u;
+  const thW = wide ? heroW - pad * 2 : W - pad * 2;
+  const thH = wide ? h - heroH - h * 0.12 - pad * 2 : Math.min(h * 0.13, fy - thY - 16 * u); // jamais sur le pied
+  if (thH > 40 * u) thumbs(ctx, s, p, pad, thY, thW, thH, u);
+  // Pied bleu nuit : téléphones + slogan
+  ctx.fillStyle = s.primary;
+  ctx.fillRect(0, fy, W, H - fy);
+  drawIcon(ctx, Phone, W - pad - fH * 0.35, fy + fH / 2, fH * 0.45, s.accent, 2.2);
+  boxText(ctx, PHONES_LINE, W * 0.42, fy + fH * 0.2, W * 0.5 - fH * 0.4, fH * 0.6, { color: '#ffffff', weight: 900, align: 'right' });
+  boxText(ctx, A.poster.sloganAr, pad, fy + fH * 0.22, W * 0.36, fH * 0.56, { color: s.accent, weight: 900, align: 'left' });
+  if (story) {
+    ctx.fillStyle = s.primary;
+    ctx.fillRect(0, fy + fH, W, H - fy - fH);
+  }
+};
+
+const COLLAGES: Record<Exclude<KitStyle['layout'], 'stack' | undefined>, Collage> = { diagonal, curves, hex, wave, panel, grid, tower, mosaic, ribbon };
