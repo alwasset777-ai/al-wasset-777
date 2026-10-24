@@ -82,9 +82,14 @@ export const headlineOf = (d: PosterData) => d.headline.trim() || `${TYPE_LABELS
 // ---------- Ressources (polices + logo) ----------
 let logoImg: HTMLImageElement | null = null;
 let markImg: HTMLImageElement | null = null; // logo « PUB الوسيط 777 », marque sur tous les modèles
-export const markLogo = () => markImg;
 let markAlphaImg: HTMLImageElement | null = null;
-export const markLogoAlpha = () => markAlphaImg ?? markImg;
+// Logo choisi par le gérant (case « الشعار ») : remplace le logo de l'agence sur tous les modèles.
+let customLogo: HTMLImageElement | null = null;
+export const setCustomLogo = (img: HTMLImageElement | null) => {
+  customLogo = img;
+};
+export const markLogo = () => customLogo ?? markImg;
+export const markLogoAlpha = () => customLogo ?? markAlphaImg ?? markImg;
 const loadImage = (src: string) =>
   new Promise<HTMLImageElement | null>((resolve) => {
     const img = new Image();
@@ -336,7 +341,18 @@ function header(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, 
   ctx.arc(x + r, y + r, r, 0, Math.PI * 2);
   ctx.fillStyle = '#fff';
   ctx.fill();
-  if (logoImg) {
+  if (customLogo) {
+    // Logo du gérant : contenu dans le rond blanc, sans le déformer
+    const s = (r * 1.6) / Math.max(customLogo.width, customLogo.height);
+    const lw = customLogo.width * s;
+    const lh = customLogo.height * s;
+    ctx.drawImage(customLogo, x + r - lw / 2, y + r - lh / 2, lw, lh);
+    ctx.beginPath();
+    ctx.arc(x + r, y + r, r + r * 0.03, 0, Math.PI * 2);
+    ctx.lineWidth = r * 0.06;
+    ctx.strokeStyle = RED;
+    ctx.stroke();
+  } else if (logoImg) {
     ctx.drawImage(logoImg, x, y, r * 2, r * 2);
     // Cerclage blanc et rouge, comme sur l'affiche officielle
     ctx.beginPath();
@@ -553,10 +569,11 @@ function footer(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, 
 function decor(ctx: CanvasRenderingContext2D, bottom: number, w: number, h: number, u: number) {
   ctx.save();
   const bw = Math.min(w * 0.2, 200 * u);
-  if (markImg) {
+  const mark = markLogo();
+  if (mark) {
     // Largeur limitée : la marque ne touche pas le pinceau du slogan
-    const mh = Math.min(h, (Math.min(w * 0.16, 165 * u) * markImg.height) / markImg.width);
-    ctx.drawImage(markImg, 10 * u, bottom - mh - 4 * u, (mh * markImg.width) / markImg.height, mh);
+    const mh = Math.min(h, (Math.min(w * 0.16, 165 * u) * mark.height) / mark.width);
+    ctx.drawImage(mark, 10 * u, bottom - mh - 4 * u, (mh * mark.width) / mark.height, mh);
   } else {
     ctx.strokeStyle = '#d9d9d9';
     ctx.lineWidth = 2 * u;
@@ -745,7 +762,8 @@ function drawHorizontalBase(ctx: CanvasRenderingContext2D, d: PosterData, photos
   priceBrush(ctx, d, W - 4, pBot - 8, 420, 120);
   socialBar(ctx, 812, W, 48, 0.9);
   footer(ctx, 612, 704, W - 612, 104, 0.85);
-  if (markImg) ctx.drawImage(markImg, 14, 862, (36 * markImg.width) / markImg.height, 36);
+  const mark = markLogo();
+  if (mark) ctx.drawImage(mark, 14, 862, (36 * mark.width) / mark.height, 36);
 }
 
 function drawHorizontal(ctx: CanvasRenderingContext2D, d: PosterData, photos: Img[], w: number, h: number) {

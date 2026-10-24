@@ -4,7 +4,7 @@ import { siFacebook, siInstagram, siThreads, siTiktok, siX, siYoutube } from 'si
 import { PropertyType } from '../types';
 import { ServerStatus, fetchServerStatus } from '../services/adsApi';
 import { isFirebaseEnabled } from '../services/firebase';
-import { DEAL_LABELS, FEATURES, PosterData, PosterDeal, TYPE_LABELS, drawPoster, ensureFonts, headlineOf } from '../services/posterMaker';
+import { DEAL_LABELS, FEATURES, PosterData, PosterDeal, TYPE_LABELS, drawPoster, ensureFonts, headlineOf, setCustomLogo } from '../services/posterMaker';
 import { BUILTIN_TEMPLATES, CustomTemplate, DEFAULT_TEMPLATE, PosterTemplate, fitsAspect, templateBlob, templateVideo } from '../services/posterTemplates';
 import { deleteTemplate, listTemplates, saveTemplate } from '../services/templateStore';
 import { loadImageTemplates } from '../services/imageTemplates';
@@ -62,6 +62,7 @@ const target = (id: StudioTarget) => TARGETS.find((x) => x.id === id)!;
 
 const MAX_PHOTOS = 5;
 const FEATURE_TITLES = FEATURES.map((f) => f.title);
+const LOGO_KEY = 'studio.logo'; // logo choisi par le gérant (image, sur cet appareil)
 const PREFS_KEY = 'studio.platforms'; // plateformes cochées + modèle de chacune (sur cet appareil)
 
 const EMPTY: PosterData = {
@@ -83,6 +84,36 @@ function readPrefs(): Prefs {
     return fallback;
   }
 }
+
+// Logo réduit (600 px max, PNG pour garder la transparence) pour tenir dans le stockage du navigateur.
+function shrinkLogo(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, 600 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s);
+      c.height = Math.round(img.height * s);
+      c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('صورة غير صالحة'));
+    };
+    img.src = url;
+  });
+}
+
+const loadLogo = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('صورة غير صالحة'));
+    img.src = src;
+  });
 
 // Modèle du gérant prêt à dessiner : son image de fond chargée.
 function toTemplate(tpl: CustomTemplate): Promise<PosterTemplate | null> {
@@ -150,6 +181,42 @@ export const PublishStudioView: React.FC = () => {
   }, [prefs]);
 
   const imgs = useMemo(() => photos.map((p) => p.img), [photos]);
+
+  // ---------- Logo ----------
+  const [logo, setLogo] = useState<string | null>(null);
+  const logoRef = useRef<HTMLInputElement>(null);
+  const applyLogo = async (src: string | null) => {
+    setCustomLogo(src ? await loadLogo(src) : null);
+    setLogo(src);
+  };
+  useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(LOGO_KEY);
+    } catch {
+      // stockage indisponible
+    }
+    if (saved) applyLogo(saved).catch(() => undefined);
+  }, []);
+  const pickLogo = (f: File | undefined) =>
+    run('logo', async () => {
+      if (!f) return;
+      const src = await shrinkLogo(f);
+      await applyLogo(src);
+      try {
+        localStorage.setItem(LOGO_KEY, src);
+      } catch {
+        setToast('الشعار مستعمل الآن، لكن لم يُحفظ في هذا الهاتف');
+      }
+    });
+  const removeLogo = () => {
+    applyLogo(null);
+    try {
+      localStorage.removeItem(LOGO_KEY);
+    } catch {
+      // stockage indisponible
+    }
+  };
   const selected = TARGETS.filter((t) => prefs.selected.includes(t.id)).map((t) => t.id);
 
   // ---------- Modèles ----------
@@ -534,6 +601,48 @@ export const PublishStudioView: React.FC = () => {
             />
           </section>
 
+          {/* ================= Logo : même case que les photos ================= */}
+          <section className={card}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-black">الشعار</h2>
+              <span className="text-xs font-bold text-[#999]">{logo ? '1/1' : '0/1'}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {logo ? (
+                <div className="aspect-square relative rounded-2xl overflow-hidden border border-[#ececec] bg-white flex items-center justify-center">
+                  <img src={logo} alt="الشعار" className="max-w-[85%] max-h-[85%] object-contain" />
+                  <button onClick={removeLogo} aria-label="حذف الشعار" className="absolute top-1.5 left-1.5 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center cursor-pointer">
+                    <X className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => logoRef.current?.click()} aria-label="تغيير الشعار" className="absolute bottom-1.5 right-1.5 w-7 h-7 rounded-full bg-white/90 text-[#e3131b] border border-[#f3a3a6] flex items-center justify-center cursor-pointer">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => logoRef.current?.click()}
+                  className="aspect-square rounded-2xl border-2 border-dashed border-[#f3a3a6] bg-[#fff5f5] flex flex-col items-center justify-center gap-1 text-[#e3131b] cursor-pointer"
+                >
+                  {busy === 'logo' ? <Loader2 className="w-8 h-8 animate-spin" /> : <Plus className="w-8 h-8" />}
+                  <span className="text-sm font-extrabold">أضف الشعار</span>
+                </button>
+              )}
+              <p className="col-span-2 self-center text-xs text-[#888] font-semibold leading-relaxed">
+                {logo ? 'هذا الشعار يظهر في كل القوالب، ويبقى محفوظاً في هذا الهاتف.' : 'بدون شعار: يُستعمل شعار الوكالة.'}
+              </p>
+            </div>
+            <input
+              ref={logoRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                pickLogo(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+          </section>
+
           {/* ================= 2. Informations ================= */}
           <section className={card}>
             <h2 className="text-lg font-black">معلومات العقار</h2>
@@ -688,6 +797,7 @@ export const PublishStudioView: React.FC = () => {
               onAdd={() => setEditor({})}
               onEdit={(t) => t.kind === 'custom' && setEditor({ initial: t.tpl })}
               onDelete={handleDeleteTemplate}
+              version={logo ?? ''}
             />
           </div>
         </div>
