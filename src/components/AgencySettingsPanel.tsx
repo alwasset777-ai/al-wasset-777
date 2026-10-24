@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Building2, Check, ImagePlus, Loader2, Pencil, Settings, Trash2 } from 'lucide-react';
+import { ArrowRight, Building2, Check, ImagePlus, Loader2, Pencil, QrCode, Settings, Trash2 } from 'lucide-react';
 import { useBackClose } from '../hooks/useBackClose';
 import { AgencySettings, agency, loadAgency, onAgencyChange, saveAgency, shrinkLogo } from '../services/agencySettings';
 
@@ -29,6 +29,7 @@ export const AgencySettingsHost: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const logoRef = useRef<HTMLInputElement>(null);
+  const qrRef = useRef<HTMLInputElement>(null);
   useBackClose(open, () => setOpen(false));
 
   useEffect(() => {
@@ -49,10 +50,10 @@ export const AgencySettingsHost: React.FC = () => {
   const set = <K extends keyof AgencySettings>(k: K, v: AgencySettings[K]) => setForm((f) => ({ ...f, [k]: v }));
   const setPhone = (i: number, v: string) => set('phones', form.phones.map((p, j) => (j === i ? v : p)));
 
-  const pickLogo = async (f: File | undefined) => {
+  const pickImage = async (k: 'logo' | 'qr', f: File | undefined) => {
     if (!f) return;
     try {
-      set('logo', await shrinkLogo(f));
+      set(k, await shrinkLogo(f));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -65,6 +66,41 @@ export const AgencySettingsHost: React.FC = () => {
     if (!ok) return setError('لم تُحفظ المعلومات في هذا الهاتف (الشعار ثقيل؟ جرّب صورة أصغر)');
     setOpen(false);
   };
+
+  // Case d'image (logo ou QR) : ajouter, changer, supprimer.
+  const slot = (k: 'logo' | 'qr', text: string, ref: React.RefObject<HTMLInputElement | null>) => (
+    <div className="w-24 shrink-0">
+      {form[k] ? (
+        <div className="w-24 h-24 relative rounded-2xl border border-[#ececec] bg-white flex items-center justify-center">
+          <img src={form[k]} alt={text} className="max-w-[85%] max-h-[85%] object-contain" />
+          <button onClick={() => set(k, '')} aria-label={`حذف ${text}`} className="absolute top-1 left-1 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center cursor-pointer">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={() => ref.current?.click()} aria-label={`تغيير ${text}`} className="absolute bottom-1 right-1 w-7 h-7 rounded-full bg-white text-[#e3131b] border border-[#f3a3a6] flex items-center justify-center cursor-pointer">
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => ref.current?.click()}
+          className="w-24 h-24 rounded-2xl border-2 border-dashed border-[#f3a3a6] bg-[#fff5f5] flex flex-col items-center justify-center gap-1 text-[#e3131b] cursor-pointer"
+        >
+          {k === 'qr' ? <QrCode className="w-7 h-7" /> : <ImagePlus className="w-7 h-7" />}
+          <span className="text-xs font-extrabold">أضف {text}</span>
+        </button>
+      )}
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          pickImage(k, e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+    </div>
+  );
 
   const field = (k: 'name' | 'slogan' | 'address' | 'city' | 'whatsapp', text: string, placeholder = '', ltr = false) => (
     <label className="block space-y-1">
@@ -94,38 +130,13 @@ export const AgencySettingsHost: React.FC = () => {
         </p>
 
         <section className="bg-white rounded-3xl p-4 border border-[#ececec] space-y-3">
-          <h3 className="font-black">الشعار والاسم</h3>
-          <div className="flex items-center gap-3">
-            {form.logo ? (
-              <div className="w-24 h-24 shrink-0 relative rounded-2xl border border-[#ececec] bg-white flex items-center justify-center">
-                <img src={form.logo} alt="الشعار" className="max-w-[85%] max-h-[85%] object-contain" />
-                <button onClick={() => set('logo', '')} aria-label="حذف الشعار" className="absolute top-1 left-1 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center cursor-pointer">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => logoRef.current?.click()} aria-label="تغيير الشعار" className="absolute bottom-1 right-1 w-7 h-7 rounded-full bg-white text-[#e3131b] border border-[#f3a3a6] flex items-center justify-center cursor-pointer">
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => logoRef.current?.click()}
-                className="w-24 h-24 shrink-0 rounded-2xl border-2 border-dashed border-[#f3a3a6] bg-[#fff5f5] flex flex-col items-center justify-center gap-1 text-[#e3131b] cursor-pointer"
-              >
-                <ImagePlus className="w-7 h-7" />
-                <span className="text-xs font-extrabold">أضف الشعار</span>
-              </button>
-            )}
-            <p className="text-xs text-[#888] font-semibold leading-relaxed">صورة PNG بخلفية شفافة تعطي أجمل نتيجة.</p>
-            <input
-              ref={logoRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                pickLogo(e.target.files?.[0]);
-                e.target.value = '';
-              }}
-            />
+          <h3 className="font-black">الشعار، رمز QR والاسم</h3>
+          <div className="flex items-start gap-3">
+            {slot('logo', 'الشعار', logoRef)}
+            {slot('qr', 'رمز QR', qrRef)}
+            <p className="text-xs text-[#888] font-semibold leading-relaxed pt-1">
+              الشعار: صورة PNG بخلفية شفافة تعطي أجمل نتيجة. رمز QR: صورة رمز وكالتك (موقع، واتساب، خريطة…)؛ بدونه يُصنع رمز واتساب تلقائياً من رقمك.
+            </p>
           </div>
           {field('name', 'اسم الوكالة', 'مثال: وكالة النور العقارية')}
           {field('slogan', 'شعار قصير (اختياري)', 'مثال: شريكك في السكن')}

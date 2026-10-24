@@ -3,7 +3,7 @@
 import type { IconNode } from 'lucide';
 import { Bath, BedDouble, CircleCheck, Globe, House, MapPin, Maximize, Phone } from 'lucide';
 import { siFacebook, siInstagram, siTiktok, siYoutube } from 'simple-icons';
-import { agency, agencyLogo, agencyPhones, handle, whatsappLink } from './agencySettings';
+import { agency, agencyLogo, agencyPhones, agencyQr, handle, whatsappLink } from './agencySettings';
 import {
   AR, DEAL_LABELS, Img, LAT, PosterData, TYPE_LABELS, brandDot, brush, coverInPath, coverRect, drawIcon, featureInfo, fitFont, formatPrice,
   hasArabic, headlineOf, qr, rr,
@@ -46,12 +46,13 @@ export interface TextOpts {
   weight?: number;
   maxSize?: number;
   font?: 'ar' | 'serif' | 'lat';
+  family?: string; // police précise (remplace « font »)
   shadow?: boolean;
 }
 // Texte qui remplit une zone (plusieurs lignes si nécessaire), taille maximale possible.
 export function boxText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, w: number, h: number, o: TextOpts) {
   if (!text.trim() || w <= 0 || h <= 0) return;
-  const fam = o.font === 'serif' ? SERIF : o.font === 'lat' ? LAT : AR;
+  const fam = o.family ?? (o.font === 'serif' ? SERIF : o.font === 'lat' ? LAT : AR);
   const weight = o.weight ?? 800;
   const K = 1.22;
   const wrap = (p: string) => {
@@ -233,6 +234,28 @@ export function thumbRow(ctx: CanvasRenderingContext2D, p: Img[], from: number, 
   }
 }
 
+// ---------- QR de l'agence ----------
+// QR choisi dans les paramètres (image), sinon QR WhatsApp créé à partir du numéro. Renvoie false s'il n'y a rien à montrer.
+export const hasQr = () => !!agencyQr() || !!whatsappLink();
+export function qrBox(ctx: CanvasRenderingContext2D, x: number, y: number, s: number): boolean {
+  const img = agencyQr();
+  if (img) {
+    ctx.save();
+    rr(ctx, x, y, s, s, s * 0.06);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    const pad = s * 0.05;
+    const k = Math.min((s - pad * 2) / img.width, (s - pad * 2) / img.height);
+    ctx.drawImage(img, x + (s - img.width * k) / 2, y + (s - img.height * k) / 2, img.width * k, img.height * k);
+    ctx.restore();
+    return true;
+  }
+  const wa = whatsappLink();
+  if (!wa) return false;
+  qr(ctx, wa, x, y, s);
+  return true;
+}
+
 // ---------- Logo et nom de l'agence ----------
 // Logo de l'agence (paramètres) dans une hauteur h ; renvoie la largeur occupée (0 si pas de logo).
 export function logo(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, align: 'left' | 'center' | 'right' = 'left', plate?: string): number {
@@ -393,10 +416,9 @@ export function contactBlock(
 ) {
   const phones = agencyPhones();
   const a = agency();
-  const wa = whatsappLink();
-  const showQr = o.qr && wa && h > 120 && w > h * 3;
+  const showQr = o.qr && hasQr() && h > 120 && w > h * 3;
   const qs = showQr ? h * 0.86 : 0;
-  if (showQr) qr(ctx, wa, x + (h - qs) / 2, y + (h - qs) / 2, qs);
+  if (showQr) qrBox(ctx, x + (h - qs) / 2, y + (h - qs) / 2, qs);
   const left = x + (showQr ? h + 10 : 0);
   const r = Math.min(h * 0.3, 54);
   const cx = x + w - r - 6;

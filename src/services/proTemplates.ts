@@ -1,39 +1,33 @@
-// 25 modèles d'affiches immobilières professionnels. Chaque modèle se redessine à la taille de la plateforme :
+// 25 modèles d'affiches immobilières professionnels (styles « agence », « luxe » et « fiche », d'après les exemples
+// du gérant). Chaque modèle se redessine à la taille de la plateforme :
 // portrait 4:5 (Facebook, Instagram…), story 9:16 (TikTok, YouTube : zones sûres en haut et en bas) et paysage 16:9 (X).
 // Les zones vides (pas de prix, pas de logo, un seul numéro…) disparaissent sans laisser de trou.
-import { agency, agencyPhones } from './agencySettings';
+import { agency, agencyPhones, handle } from './agencySettings';
 import type { IconNode } from 'lucide';
-import { BadgeCheck, Bath, BedDouble, Coins, House, MapPin, Maximize, Phone, ShieldCheck } from 'lucide';
-import { Img, PosterData, TYPE_LABELS, coverInPath, drawIcon, featureInfo, headlineOf } from './posterMaker';
+import { BadgeCheck, Bath, BedDouble, Coins, Globe, House, MapPin, Maximize, Phone, ShieldCheck } from 'lucide';
+import { siWhatsapp } from 'simple-icons';
+import { Img, PosterData, TYPE_LABELS, brandDot, coverInPath, drawIcon, featureInfo, headlineOf } from './posterMaker';
 import {
-  allSpecs,
-  archPhoto,
   mainSpecs,
   boxText,
   brandBlock,
-  circlePhoto,
-  contactBlock,
-  coverRect,
+  brush,
+  hasQr,
+  qrBox,
   dealOf,
-  featureList,
   fillRect,
-  framedPhoto,
   hGrad,
   line,
   logo,
   photo,
   pick,
   pill,
-  placeLine,
   placeOf,
   poly,
   priceOf,
-  priceTag,
   rr,
   socialRow,
   socials,
-  specRow,
-  subOf,
   textW,
   thumbRow,
   vGrad,
@@ -100,905 +94,7 @@ function stack(items: (Item | null)[], y: number, h: number, gap: number, valign
   }
 }
 
-interface Ink {
-  ink: string;
-  soft: string;
-  accent: string;
-  onAccent: string;
-  price: PriceStyle;
-  priceFill?: string;
-  priceInk?: string;
-  iconBg?: string;
-  iconColor?: string;
-}
-
-// Éléments d'information prêts à empiler dans une colonne (x, w), alignés à droite (arabe) ou centrés.
-function kit(ctx: CanvasRenderingContext2D, d: PosterData, x: number, w: number, align: 'right' | 'center', c: Ink) {
-  const ax = align === 'right' ? x + w : x + w / 2;
-  const at = (bw: number) => (align === 'right' ? x + w - bw : x + (w - bw) / 2);
-  return {
-    deal: (h = 62): Item => ({
-      h,
-      draw: (y, hh) => pill(ctx, dealOf(d), ax, y, hh, c.accent, c.onAccent, align),
-    }),
-    headline: (h = 150, max = 118): Item => ({
-      h,
-      draw: (y, hh) =>
-        boxText(ctx, headlineOf(d), x, y, w, hh, {
-          color: c.ink,
-          weight: 900,
-          align,
-          maxSize: Math.min(hh * 0.85, max),
-        }),
-    }),
-    sub: (h = 40): Item => ({
-      h,
-      draw: (y, hh) =>
-        boxText(ctx, subOf(d).toUpperCase(), x, y, w, hh, {
-          color: c.soft,
-          weight: 700,
-          align,
-          font: 'serif',
-          maxSize: hh * 0.8,
-        }),
-    }),
-    place: (h = 46): Item | null =>
-      placeOf(d)
-        ? {
-            h,
-            draw: (y, hh) => placeLine(ctx, d, x, y, w, hh, c.ink, align, c.accent),
-          }
-        : null,
-    price: (h = 96): Item | null => {
-      if (!priceOf(d)) return null;
-      return {
-        h,
-        draw: (y, hh) => {
-          const text = c.price === 'text';
-          const pw = text ? w : Math.min(w, textW(ctx, priceOf(d), hh * 0.62, 900) / 0.84 + hh * 0.6);
-          priceTag(ctx, d, at(pw), y, pw, hh, c.price, c.priceFill ?? c.accent, c.priceInk ?? (text ? c.accent : c.onAccent));
-        },
-      };
-    },
-    specs: (h = 120, n = 4): Item | null =>
-      hasSpecs(d)
-        ? {
-            h,
-            draw: (y, hh) => specRow(ctx, allSpecs(d, n), x, y, w, hh, c.ink, c.iconBg, c.iconColor ?? c.ink),
-          }
-        : null,
-    list: (h = 220, n = 5, cols = 1): Item | null =>
-      hasSpecs(d)
-        ? {
-            h: Math.min(h, (h / n) * allSpecs(d, n).length * cols),
-            draw: (y, hh) => featureList(ctx, allSpecs(d, n), x, y, w, hh, c.ink, c.accent, cols),
-          }
-        : null,
-    contact: (h = 96): Item | null =>
-      agencyPhones().length
-        ? {
-            h,
-            draw: (y, hh) =>
-              contactBlock(ctx, x, y, w, hh, {
-                color: c.ink,
-                accent: c.accent,
-                onAccent: c.onAccent,
-              }),
-          }
-        : null,
-    socials: (h = 46): Item | null => (socials().length ? { h, draw: (y, hh) => socialRow(ctx, x, y, w, hh, c.ink, c.accent) } : null),
-    brand: (h = 100, color = c.ink, plate?: string): Item | null =>
-      agency().logo || agency().name.trim()
-        ? {
-            h,
-            draw: (y, hh) => brandBlock(ctx, x, y, w, hh, color, plate, 'right'),
-          }
-        : null,
-    rule: (color = c.soft): Item => ({
-      h: 2,
-      draw: (y) => line(ctx, at(w * 0.3), y, at(w * 0.3) + w * 0.3, y, color, 3),
-    }),
-    space: (h: number, flex = false): Item => ({
-      h,
-      flex,
-      draw: () => undefined,
-    }),
-  };
-}
-
-// Logo centré + nom de l'agence en dessous. Renvoie la hauteur occupée.
-function brandCenter(ctx: CanvasRenderingContext2D, cx: number, y: number, h: number, color: string, plate?: string): number {
-  const a = agency();
-  const lw = logo(ctx, cx, y, h, 'center', plate);
-  const name = a.name.trim();
-  if (!name) return lw ? h : 0;
-  const ny = lw ? y + h + h * 0.08 : y;
-  const nh = lw ? h * 0.34 : h * 0.6;
-  boxText(ctx, name, cx - 400, ny, 800, nh, {
-    color,
-    weight: 900,
-    maxSize: nh * 0.9,
-  });
-  return ny - y + nh;
-}
-
-// Bandeau de contact : numéros (droite) + réseaux sociaux (gauche).
-function footer(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, accent: string, onAccent: string) {
-  const hasPhones = agencyPhones().length > 0;
-  const hasSocial = socials().length > 0;
-  if (hasPhones && hasSocial) {
-    contactBlock(ctx, x, y, w, h * 0.56, { color, accent, onAccent });
-    socialRow(ctx, x, y + h * 0.6, w, h * 0.4, color, accent);
-  } else if (hasPhones) contactBlock(ctx, x + w * 0.1, y, w * 0.9, h, { color, accent, onAccent });
-  else if (hasSocial) socialRow(ctx, x, y + h * 0.2, w, h * 0.6, color, accent);
-}
-
-const topShade = (ctx: CanvasRenderingContext2D, f: Frame, h = 280) =>
-  fillRect(
-    ctx,
-    0,
-    0,
-    f.W,
-    f.top + h,
-    vGrad(ctx, 0, f.top + h, [
-      [0, 'rgba(0,0,0,0.6)'],
-      [1, 'rgba(0,0,0,0)'],
-    ])
-  );
-
-// ---------- 1. Plein cadre : grande photo, dégradé, informations en bas ----------
-const hero =
-  (o: { thumbs?: boolean } = {}): Layout =>
-  (ctx, d, p, t, f) => {
-    const { W, H } = f;
-    photo(ctx, pick(p, 0), 0, 0, W, H);
-    topShade(ctx, f);
-    brandBlock(ctx, 44, f.top + 36, W * 0.55, 100, '#ffffff', t.plate);
-    const c: Ink = {
-      ink: t.ink,
-      soft: t.soft,
-      accent: t.accent,
-      onAccent: t.onAccent,
-      price: t.price,
-      iconBg: alpha('#ffffff', 0.16),
-      iconColor: t.accent,
-    };
-    if (f.shape === 'wide') {
-      fillRect(
-        ctx,
-        0,
-        0,
-        W,
-        H,
-        hGrad(ctx, W * 0.28, W, [
-          [0, alpha(t.panel, 0)],
-          [0.45, alpha(t.panel, 0.85)],
-          [1, alpha(t.panel, 0.96)],
-        ])
-      );
-      pill(ctx, dealOf(d), W - 48, 44, 66, t.accent, t.onAccent, 'right');
-      const x = W * 0.53;
-      const k = kit(ctx, d, x, W - 48 - x, 'right', c);
-      stack([k.headline(150, 104), k.sub(38), k.place(46), k.price(92), k.specs(112), k.contact(90)], 136, H - 176, 14);
-      if (o.thumbs) {
-        const n = extras(p, 3);
-        if (n) thumbRow(ctx, p, 1, n, 44, H - 44 - 130, n * 180 + (n - 1) * 14, 130, 14, 12, 6, '#ffffff');
-      }
-      return;
-    }
-    pill(ctx, dealOf(d), W - 44, f.top + 50, 74, t.accent, t.onAccent, 'right');
-    const g0 = H * 0.36;
-    fillRect(
-      ctx,
-      0,
-      g0,
-      W,
-      H - g0,
-      vGrad(ctx, g0, H, [
-        [0, alpha(t.panel, 0)],
-        [0.4, alpha(t.panel, 0.8)],
-        [1, alpha(t.panel, 0.97)],
-      ])
-    );
-    if (o.thumbs) {
-      const n = extras(p, 3);
-      for (let i = 0; i < n; i++) framedPhoto(ctx, pick(p, i + 1), W - 44 - 200, f.top + 170 + i * 168, 200, 150, 6, '#ffffff', 10);
-    }
-    const y0 = f.shape === 'story' ? f.bot - 900 : f.bot - 680;
-    const k = kit(ctx, d, 44, W - 88, 'right', c);
-    stack(
-      [k.headline(170), k.sub(44), k.place(50), k.price(108), k.specs(128), k.contact(120), f.shape === 'story' ? k.socials(50) : null],
-      y0,
-      f.bot - 30 - y0,
-      16,
-      'bottom'
-    );
-  };
-
-// ---------- 2. Photo en haut, panneau en bas ; petites photos et prix à cheval ----------
-const split =
-  (o: { edge: 'straight' | 'curve' | 'slant' }): Layout =>
-  (ctx, d, p, t, f) => {
-    const { W, H } = f;
-    fillRect(ctx, 0, 0, W, H, t.panel);
-    const c: Ink = {
-      ink: t.ink,
-      soft: t.soft,
-      accent: t.accent,
-      onAccent: t.onAccent,
-      price: t.price,
-      iconBg: alpha(t.accent, 0.18),
-      iconColor: t.accent,
-    };
-    if (f.shape === 'wide') {
-      const pw = W * 0.56;
-      const path = () => {
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        if (o.edge === 'curve') {
-          ctx.lineTo(pw - 40, 0);
-          ctx.quadraticCurveTo(pw + 90, H / 2, pw - 40, H);
-        } else if (o.edge === 'slant') {
-          ctx.lineTo(pw + 70, 0);
-          ctx.lineTo(pw - 70, H);
-        } else {
-          ctx.lineTo(pw, 0);
-          ctx.lineTo(pw, H);
-        }
-        ctx.lineTo(0, H);
-        ctx.closePath();
-      };
-      coverInPath(ctx, pick(p, 0), path, 0, 0, pw + 90, H);
-      if (o.edge === 'slant')
-        poly(
-          ctx,
-          [
-            [pw + 70, 0],
-            [pw + 94, 0],
-            [pw - 46, H],
-            [pw - 70, H],
-          ],
-          t.accent
-        );
-      topShade(ctx, f, 220);
-      brandBlock(ctx, 40, 36, 560, 92, '#ffffff', t.plate);
-      const n = extras(p, 3);
-      if (n) thumbRow(ctx, p, 1, n, 40, H - 40 - 140, n * 196 + (n - 1) * 14, 140, 14, 12, 6, '#ffffff');
-      const x = pw + 110;
-      const k = kit(ctx, d, x, W - 48 - x, 'right', c);
-      stack([k.deal(60), k.headline(150, 96), k.sub(36), k.place(44), k.price(88), k.specs(108), k.contact(86)], 40, H - 80, 14);
-      return;
-    }
-    const ph = f.top + (f.bot - f.top) * 0.5;
-    const path = () => {
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(W, 0);
-      if (o.edge === 'curve') {
-        ctx.lineTo(W, ph - 70);
-        ctx.quadraticCurveTo(W / 2, ph + 80, 0, ph - 70);
-      } else if (o.edge === 'slant') {
-        ctx.lineTo(W, ph - 100);
-        ctx.lineTo(0, ph + 40);
-      } else {
-        ctx.lineTo(W, ph);
-        ctx.lineTo(0, ph);
-      }
-      ctx.closePath();
-    };
-    coverInPath(ctx, pick(p, 0), path, 0, 0, W, ph + 80);
-    if (o.edge === 'slant')
-      poly(
-        ctx,
-        [
-          [0, ph + 40],
-          [W, ph - 100],
-          [W, ph - 74],
-          [0, ph + 66],
-        ],
-        t.accent
-      );
-    topShade(ctx, f, 240);
-    brandBlock(ctx, 44, f.top + 36, W * 0.6, 96, '#ffffff', t.plate);
-    pill(ctx, dealOf(d), W - 44, f.top + 48, 72, t.accent, t.onAccent, 'right');
-    const by = ph - 30;
-    const n = extras(p, 3);
-    if (n) thumbRow(ctx, p, 1, n, 44, by - 95, n * 178 + (n - 1) * 14, 150, 14, 12, 7, '#ffffff');
-    if (priceOf(d)) {
-      const pw = Math.min(W - 88 - (n ? n * 192 : 0), textW(ctx, priceOf(d), 62, 900) / 0.84 + 70);
-      priceTag(ctx, d, W - 44 - pw, by - 60, pw, 104, t.price, t.accent, t.onAccent);
-    }
-    const y0 = by + (n ? 80 : 70);
-    const k = kit(ctx, d, 44, W - 88, 'right', c);
-    stack([k.headline(150), k.sub(42), k.place(48), k.specs(122), k.contact(116), f.shape === 'story' ? k.socials(50) : null], y0, f.bot - 30 - y0, 14);
-  };
-
-// ---------- 3. Photo à gauche, colonne d'informations à droite ----------
-const sidebar =
-  (o: { bar?: boolean } = {}): Layout =>
-  (ctx, d, p, t, f) => {
-    const { W, H } = f;
-    fillRect(ctx, 0, 0, W, H, t.panel);
-    const wide = f.shape === 'wide';
-    const sw = wide ? W * 0.38 : W * 0.43;
-    const px = W - sw;
-    photo(ctx, pick(p, 0), 0, 0, px, H);
-    if (o.bar) fillRect(ctx, px - 14, 0, 14, H, t.accent);
-    topShade(ctx, f, 200);
-    const n = extras(p, 2);
-    if (n) {
-      const tw = wide ? 210 : 230;
-      const th = wide ? 150 : 170;
-      for (let i = 0; i < n; i++) framedPhoto(ctx, pick(p, i + 1), 36 + i * (tw + 16), f.bot - 36 - th, tw, th, 7, '#ffffff', 10);
-    }
-    const x = px + 36;
-    const w = W - 36 - x;
-    const c: Ink = {
-      ink: t.ink,
-      soft: t.soft,
-      accent: t.accent,
-      onAccent: t.onAccent,
-      price: t.price,
-    };
-    const k = kit(ctx, d, x, w, 'right', c);
-    const brand: Item | null =
-      agency().logo || agency().name.trim()
-        ? {
-            h: wide ? 96 : 120,
-            draw: (y, hh) => brandBlock(ctx, x, y, w, hh, t.ink, t.plate, 'right'),
-          }
-        : null;
-    if (wide) stack([brand, k.deal(54), k.headline(150, 84), k.sub(34), k.place(44), k.price(84), k.list(170, 4, 2), k.contact(84)], 36, H - 72, 12);
-    else
-      stack(
-        [
-          brand,
-          k.deal(60),
-          k.headline(230, 92),
-          k.sub(38),
-          k.rule(t.accent),
-          k.place(56),
-          k.price(92),
-          k.list(f.shape === 'story' ? 420 : 300, f.shape === 'story' ? 7 : 5),
-          k.contact(140),
-        ],
-        f.top + 40,
-        f.bot - f.top - 80,
-        16
-      );
-  };
-
-// ---------- 4. Magazine : fond clair, photo encadrée, typographie élégante ----------
-const magazine = (): Layout => (ctx, d, p, t, f) => {
-  const { W, H } = f;
-  fillRect(ctx, 0, 0, W, H, t.bg);
-  const c: Ink = {
-    ink: t.ink,
-    soft: t.soft,
-    accent: t.accent,
-    onAccent: t.onAccent,
-    price: t.price,
-  };
-  const framed = (x: number, y: number, w: number, h: number) => {
-    ctx.save();
-    ctx.strokeStyle = t.accent;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(x + 22, y + 22, w, h);
-    ctx.restore();
-    coverRect(ctx, pick(p, 0), x, y, w, h, 0);
-  };
-  if (f.shape === 'wide') {
-    framed(48, 48, 820, H - 118);
-    const n = extras(p, 2);
-    for (let i = 0; i < n; i++) framedPhoto(ctx, pick(p, i + 1), 80 + i * 230, H - 70 - 150, 210, 150, 6, t.bg, 0);
-    const x = 950;
-    const k = kit(ctx, d, x, W - 50 - x, 'right', c);
-    const brand: Item | null =
-      agency().logo || agency().name.trim()
-        ? {
-            h: 90,
-            draw: (y, hh) => brandBlock(ctx, x, y, W - 50 - x, hh, t.ink, undefined, 'right'),
-          }
-        : null;
-    stack([brand, k.rule(), k.sub(34), k.headline(140, 90), k.place(42), k.price(80), k.list(150, 4, 2), k.contact(84)], 48, H - 96, 14);
-    return;
-  }
-  let y = f.top + 36;
-  y += brandCenter(ctx, W / 2, y, f.shape === 'story' ? 130 : 104, t.ink) + 20;
-  line(ctx, W * 0.3, y, W * 0.7, y, t.accent, 3);
-  const k = kit(ctx, d, 60, W - 120, 'center', c);
-  const story = f.shape === 'story';
-  stack(
-    [
-      k.sub(38),
-      k.headline(story ? 170 : 120, 96),
-      {
-        h: story ? 640 : 460,
-        flex: true,
-        draw: (yy, hh) => {
-          framed(60, yy, W - 142, hh - 22);
-          const n = extras(p, 2);
-          for (let i = 0; i < n; i++) framedPhoto(ctx, pick(p, i + 1), 84 + i * 220, yy + hh - 22 - 150 - 20, 200, 150, 6, t.bg, 0);
-          if (priceOf(d)) {
-            const pw = Math.min(460, textW(ctx, priceOf(d), 50, 900) / 0.84 + 60);
-            priceTag(ctx, d, W - 60 - pw - 30, yy + hh - 22 - 60, pw, 84, t.price === 'text' ? 'block' : t.price, t.accent, t.onAccent);
-          }
-        },
-      },
-      k.place(46),
-      {
-        h: story ? 240 : 180,
-        draw: (yy, hh) => {
-          const cw = hasSpecs(d) ? W / 2 - 90 : W - 120;
-          if (hasSpecs(d)) {
-            featureList(ctx, allSpecs(d, 4), W / 2 + 10, yy, W / 2 - 70, hh, t.ink, t.accent, 1);
-            if (agencyPhones().length) line(ctx, W / 2, yy + 10, W / 2, yy + hh - 10, alpha(t.ink, 0.25), 2);
-          }
-          contactBlock(ctx, 60, yy + hh * 0.2, cw, hh * 0.6, {
-            color: t.ink,
-            accent: t.accent,
-            onAccent: t.onAccent,
-          });
-        },
-      },
-      k.socials(44),
-    ],
-    y + 24,
-    f.bot - y - 60,
-    16
-  );
-};
-
-// ---------- 5. Mosaïque : bandeau, grande photo + petites photos, informations ----------
-const collage = (): Layout => (ctx, d, p, t, f) => {
-  const { W, H } = f;
-  const onPanel = t.onPanel ?? '#ffffff';
-  fillRect(ctx, 0, 0, W, H, t.bg);
-  const c: Ink = {
-    ink: t.ink,
-    soft: t.soft,
-    accent: t.accent,
-    onAccent: t.onAccent,
-    price: t.price,
-    iconBg: t.accent,
-    iconColor: t.onAccent,
-  };
-  const grid = (x: number, y: number, w: number, h: number, vertical: boolean) => {
-    const n = extras(p, 3);
-    const g = 12;
-    if (!n) return photo(ctx, pick(p, 0), x, y, w, h, 16);
-    if (vertical) {
-      const mw = w * 0.66;
-      photo(ctx, pick(p, 0), x, y, mw, h, 16);
-      const th = (h - g * (n - 1)) / n;
-      for (let i = 0; i < n; i++) photo(ctx, pick(p, i + 1), x + mw + g, y + i * (th + g), w - mw - g, th, 16);
-    } else {
-      const mh = h * 0.64;
-      photo(ctx, pick(p, 0), x, y, w, mh, 16);
-      thumbRow(ctx, p, 1, n, x, y + mh + g, w, h - mh - g, g, 16);
-    }
-  };
-  if (f.shape === 'wide') {
-    fillRect(ctx, 0, 0, W, 104, t.panel);
-    brandBlock(ctx, 40, 14, 700, 76, onPanel, t.plate);
-    pill(ctx, dealOf(d), W - 40, 22, 60, onPanel, t.panel, 'right');
-    grid(40, 128, 930, H - 168, true);
-    const x = 1010;
-    const k = kit(ctx, d, x, W - 40 - x, 'right', c);
-    stack([k.headline(150, 90), k.sub(34), k.place(44), k.price(86), k.list(170, 4, 2), k.contact(86)], 128, H - 168, 14);
-    return;
-  }
-  const hh = 128;
-  fillRect(ctx, 0, 0, W, f.top + hh, t.panel);
-  brandBlock(ctx, 40, f.top + 18, W * 0.6, hh - 36, onPanel, t.plate);
-  pill(ctx, dealOf(d), W - 40, f.top + 30, hh - 60, onPanel, t.panel, 'right');
-  const fh = f.shape === 'story' ? 150 : 128;
-  const k = kit(ctx, d, 44, W - 88, 'right', c);
-  stack(
-    [
-      {
-        h: f.shape === 'story' ? 820 : 600,
-        flex: true,
-        draw: (y, h) => grid(40, y, W - 80, h, false),
-      },
-      {
-        h: 130,
-        draw: (y, h) => {
-          const pw = priceOf(d) ? Math.min(420, textW(ctx, priceOf(d), h * 0.4, 900) / 0.84 + h * 0.5) : 0;
-          boxText(ctx, headlineOf(d), 44 + pw + (pw ? 24 : 0), y, W - 88 - pw - (pw ? 24 : 0), h * 0.66, { color: t.ink, weight: 900, align: 'right', maxSize: 84 });
-          if (placeOf(d)) placeLine(ctx, d, 44 + pw + 24, y + h * 0.68, W - 88 - pw - 24, h * 0.3, t.soft, 'right', t.accent);
-          if (pw) priceTag(ctx, d, 44, y + h * 0.12, pw, h * 0.72, t.price, t.accent, t.onAccent);
-        },
-      },
-      k.specs(118),
-    ],
-    f.top + hh + 22,
-    f.bot - fh - (f.top + hh + 22) - 18,
-    18
-  );
-  fillRect(ctx, 0, f.bot - fh, W, H - f.bot + fh, t.panel);
-  footer(ctx, 44, f.bot - fh + 14, W - 88, fh - 28, onPanel, t.accent, t.onAccent);
-};
-
-// ---------- 6. Cercles : grande photo ronde et petites photos rondes sur fond coloré ----------
-const circles = (): Layout => (ctx, d, p, t, f) => {
-  const { W, H } = f;
-  fillRect(ctx, 0, 0, W, H, t.bg);
-  // Décor : grands cercles transparents
-  ctx.save();
-  ctx.fillStyle = alpha('#ffffff', 0.06);
-  ctx.beginPath();
-  ctx.arc(W * 0.95, H * 0.12, W * 0.35, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(W * 0.02, H * 0.9, W * 0.3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-  const c: Ink = {
-    ink: t.ink,
-    soft: t.soft,
-    accent: t.accent,
-    onAccent: t.onAccent,
-    price: t.price,
-    iconBg: alpha('#ffffff', 0.15),
-    iconColor: t.accent,
-  };
-  const ring = (cx: number, cy: number, r: number, i: number, w: number) => circlePhoto(ctx, pick(p, i), cx, cy, r, w, '#ffffff');
-  const card = (x: number, y: number, w: number, h: number) => {
-    if (!agencyPhones().length && !socials().length) return;
-    fillRect(ctx, x, y, w, h, t.panel, h * 0.24);
-    footer(ctx, x + 24, y + 10, w - 48, h - 20, t.onPanel ?? '#1a1a1a', t.accent, t.onAccent);
-  };
-  if (f.shape === 'wide') {
-    const r = 320;
-    ring(420, H / 2, r, 0, 14);
-    const n = extras(p, 2);
-    if (n > 0) ring(800, 210, 112, 1, 9);
-    if (n > 1) ring(800, H - 210, 112, 2, 9);
-    brandBlock(ctx, 40, 30, 500, 80, t.ink, t.plate);
-    const x = 930;
-    const k = kit(ctx, d, x, W - 48 - x, 'right', c);
-    stack([k.deal(58), k.headline(150, 92), k.sub(34), k.place(44), k.price(88), k.specs(108), { h: 96, draw: (y, h) => card(x, y, W - 48 - x, h) }], 40, H - 80, 14);
-    return;
-  }
-  brandBlock(ctx, 44, f.top + 36, W * 0.6, 96, t.ink, t.plate);
-  pill(ctx, dealOf(d), W - 44, f.top + 48, 72, t.accent, t.onAccent, 'right');
-  const k = kit(ctx, d, 60, W - 120, 'center', c);
-  stack(
-    [
-      k.headline(140, 100),
-      k.sub(40),
-      {
-        h: f.shape === 'story' ? 700 : 520,
-        flex: true,
-        draw: (y, h) => {
-          const n = extras(p, 2);
-          const r = Math.min(h / 2 - 10, n ? W * 0.3 : W * 0.38);
-          const cx = n ? W * 0.4 : W / 2;
-          const cy = y + h / 2;
-          ring(cx, cy, r, 0, 14);
-          const sr = r * 0.42;
-          if (n > 0) ring(W * 0.8, cy - r * 0.55, sr, 1, 9);
-          if (n > 1) ring(W * 0.8, cy + r * 0.55, sr, 2, 9);
-        },
-      },
-      k.place(46),
-      k.price(96),
-      k.specs(116),
-      { h: 120, draw: (y, h) => card(44, y, W - 88, h) },
-    ],
-    f.top + 150,
-    f.bot - f.top - 180,
-    14
-  );
-};
-
-// ---------- 7. Arche : photo dans une arche, fond clair, style épuré ----------
-const arch = (): Layout => (ctx, d, p, t, f) => {
-  const { W, H } = f;
-  fillRect(ctx, 0, 0, W, H, t.bg);
-  const c: Ink = {
-    ink: t.ink,
-    soft: t.soft,
-    accent: t.accent,
-    onAccent: t.onAccent,
-    price: t.price,
-    iconBg: t.panel,
-    iconColor: t.ink,
-  };
-  const drawArch = (x: number, y: number, w: number, h: number) => {
-    // Arche décalée en couleur derrière la photo
-    ctx.save();
-    ctx.beginPath();
-    const r = w / 2;
-    ctx.moveTo(x + 26, y + h + 26);
-    ctx.lineTo(x + 26, y + r + 26);
-    ctx.arc(x + r + 26, y + r + 26, r, Math.PI, 0);
-    ctx.lineTo(x + w + 26, y + h + 26);
-    ctx.closePath();
-    ctx.fillStyle = t.panel;
-    ctx.fill();
-    ctx.restore();
-    archPhoto(ctx, pick(p, 0), x, y, w, h);
-    const n = extras(p, 2);
-    for (let i = 0; i < n; i++) circlePhoto(ctx, pick(p, i + 1), x + (i ? w + 6 : -6), y + h * (i ? 0.52 : 0.78), w * 0.17, 8, t.bg);
-  };
-  if (f.shape === 'wide') {
-    drawArch(130, 50, 520, H - 120);
-    const x = 800;
-    const k = kit(ctx, d, x, W - 50 - x, 'right', c);
-    const brand: Item | null =
-      agency().logo || agency().name.trim()
-        ? {
-            h: 90,
-            draw: (y, hh) => brandBlock(ctx, x, y, W - 50 - x, hh, t.ink, undefined, 'right'),
-          }
-        : null;
-    stack([brand, k.deal(54), k.headline(140, 92), k.sub(34), k.place(42), k.price(84), k.specs(104), k.contact(84)], 40, H - 80, 14);
-    return;
-  }
-  let y = f.top + 32;
-  y += brandCenter(ctx, W / 2, y, f.shape === 'story' ? 120 : 92, t.ink) + 20;
-  const k = kit(ctx, d, 60, W - 120, 'center', c);
-  stack(
-    [
-      {
-        h: f.shape === 'story' ? 820 : 560,
-        flex: true,
-        draw: (yy, hh) => drawArch(W * 0.2, yy, W * 0.6, hh - 26),
-      },
-      k.deal(56),
-      k.headline(130, 90),
-      k.place(44),
-      k.price(90),
-      k.specs(112),
-      k.contact(90),
-    ],
-    y,
-    f.bot - y - 30,
-    14
-  );
-};
-
-// ---------- 8. Photos tirées : photos encadrées et inclinées sur fond sombre ----------
-const polaroid = (): Layout => (ctx, d, p, t, f) => {
-  const { W, H } = f;
-  fillRect(
-    ctx,
-    0,
-    0,
-    W,
-    H,
-    vGrad(ctx, 0, H, [
-      [0, t.bg],
-      [1, t.panel],
-    ])
-  );
-  // Décor : fines diagonales
-  ctx.save();
-  ctx.strokeStyle = alpha('#ffffff', 0.04);
-  ctx.lineWidth = 2;
-  for (let i = -H; i < W; i += 46) {
-    ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i + H, H);
-    ctx.stroke();
-  }
-  ctx.restore();
-  const c: Ink = {
-    ink: t.ink,
-    soft: t.soft,
-    accent: t.accent,
-    onAccent: t.onAccent,
-    price: t.price,
-    iconBg: alpha('#ffffff', 0.12),
-    iconColor: t.accent,
-  };
-  const shots = (cx: number, cy: number, w: number) => {
-    const n = extras(p, 2);
-    const h = w * 0.72;
-    if (n > 1) framedPhoto(ctx, pick(p, 2), cx - w * 0.62, cy + h * 0.18, w * 0.5, w * 0.38, 12, '#ffffff', 2, -0.12);
-    if (n > 0) framedPhoto(ctx, pick(p, 1), cx + w * 0.12, cy + h * 0.2, w * 0.5, w * 0.38, 12, '#ffffff', 2, 0.1);
-    framedPhoto(ctx, pick(p, 0), cx - w / 2, cy - h / 2 - (n ? h * 0.12 : 0), w, h, 18, '#ffffff', 2, -0.035);
-  };
-  if (f.shape === 'wide') {
-    shots(470, H / 2, 640);
-    brandBlock(ctx, 40, 30, 520, 80, t.ink, t.plate);
-    const x = 960;
-    const k = kit(ctx, d, x, W - 50 - x, 'right', c);
-    stack([k.deal(56), k.headline(150, 92), k.sub(34), k.place(44), k.price(92), k.specs(108), k.contact(86)], 40, H - 80, 14);
-    return;
-  }
-  brandBlock(ctx, 44, f.top + 36, W * 0.6, 96, t.ink, t.plate);
-  pill(ctx, dealOf(d), W - 44, f.top + 48, 72, t.accent, t.onAccent, 'right');
-  const k = kit(ctx, d, 60, W - 120, 'center', c);
-  stack(
-    [
-      k.headline(140, 100),
-      k.sub(40),
-      {
-        h: f.shape === 'story' ? 760 : 560,
-        flex: true,
-        draw: (y, h) => {
-          const w = Math.min(W * 0.68, h / 1.02);
-          shots(W / 2 + w * 0.04, y + (h - w * 0.98) / 2 + w * 0.46, w);
-        },
-      },
-      k.place(46),
-      k.price(104),
-      k.specs(116),
-      k.contact(96),
-    ],
-    f.top + 150,
-    f.bot - f.top - 180,
-    14
-  );
-};
-
-// ---------- 9. Bannière : grand coup de pinceau « للبيع / للكراء », photo, bandeau de contact ----------
-const banner = (): Layout => (ctx, d, p, t, f) => {
-  const { W, H } = f;
-  const onPanel = t.onPanel ?? '#ffffff';
-  fillRect(ctx, 0, 0, W, H, t.bg);
-  const c: Ink = {
-    ink: t.ink,
-    soft: t.soft,
-    accent: t.accent,
-    onAccent: t.onAccent,
-    price: t.price,
-    priceFill: t.panel,
-    priceInk: onPanel,
-    iconBg: t.accent,
-    iconColor: t.onAccent,
-  };
-  const deal = (x: number, y: number, w: number, h: number) => {
-    poly(
-      ctx,
-      [
-        [x, y + h * 0.1],
-        [x + w, y],
-        [x + w - 20, y + h],
-        [x + 14, y + h * 0.94],
-      ],
-      t.accent
-    );
-    boxText(ctx, headlineOf(d), x + w * 0.07, y + h * 0.12, w * 0.86, h * 0.76, { color: t.onAccent, weight: 900, maxSize: h * 0.62 });
-  };
-  if (f.shape === 'wide') {
-    photo(ctx, pick(p, 0), 0, 0, 900, H);
-    poly(
-      ctx,
-      [
-        [860, 0],
-        [940, 0],
-        [900, H],
-        [820, H],
-      ],
-      t.bg
-    );
-    poly(
-      ctx,
-      [
-        [900, 0],
-        [916, 0],
-        [876, H],
-        [860, H],
-      ],
-      t.accent
-    );
-    const n = extras(p, 3);
-    if (n) thumbRow(ctx, p, 1, n, 40, H - 40 - 130, n * 180 + (n - 1) * 12, 130, 12, 12, 6, '#ffffff');
-    brandBlock(ctx, 40, 30, 520, 84, '#ffffff', t.plate ?? '#ffffff');
-    const x = 960;
-    const k = kit(ctx, d, x, W - 48 - x, 'right', c);
-    stack([{ h: 150, draw: (y, h) => deal(x, y, W - 48 - x, h) }, k.sub(36), k.place(44), k.price(88), k.specs(108), k.contact(86)], 40, H - 80, 14);
-    return;
-  }
-  brandBlock(ctx, 44, f.top + 30, W * 0.6, 92, t.ink, t.plate);
-  const fh = f.shape === 'story' ? 150 : 126;
-  const k = kit(ctx, d, 44, W - 88, 'right', c);
-  stack(
-    [
-      { h: 190, draw: (y, h) => deal(W * 0.08, y, W * 0.84, h) },
-      k.sub(40),
-      {
-        h: f.shape === 'story' ? 760 : 520,
-        flex: true,
-        draw: (y, h) => {
-          photo(ctx, pick(p, 0), 40, y, W - 80, h, 26);
-          const n = extras(p, 3);
-          if (n) thumbRow(ctx, p, 1, n, 70, y + h - 150, n * 170 + (n - 1) * 12, 124, 12, 12, 6, '#ffffff');
-          if (priceOf(d)) {
-            const pw = Math.min(W - 160 - (n ? n * 182 : 0), textW(ctx, priceOf(d), 56, 900) / 0.84 + 60);
-            priceTag(ctx, d, W - 70 - pw, y + h - 140, pw, 104, t.price, t.panel, onPanel);
-          }
-        },
-      },
-      k.place(46),
-      k.specs(116),
-    ],
-    f.top + 140,
-    f.bot - fh - f.top - 160,
-    16
-  );
-  fillRect(ctx, 0, f.bot - fh, W, H - f.bot + fh, t.panel);
-  footer(ctx, 44, f.bot - fh + 14, W - 88, fh - 28, onPanel, t.accent, t.onAccent);
-};
-
-// ---------- 10. Carte : photo floutée en fond, carte blanche avec photo et informations ----------
-const card = (): Layout => (ctx, d, p, t, f) => {
-  const { W, H } = f;
-  ctx.save();
-  ctx.filter = 'blur(26px)';
-  photo(ctx, pick(p, 0), -60, -60, W + 120, H + 120);
-  ctx.restore();
-  fillRect(ctx, 0, 0, W, H, alpha(t.bg, 0.55));
-  const c: Ink = {
-    ink: t.ink,
-    soft: t.soft,
-    accent: t.accent,
-    onAccent: t.onAccent,
-    price: t.price,
-    iconBg: alpha(t.accent, 0.15),
-    iconColor: t.accent,
-  };
-  const shadowCard = (x: number, y: number, w: number, h: number) => {
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.35)';
-    ctx.shadowBlur = 40;
-    ctx.shadowOffsetY = 14;
-    rr(ctx, x, y, w, h, 34);
-    ctx.fillStyle = t.panel;
-    ctx.fill();
-    ctx.restore();
-  };
-  const photoBox = (x: number, y: number, w: number, h: number) => {
-    photo(ctx, pick(p, 0), x, y, w, h, 24);
-    pill(ctx, dealOf(d), x + w - 20, y + 20, 64, t.accent, t.onAccent, 'right');
-    const n = extras(p, 3);
-    if (n) thumbRow(ctx, p, 1, n, x + 20, y + h - 20 - 110, n * 150 + (n - 1) * 10, 110, 10, 12, 5, '#ffffff');
-  };
-  if (f.shape === 'wide') {
-    brandBlock(ctx, 60, 24, 600, 76, '#ffffff', t.plate);
-    shadowCard(60, 116, W - 120, H - 156);
-    photoBox(84, 140, 760, H - 204);
-    const x = 880;
-    const k = kit(ctx, d, x, W - 90 - x, 'right', c);
-    stack([k.headline(150, 92), k.sub(34), k.place(44), k.price(88), k.specs(108), k.contact(86)], 140, H - 204, 14);
-    return;
-  }
-  brandBlock(ctx, 56, f.top + 30, W * 0.62, 96, '#ffffff', t.plate);
-  const cy = f.top + 150;
-  const ch = f.bot - 30 - cy;
-  shadowCard(48, cy, W - 96, ch);
-  const k = kit(ctx, d, 84, W - 168, 'right', c);
-  stack(
-    [
-      {
-        h: f.shape === 'story' ? 820 : 560,
-        flex: true,
-        draw: (y, h) => photoBox(72, y, W - 144, h),
-      },
-      k.headline(120, 84),
-      {
-        h: 86,
-        draw: (y, h) => {
-          const pw = priceOf(d) ? Math.min(460, textW(ctx, priceOf(d), h * 0.62, 900) / 0.84 + h * 0.6) : 0;
-          if (placeOf(d)) placeLine(ctx, d, 84 + pw + 20, y + h * 0.22, W - 168 - pw - 20, h * 0.56, t.soft, 'right', t.accent);
-          if (pw) priceTag(ctx, d, 84, y, pw, h, t.price, t.accent, t.onAccent);
-        },
-      },
-      k.specs(112),
-      { h: 2, draw: (y) => line(ctx, 84, y, W - 84, y, alpha(t.ink, 0.12), 2) },
-      k.contact(90),
-    ],
-    cy + 24,
-    ch - 48,
-    16
-  );
-};
-
-// ---------- 11. Fiche « pro » : titre empilé (transaction en or), photo découpée en courbe, atouts en tuiles,
+// ---------- Fiche « pro » : titre empilé (transaction en or), photo découpée en courbe, atouts en tuiles,
 // cartes des caractéristiques, bandeau du prix, bandeau de contact et feuillage décoratif ----------
 // Mélange d'une couleur #rrggbb avec une autre (k = part de la seconde).
 function mix(a: string, b: string, k: number) {
@@ -1343,415 +439,628 @@ const fiche = (): Layout => (ctx, d, p, t, f) => {
 };
 const k0 = (h: number): Item => ({ h, draw: () => undefined });
 
-// ---------- Les 25 modèles ----------
+// ---------- Polices des modèles « agence » et « luxe » ----------
+const CONDENSED = 'Anton, Impact, "Arial Narrow", sans-serif';
+const MARKER = '"Permanent Marker", Anton, sans-serif';
+const NASKH = 'Amiri, Tajawal, serif';
+
+// Générateur pseudo-aléatoire déterministe (bords déchirés identiques à chaque rendu).
+function prng(seed: number) {
+  let a = seed;
+  return () => {
+    a = (a * 16807) % 2147483647;
+    return a / 2147483647;
+  };
+}
+
+// Bande « papier déchiré » : bords haut et bas irréguliers.
+function tornBand(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, seed = 7) {
+  const r = prng(seed);
+  const n = 46;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x, y + r() * h * 0.08);
+  for (let i = 1; i <= n; i++) ctx.lineTo(x + (w * i) / n, y + (r() - 0.3) * h * 0.1);
+  for (let i = n; i >= 0; i--) ctx.lineTo(x + (w * i) / n, y + h + (r() - 0.7) * h * 0.1);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.shadowColor = 'rgba(0,0,0,0.25)';
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 6;
+  ctx.fill();
+  ctx.restore();
+}
+
+type Part = { t: string; c?: string };
+// Ligne arabe en plusieurs couleurs (chiffres en rouge…), posée de droite à gauche depuis « right ».
+function richLine(ctx: CanvasRenderingContext2D, parts: Part[], right: number, cy: number, size: number, color: string, maxW: number, weight = 800) {
+  const list = parts.filter((p) => p.t);
+  if (!list.length) return;
+  let s = size;
+  const width = () => {
+    ctx.font = `${weight} ${s}px ${AR_FONT}`;
+    return list.reduce((sum, p) => sum + ctx.measureText(p.t).width, 0);
+  };
+  while (width() > maxW && s > 10) s -= 1;
+  ctx.save();
+  ctx.font = `${weight} ${s}px ${AR_FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  let x = right;
+  for (const p of list) {
+    const w = ctx.measureText(p.t).width;
+    x -= w;
+    ctx.direction = /[؀-ۿ]/.test(p.t) ? 'rtl' : 'ltr';
+    ctx.fillStyle = p.c ?? color;
+    ctx.fillText(p.t, x, cy);
+  }
+  ctx.restore();
+}
+const AR_FONT = 'Tajawal, sans-serif';
+
+// Étiquette de prix suspendue (trou + ficelle), légèrement tournée.
+function hangTag(ctx: CanvasRenderingContext2D, d: PosterData, cx: number, cy: number, w: number, h: number, color: string, angle: number) {
+  if (!priceOf(d)) return;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 20;
+  ctx.shadowOffsetY = 8;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, 0);
+  ctx.lineTo(-w / 2 + h * 0.4, -h / 2);
+  ctx.lineTo(w / 2, -h / 2);
+  ctx.lineTo(w / 2, h / 2);
+  ctx.lineTo(-w / 2 + h * 0.4, h / 2);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.beginPath();
+  ctx.arc(-w / 2 + h * 0.32, 0, h * 0.07, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2 + h * 0.32, 0);
+  ctx.bezierCurveTo(-w / 2 - h * 0.2, -h * 0.1, -w / 2 - h * 0.3, h * 0.5, -w / 2 - h * 0.1, h * 0.6);
+  ctx.stroke();
+  boxText(ctx, priceOf(d), -w / 2 + h * 0.5, -h * 0.42, w - h * 0.65, h * 0.5, { color: '#ffffff', weight: 900, font: 'lat', maxSize: h * 0.42 });
+  boxText(ctx, 'فرصة مميزة', -w / 2 + h * 0.5, h * 0.08, w - h * 0.65, h * 0.32, { color: '#ffffff', weight: 800, maxSize: h * 0.26 });
+  ctx.restore();
+}
+
+// Liste « atouts » : atouts choisis (avec détail) puis phrases libres.
+function rowsOf(d: PosterData, n: number) {
+  return [
+    ...d.features.map((x) => ({ text: x, sub: featureInfo(x).sub, icon: featureInfo(x).icon })),
+    ...d.extras.map((x) => x.trim()).filter(Boolean).map((x) => ({ text: x, sub: '', icon: BadgeCheck as IconNode })),
+  ].slice(0, n);
+}
+
+// Réseaux sociaux en pastilles + identifiant (premier réseau rempli).
+function socialDots(ctx: CanvasRenderingContext2D, x: number, cy: number, r: number, color: string, ink: string, maxW: number) {
+  const list = socials().filter((s) => s.path).slice(0, 3);
+  if (!list.length) return 0;
+  list.forEach((s, i) => brandDot(ctx, s.path!, x + r + i * (r * 2 + 10), cy, r, color));
+  const tx = x + list.length * (r * 2 + 10) + 8;
+  const handleText = list[0].text.replace(/^.*\//, '').replace(/^@/, '');
+  boxText(ctx, handleText, tx, cy - r, Math.max(0, maxW - (tx - x)), r * 2, { color: ink, weight: 800, font: 'lat', align: 'left', maxSize: r * 1.2 });
+  return maxW;
+}
+
+// ---------- « Agence » : bandeau noir du logo, grand titre français sur pinceau rouge, bande d'infos,
+// atouts en ronds rouges, mosaïque de photos, étiquette de prix, cadre contact (WhatsApp + QR), slogan ----------
+interface AgencyStyle {
+  header: 'center' | 'cut';
+  title: 'anton' | 'marker' | 'serif';
+  band: 'brush' | 'torn';
+  tilt: number;
+  radius: number;
+  border?: string; // cadre du bloc contact
+  dark?: boolean; // fond noir, textes blancs
+  hero?: boolean; // grande photo sur toute la largeur sous l'en-tête, titre posé dessus
+  hi?: string; // couleur des chiffres et du repère dans la bande d'infos (par défaut : l'accent)
+}
+const agencyLayout = (o: AgencyStyle): Layout => (ctx, d, p, t, f) => {
+  const { W, H } = f;
+  const red = t.accent;
+  const hi = o.hi ?? red;
+  const black = t.panel;
+  const wide = f.shape === 'wide';
+  const story = f.shape === 'story';
+  const a = agency();
+  const paper = o.dark ? black : '#ffffff';
+  const ink = o.dark ? '#ffffff' : '#141414';
+  fillRect(ctx, 0, 0, W, H, paper);
+
+  // --- tailles
+  const colW = wide ? 860 : W; // colonne principale (paysage : à gauche, photos à droite)
+  const hdrH = f.top + (wide ? 100 : story ? 150 : 124);
+  const titleH = wide ? 160 : story ? 260 : 206;
+  const stripH = wide ? 92 : story ? 130 : 108;
+  const hero = !!o.hero && !wide;
+  const rows = rowsOf(d, 4);
+  const noRows = !rows.length; // sans atouts : la photo prend la place
+  const heroH = (story ? 420 : 300) + (noRows ? (story ? 300 : 230) : 0);
+  const titleY = hero ? hdrH + heroH - titleH * 0.42 : hdrH - (o.header === 'cut' ? 14 : 0);
+  const stripY = titleY + titleH;
+  const bodyY = stripY + stripH + (wide ? 12 : 18);
+  const footH = wide ? 64 : story ? 104 : 84;
+  const footY = f.bot - footH;
+  const featH = noRows ? 0 : story ? 300 : 230; // atouts sur deux colonnes (variante « hero »)
+
+  // --- grande photo (variante « cut » : en haut à droite, sous le titre)
+  const mainX = wide ? 880 : hero ? 0 : noRows ? (o.header === 'cut' ? 0 : 36) : o.header === 'cut' ? W * 0.44 : W * 0.48;
+  const mainY = wide ? 0 : hero ? hdrH : o.header === 'cut' ? 0 : bodyY;
+  const bottomH = wide ? 0 : hero ? footY - 14 - (bodyY + featH + 14) : story ? 360 : 286;
+  const bottomY = wide ? 0 : footY - 14 - bottomH;
+  const mainH = wide ? (extras(p, 1) ? 560 : H) : hero ? heroH : (bottomY - 14 - mainY) * (o.header === 'cut' || !extras(p, 1) ? 1 : 0.58);
+  photo(ctx, pick(p, 0), mainX, mainY, (wide || hero ? W : W - 36) - mainX, mainH, (o.header === 'cut' && !wide) || hero ? 0 : o.radius);
+
+  // --- en-tête noir + logo + nom
+  ctx.save();
+  ctx.beginPath();
+  if (o.header === 'cut' || wide) {
+    const hw = wide ? colW : W * 0.62;
+    ctx.moveTo(0, 0);
+    ctx.lineTo(hw, 0);
+    ctx.lineTo(hw - 60, hdrH);
+    ctx.lineTo(0, hdrH);
+  } else ctx.rect(0, 0, W, hdrH);
+  ctx.closePath();
+  ctx.fillStyle = black;
+  ctx.fill();
+  ctx.restore();
+  const lh = hdrH - f.top - 26;
+  const name = a.name.trim();
+  const sub = a.slogan.trim() || a.city.trim();
+  const textBlock = (tx: number, tw: number) => {
+    if (!name) return;
+    boxText(ctx, name, tx, f.top + 14, tw, sub ? lh * 0.56 : lh, { color: '#ffffff', weight: 900, align: 'left', maxSize: lh * 0.46 });
+    if (sub) boxText(ctx, sub, tx, f.top + 14 + lh * 0.58, tw, lh * 0.4, { color: alpha('#ffffff', 0.85), weight: 700, align: 'left', maxSize: lh * 0.3 });
+  };
+  const circleLogo = (cx: number) => {
+    if (!a.logo) return 0;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, f.top + 13 + lh / 2, lh / 2 + 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.restore();
+    logo(ctx, cx, f.top + 13 + lh * 0.1, lh * 0.8, 'center');
+    return lh + 8;
+  };
+  if (o.header === 'center' && !wide) {
+    const tw = Math.min(W * 0.62, name ? textW(ctx, name, lh * 0.46, 900) + 20 : 0);
+    const total = (a.logo ? lh + 30 : 0) + tw;
+    const x0 = (W - total) / 2;
+    const lw = circleLogo(x0 + lh / 2);
+    textBlock(x0 + (lw ? lw + 22 : 0), tw);
+  } else {
+    const lw = circleLogo(36 + lh / 2);
+    textBlock(36 + (lw ? lw + 22 : 0), (wide ? colW : W * 0.62) - 120 - lw);
+  }
+
+  // --- titre français (ou titre arabe libre) sur pinceau / papier déchiré
+  const custom = d.headline.trim();
+  const typeFr = TYPE_LABELS[d.type || 'Appartement'].fr.toUpperCase();
+  const dealFr = DEAL_FR[d.deal];
+  const tW = o.header === 'cut' || wide ? (wide ? colW : W * 0.72) : W;
+  ctx.save();
+  ctx.translate(tW / 2, titleY + titleH / 2);
+  ctx.rotate(o.tilt);
+  const bx = -tW / 2 - 20;
+  const by = -titleH / 2;
+  if (o.band === 'torn') tornBand(ctx, bx + 30, by, tW - 20, titleH, red, 11);
+  else brush(ctx, bx, by, tW + 40, titleH, red, 23, 0);
+  const tx = bx + 50;
+  const tw = tW - 60;
+  if (custom) boxText(ctx, custom, tx, by + titleH * 0.1, tw, titleH * 0.8, { color: '#ffffff', weight: 900, maxSize: titleH * 0.5 });
+  else {
+    const family = o.title === 'marker' ? MARKER : o.title === 'serif' ? '"Playfair Display", Georgia, serif' : CONDENSED;
+    const weight = o.title === 'serif' ? 800 : 400;
+    const color = o.title === 'serif' ? goldOf(ctx, '#e9cf8f', by, by + titleH) : '#ffffff';
+    const oneLine = `${typeFr} ${dealFr}`;
+    ctx.font = `${weight} ${titleH * 0.62}px ${family}`;
+    if (ctx.measureText(oneLine).width < tw && !story) boxText(ctx, oneLine, tx, by + titleH * 0.1, tw, titleH * 0.8, { color, weight, family, maxSize: titleH * 0.66 });
+    else {
+      boxText(ctx, typeFr, tx, by + titleH * 0.04, tw, titleH * 0.48, { color, weight, family, maxSize: titleH * 0.5 });
+      boxText(ctx, dealFr, tx, by + titleH * 0.5, tw, titleH * 0.46, { color, weight, family, maxSize: titleH * 0.48 });
+    }
+  }
+  ctx.restore();
+
+  // --- bande d'infos : adresse (repère rouge) | surface, chambres, salles de bain
+  const sW = o.header === 'cut' || wide ? (wide ? colW : W * 0.62) : W;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(0, stripY);
+  ctx.lineTo(sW, stripY);
+  ctx.lineTo(sW - (sW < W ? 40 : 0), stripY + stripH);
+  ctx.lineTo(0, stripY + stripH);
+  ctx.closePath();
+  ctx.fillStyle = black;
+  ctx.fill();
+  ctx.restore();
+  const place = placeOf(d);
+  const l1: Part[] = d.surface ? [{ t: 'المساحة ' }, { t: d.surfaceMax > d.surface ? `${d.surface}-${d.surfaceMax}` : String(d.surface), c: hi }, { t: ' م²' }] : [];
+  const l2: Part[] = [];
+  if (d.bedrooms) l2.push({ t: String(d.bedrooms), c: hi }, { t: ' غرف' });
+  if (d.bathrooms) l2.push({ t: l2.length ? ' • ' : '' }, { t: String(d.bathrooms), c: hi }, { t: ' حمام' });
+  const narrow = sW < W * 0.8 && !wide;
+  if (!place && !l1.length && !l2.length) {
+    // Rien à afficher dans la bande : le titre en arabe
+    boxText(ctx, headlineOf(d), 40, stripY + stripH * 0.14, sW - 100, stripH * 0.72, { color: '#ffffff', weight: 900, maxSize: stripH * 0.5 });
+  } else if (narrow) {
+    // Bande étroite : adresse puis caractéristiques, l'une sous l'autre
+    const specs = [...l1, ...(l1.length && l2.length ? [{ t: ' • ' }] : []), ...l2];
+    const rowsS = [place ? 1 : 0, specs.length ? 1 : 0].filter(Boolean).length || 1;
+    let i = 0;
+    if (place) {
+      const cy = stripY + (stripH * (i + 1)) / (rowsS + 1);
+      drawIcon(ctx, MapPin, sW - 70 - stripH * 0.16, cy, stripH * 0.32, hi, 2.6);
+      richLine(ctx, [{ t: 'العنوان : ' }, { t: place }], sW - 70 - stripH * 0.38, cy, stripH * 0.3, '#ffffff', sW - 120);
+      i++;
+    }
+    if (specs.length) richLine(ctx, specs, sW - 70, stripY + (stripH * (i + 1)) / (rowsS + 1), stripH * 0.3, '#ffffff', sW - 110);
+  } else {
+    const half = (sW - 60) / 2;
+    if (place) {
+      const ar = sW - 40 - stripH * 0.55;
+      drawIcon(ctx, MapPin, sW - 40 - stripH * 0.25, stripY + stripH / 2, stripH * 0.5, hi, 2.6);
+      richLine(ctx, [{ t: 'العنوان : ' }, { t: place }], ar, stripY + stripH / 2, stripH * 0.4, '#ffffff', ar - (30 + half) - 24);
+    }
+    const sx = place ? 30 + half : sW - 40;
+    const lines = [l1, l2].filter((l) => l.length);
+    lines.forEach((l, i) =>
+      richLine(ctx, l, sx, stripY + (stripH * (i + 1)) / (lines.length + 1), stripH * (lines.length > 1 ? 0.34 : 0.42), '#ffffff', half)
+    );
+  }
+
+  // --- atouts : ronds rouges + titre + détail
+  const featX = 36;
+  const featW = (wide ? colW : hero ? W - 12 : mainX) - featX - 24;
+  const featBottom = wide ? bodyY + 250 : hero ? bodyY + featH : bottomY - 14;
+  if (rows.length) {
+    const cols = wide || hero ? 2 : 1;
+    const perCol = Math.ceil(rows.length / cols);
+    const rh = Math.min(story ? 150 : 132, (featBottom - bodyY) / perCol);
+    const cw = featW / cols;
+    rows.forEach((r, i) => {
+      const c = Math.floor(i / perCol);
+      const y = bodyY + (i % perCol) * rh;
+      const x = featX + c * cw;
+      const cr = rh * 0.38;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x + cr, y + rh / 2, cr, 0, Math.PI * 2);
+      ctx.fillStyle = red;
+      ctx.shadowColor = 'rgba(0,0,0,0.2)';
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      ctx.restore();
+      drawIcon(ctx, r.icon, x + cr, y + rh / 2, cr * 1.05, '#ffffff', 2.4);
+      const tx2 = x + cr * 2 + 16;
+      const tw2 = cw - cr * 2 - 24;
+      boxText(ctx, r.text, tx2, y + rh * (r.sub ? 0.12 : 0.18), tw2, rh * (r.sub ? 0.42 : 0.64), { color: ink, weight: 900, align: 'right', maxSize: rh * 0.3 });
+      if (r.sub) boxText(ctx, `- ${r.sub}`, tx2, y + rh * 0.54, tw2, rh * 0.32, { color: o.dark ? '#d6d6d6' : '#333333', weight: 700, align: 'right', maxSize: rh * 0.22 });
+    });
+  }
+
+  // --- photos secondaires + étiquette de prix
+  const pRad = o.radius;
+  const n = extras(p, 3);
+  if (wide) {
+    if (n) thumbRow(ctx, p, 1, Math.min(n, 2), 880, 572, W - 880 - 36, H - 572 - 36, 14, pRad);
+    hangTag(ctx, d, W - 200, 500, 300, 110, red, -0.08);
+  } else if (hero) {
+    hangTag(ctx, d, W - 210, hdrH + 110, 330, 124, red, -0.08);
+  } else if (o.header === 'cut') {
+    hangTag(ctx, d, W - 210, mainY + mainH - 70, 330, 124, red, -0.09);
+  } else {
+    const y2 = mainY + mainH + 14;
+    const h2 = bottomY - 14 - y2;
+    if (h2 > 60 && extras(p, 1)) photo(ctx, pick(p, 1), mainX, y2, W - 36 - mainX, h2, pRad);
+    hangTag(ctx, d, W - 36 - 165, y2 + h2 - 70, 330, 120, red, 0);
+  }
+
+  // --- bas : photos + cadre contact
+  const contact = (x: number, y: number, w: number, h: number) => {
+    const phones = agencyPhones();
+    if (!phones.length && !hasQr()) return;
+    fillRect(ctx, x, y, w, h, black, 6);
+    if (o.border) {
+      ctx.save();
+      ctx.strokeStyle = o.border;
+      ctx.lineWidth = 4;
+      ctx.strokeRect(x + 10, y + 10, w - 20, h - 20);
+      ctx.restore();
+    }
+    boxText(ctx, 'للتواصل و الاستفسار', x + 20, y + h * 0.04, w - 40, h * 0.18, { color: '#ffffff', weight: 900, maxSize: h * 0.13 });
+    const qs = Math.min(h * 0.42, w * 0.32);
+    const midY = y + h * 0.24;
+    const showQr = qrBox(ctx, x + w / 2 + 10, midY, qs);
+    brandDot(ctx, siWhatsapp.path, showQr ? x + w / 2 - 10 - qs * 0.45 : x + w / 2, midY + qs / 2, qs * 0.42, '#25d366');
+    const py = midY + qs + h * 0.04;
+    const ph = y + h - 12 - py;
+    phones.slice(0, 2).forEach((num, i, arr) =>
+      boxText(ctx, num, x + 20, py + (ph / arr.length) * i, w - 40, ph / arr.length, { color: '#ffffff', weight: 900, font: 'lat', maxSize: ph * 0.42 })
+    );
+  };
+  if (wide) contact(36, noRows ? bodyY : bodyY + 262, colW - 72, footY - 12 - (noRows ? bodyY : bodyY + 262));
+  else {
+    const cw2 = W * 0.44;
+    const tw3 = W - 36 - cw2 - 14 - 36;
+    const k = Math.max(0, Math.min(2, n - (o.header === 'cut' || hero ? 0 : 1)));
+    const from = o.header === 'cut' || hero ? 1 : 2;
+    if (k === 2) {
+      photo(ctx, pick(p, from), 36, bottomY, tw3, (bottomH - 10) / 2, pRad);
+      photo(ctx, pick(p, from + 1), 36, bottomY + (bottomH + 10) / 2, tw3, (bottomH - 10) / 2, pRad);
+    } else if (k === 1) photo(ctx, pick(p, from), 36, bottomY, tw3, bottomH, pRad);
+    if (k) contact(W - 36 - cw2, bottomY, cw2, bottomH);
+    else contact(36, bottomY, W - 72, bottomH); // pas d'autres photos : contact sur toute la largeur
+  }
+
+  // --- pied : réseaux sociaux + identifiant, slogan sur bande rouge
+  const slogan = a.slogan.trim() || a.name.trim();
+  const fy = footY;
+  const sr = footH * 0.26;
+  socialDots(ctx, 36, fy + footH / 2, sr, o.dark ? red : black, ink, (wide ? colW : W) * 0.42);
+  if (slogan) {
+    const bw = (wide ? colW : W) * 0.5;
+    const bx2 = (wide ? colW : W) - bw;
+    poly(ctx, [[bx2 + 40, fy + 6], [(wide ? colW : W), fy + 6], [(wide ? colW : W), H], [bx2, H]], red);
+    boxText(ctx, slogan, bx2 + 50, fy + 12, bw - 80, Math.min(footH - 16, f.bot - fy - 12), { color: '#ffffff', weight: 900, maxSize: footH * 0.5 });
+  }
+};
+const DEAL_FR: Record<PosterData['deal'], string> = { vente: 'A VENDRE', location: 'A LOUER', meuble: 'MEUBLÉ A LOUER' };
+
+// ---------- « Luxe » : fond bleu nuit, rosaces dorées, titre calligraphié or, photo fondue,
+// cadre prix doré, atouts à puces, ronds des caractéristiques, contact ----------
+function rosette(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, color: string) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.6;
+  for (let k = 0; k < 4; k++) {
+    const r = R * (1 - k * 0.22);
+    for (let s = 0; s < 2; s++) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate((Math.PI / 4) * s + k * 0.2);
+      ctx.strokeRect(-r / Math.SQRT2, -r / Math.SQRT2, r * Math.SQRT2, r * Math.SQRT2);
+      ctx.restore();
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.62, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function hexLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, gold: string | CanvasGradient) {
+  const a = agency();
+  if (!a.logo && !a.name.trim()) return;
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const ang = Math.PI / 6 + (i * Math.PI) / 3;
+    ctx[i ? 'lineTo' : 'moveTo'](cx + r * Math.cos(ang), cy + r * Math.sin(ang));
+  }
+  ctx.closePath();
+  ctx.strokeStyle = gold;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.restore();
+  if (a.logo) logo(ctx, cx, cy - r * 0.55, r * 1.1, 'center', '#ffffff');
+  else boxText(ctx, a.name, cx - r * 0.7, cy - r * 0.4, r * 1.4, r * 0.8, { color: gold, weight: 800 });
+}
+
+const luxe = (o: { light?: boolean } = {}): Layout => (ctx, d, p, t, f) => {
+  const { W, H } = f;
+  const wide = f.shape === 'wide';
+  const story = f.shape === 'story';
+  const navy = t.panel;
+  const gold = t.accent;
+  const textC = o.light ? navy : '#ffffff';
+  const G = (y0: number, y1: number) => (o.light ? goldOf(ctx, mix(gold, '#000000', 0.15).replace(/rgb\((\d+),(\d+),(\d+)\)/, (_, r, g, b) => '#' + [r, g, b].map((v: string) => (+v).toString(16).padStart(2, '0')).join('')), y0, y1) : goldOf(ctx, gold, y0, y1));
+  // Fond : bleu nuit (ou crème pour la version claire), plus foncé en haut et en bas
+  const bgTop = o.light ? t.bg : t.bg;
+  const bgBot = o.light ? t.bg : t.bg;
+  fillRect(ctx, 0, 0, W, H, o.light ? vGrad(ctx, 0, H, [[0, t.bg], [1, mix(t.bg, gold, 0.12)]]) : vGrad(ctx, 0, H, [[0, mix(navy, '#000000', 0.35)], [0.5, navy], [1, mix(navy, '#000000', 0.25)]]));
+  rosette(ctx, wide ? 0 : -30, wide ? 90 : 170, wide ? 220 : 260, alpha(gold, 0.16));
+  rosette(ctx, W + 40, wide ? H - 120 : 520, 220, alpha(gold, 0.12));
+
+  const custom = d.headline.trim();
+  const words = custom ? custom.split(/\s+/) : [];
+  const line1 = custom ? words.slice(0, Math.ceil(words.length / 2)).join(' ') : TYPE_LABELS[d.type || 'Appartement'].ar;
+  const line2 = custom ? words.slice(Math.ceil(words.length / 2)).join(' ') : dealOf(d);
+  const subtitle = d.extras.map((x) => x.trim()).find(Boolean) || (placeOf(d) ? `في ${placeOf(d)}` : '');
+
+  // Titre calligraphié + filet + sous-titre
+  const titleBlock = (x: number, w: number, y: number, h: number) => {
+    boxText(ctx, line1, x, y, w, h * 0.42, { color: G(y, y + h * 0.42), weight: 700, family: NASKH, maxSize: h * 0.4 });
+    if (line2) boxText(ctx, line2, x, y + h * 0.4, w, h * 0.44, { color: G(y + h * 0.4, y + h * 0.84), weight: 700, family: NASKH, maxSize: h * 0.42 });
+    line(ctx, x + w / 2 - w * 0.2, y + h * 0.9, x + w / 2 + w * 0.2, y + h * 0.9, alpha(gold, 0.8), 2);
+  };
+  const subBlock = (x: number, w: number, y: number, h: number) => {
+    if (subtitle) boxText(ctx, subtitle, x, y, w, h, { color: o.light ? navy : mix(gold, '#ffffff', 0.35), weight: 700, maxSize: h * 0.42 });
+  };
+
+  // Cadre du prix
+  const priceBox = (x: number, y: number, w: number, h: number) => {
+    if (!priceOf(d)) return;
+    fillRect(ctx, x, y, w, h, navy);
+    ctx.save();
+    ctx.strokeStyle = G(y, y + h);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+    ctx.restore();
+    boxText(ctx, priceOf(d), x + 20, y + h * 0.08, w - 40, h * 0.56, { color: G(y, y + h * 0.64), weight: 900, font: 'lat', maxSize: h * 0.46 });
+    boxText(ctx, d.deal === 'vente' ? 'الثمن' : 'ثمن الكراء', x + 20, y + h * 0.64, w - 40, h * 0.28, { color: '#ffffff', weight: 700, maxSize: h * 0.22 });
+  };
+
+  // Ronds des caractéristiques (contour doré)
+  const specCircles = (x: number, w: number, y: number, h: number) => {
+    const list = mainSpecs(d).concat(d.features.slice(0, 1).map((ft) => ({ icon: featureInfo(ft).icon, text: ft }))).slice(0, 4);
+    if (!list.length) return;
+    const g = 16;
+    const cw = Math.min(h, (w - g * (list.length - 1)) / list.length);
+    const total = list.length * cw + (list.length - 1) * g;
+    list.forEach((s, i) => {
+      const cx = x + w - (w - total) / 2 - cw / 2 - i * (cw + g);
+      const cy = y + h / 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.min(cw, h) / 2, 0, Math.PI * 2);
+      ctx.strokeStyle = alpha(gold, 0.85);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+      const r = Math.min(cw, h) / 2;
+      drawIcon(ctx, s.icon, cx, cy - r * 0.32, r * 0.62, gold, 1.8);
+      boxText(ctx, s.text, cx - r * 0.78, cy + r * 0.12, r * 1.56, r * 0.6, { color: textC, weight: 800, maxSize: r * 0.3 });
+    });
+  };
+
+  // Atouts à puces dorées + lieu
+  const featList = (x: number, w: number, y: number, h: number) => {
+    const rows = rowsOf(d, 5);
+    if (!rows.length) return;
+    boxText(ctx, 'المميزات', x, y, w, h * 0.16, { color: G(y, y + h * 0.16), weight: 800, align: 'right', maxSize: h * 0.13 });
+    line(ctx, x + w * 0.55, y + h * 0.19, x + w, y + h * 0.19, alpha(gold, 0.6), 2);
+    const rh = Math.min(h * 0.16, (h * 0.78) / rows.length);
+    rows.forEach((r, i) => {
+      const ry = y + h * 0.22 + i * rh;
+      ctx.save();
+      ctx.translate(x + w - rh * 0.25, ry + rh / 2);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = gold;
+      ctx.fillRect(-rh * 0.1, -rh * 0.1, rh * 0.2, rh * 0.2);
+      ctx.restore();
+      boxText(ctx, r.text, x, ry + rh * 0.1, w - rh * 0.6, rh * 0.8, { color: textC, weight: 700, align: 'right', maxSize: rh * 0.58 });
+    });
+  };
+
+  // Atouts sur deux colonnes (formats verticaux)
+  const featGrid = (x: number, w: number, y: number, h: number) => {
+    const rows = rowsOf(d, 6);
+    if (!rows.length) return;
+    const cols = rows.length > 3 ? 2 : 1;
+    const per = Math.ceil(rows.length / cols);
+    const rh = Math.min(64, h / per);
+    const cw = w / cols;
+    rows.forEach((r, i) => {
+      const c = Math.floor(i / per);
+      const right = x + w - c * cw;
+      const ry = y + (i % per) * rh;
+      ctx.save();
+      ctx.translate(right - rh * 0.25, ry + rh / 2);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = gold;
+      ctx.fillRect(-rh * 0.09, -rh * 0.09, rh * 0.18, rh * 0.18);
+      ctx.restore();
+      boxText(ctx, r.text, right - cw + 16, ry + rh * 0.12, cw - rh * 0.6 - 16, rh * 0.76, { color: textC, weight: 700, align: 'right', maxSize: rh * 0.56 });
+    });
+  };
+
+  // Contact : téléphones, site, réseaux
+  const contactRow = (x: number, w: number, y: number, h: number) => {
+    line(ctx, x, y, x + w, y, alpha(gold, 0.7), 2);
+    boxText(ctx, 'تواصل معنا', x, y + h * 0.06, w, h * 0.36, { color: G(y, y + h * 0.42), weight: 700, family: NASKH, maxSize: h * 0.3 });
+    const a = agency();
+    const items: { icon: IconNode; text: string }[] = [];
+    const phones = agencyPhones();
+    if (phones.length) items.push({ icon: Phone, text: phones.slice(0, 2).join('  |  ') });
+    if (a.website.trim()) items.push({ icon: Globe, text: handle(a.website) });
+    else if (socials()[0]) items.push({ icon: Globe, text: socials()[0].text });
+    const iw = w / Math.max(1, items.length);
+    items.forEach((it, i) => {
+      const ix = x + w - (i + 1) * iw;
+      const cy = y + h * 0.7;
+      drawIcon(ctx, it.icon, ix + iw - h * 0.2, cy, h * 0.26, gold, 1.8);
+      boxText(ctx, it.text, ix + 10, cy - h * 0.16, iw - h * 0.42 - 10, h * 0.32, { color: textC, weight: 700, font: 'lat', align: 'right', maxSize: h * 0.2 });
+    });
+  };
+
+  // Photo fondue dans le fond
+  const fadedPhoto = (x: number, y: number, w: number, h: number, side: 'v' | 'h') => {
+    photo(ctx, pick(p, 0), x, y, w, h);
+    if (side === 'v') {
+      fillRect(ctx, x, y - 1, w, h * 0.24, vGrad(ctx, y, y + h * 0.24, [[0, alpha(bgTop, 1)], [1, alpha(bgTop, 0)]]));
+      fillRect(ctx, x, y + h * 0.78, w, h * 0.22 + 1, vGrad(ctx, y + h * 0.78, y + h, [[0, alpha(bgBot, 0)], [1, alpha(bgBot, 1)]]));
+    } else fillRect(ctx, x - 1, y, w * 0.32, h, hGrad(ctx, x, x + w * 0.32, [[0, alpha(bgTop, 1)], [1, alpha(bgTop, 0)]]));
+  };
+
+  if (wide) {
+    fadedPhoto(760, 0, W - 760, H, 'h');
+    hexLogo(ctx, W - 110, 100, 64, G(36, 164));
+    titleBlock(40, 700, 30, 300);
+    subBlock(40, 700, 330, 80);
+    featList(40, 330, 430, 300);
+    specCircles(390, 360, 470, 150);
+    priceBox(860, 640, 420, 130);
+    contactRow(40, 700, 770, 110);
+    return;
+  }
+  hexLogo(ctx, W - 130, f.top + 110, 76, G(f.top + 34, f.top + 186));
+  const k = story ? 1.18 : 1;
+  stack(
+    [
+      { h: 250 * k, draw: (y, h) => titleBlock(150, W - 300, y, h) },
+      subtitle ? { h: 70, draw: (y, h) => subBlock(160, W - 320, y, h) } : null,
+      {
+        h: story ? 640 : 400,
+        flex: true,
+        draw: (y, h) => {
+          fadedPhoto(0, y, W, h, 'v');
+          priceBox(W * 0.4, y + h - 80, W * 0.56, 130);
+        },
+      },
+      { h: 50, draw: () => undefined },
+      mainSpecs(d).length || d.features.length ? { h: story ? 190 : 160, draw: (y, h) => specCircles(60, W - 120, y, h) } : null,
+      rowsOf(d, 6).length ? { h: story ? 220 : 170, draw: (y, h) => featGrid(60, W - 120, y, h) } : null,
+      { h: story ? 160 : 130, draw: (y, h) => contactRow(60, W - 120, y, h) },
+    ],
+    f.top + 40,
+    f.bot - f.top - 50,
+    12
+  );
+};
+
+// ---------- Les 25 modèles (3 styles, plusieurs mises en page et couleurs) ----------
 const T = (t: Theme) => t;
 export const PRO_DESIGNS: ProDesign[] = [
-  {
-    id: 'fiche-1',
-    name: 'كحلي وذهبي',
-    layout: fiche(),
-    theme: T({
-      bg: '#ffffff',
-      panel: '#16264a',
-      ink: '#16264a',
-      soft: '#5d6b85',
-      accent: '#c9a046',
-      onAccent: '#16264a',
-      price: 'block',
-      plate: '#ffffff',
-    }),
-  },
-  {
-    id: 'fiche-2',
-    name: 'أخضر ملكي وذهبي',
-    layout: fiche(),
-    theme: T({
-      bg: '#ffffff',
-      panel: '#0f3d33',
-      ink: '#0f3d33',
-      soft: '#5a7068',
-      accent: '#c9a046',
-      onAccent: '#0f3d33',
-      price: 'block',
-      plate: '#ffffff',
-    }),
-  },
-  {
-    id: 'fiche-3',
-    name: 'عنابي وذهبي',
-    layout: fiche(),
-    theme: T({
-      bg: '#ffffff',
-      panel: '#5a1428',
-      ink: '#5a1428',
-      soft: '#7d5a63',
-      accent: '#c9a046',
-      onAccent: '#5a1428',
-      price: 'block',
-      plate: '#ffffff',
-    }),
-  },
-  {
-    id: 'pro-01',
-    name: 'ليلي ذهبي',
-    layout: hero({ thumbs: true }),
-    theme: T({
-      bg: '#0d1b2a',
-      panel: '#0d1b2a',
-      ink: '#ffffff',
-      soft: '#d9c08a',
-      accent: '#d4a64a',
-      onAccent: '#0d1b2a',
-      price: 'pill',
-    }),
-  },
-  {
-    id: 'pro-02',
-    name: 'أحمر جريء',
-    layout: hero(),
-    theme: T({
-      bg: '#111111',
-      panel: '#111111',
-      ink: '#ffffff',
-      soft: '#f2b8ba',
-      accent: '#e3131b',
-      onAccent: '#ffffff',
-      price: 'brush',
-    }),
-  },
-  {
-    id: 'pro-03',
-    name: 'زمردي',
-    layout: hero({ thumbs: true }),
-    theme: T({
-      bg: '#06372e',
-      panel: '#06372e',
-      ink: '#ffffff',
-      soft: '#bfe3d6',
-      accent: '#f2c14e',
-      onAccent: '#06372e',
-      price: 'ribbon',
-    }),
-  },
-  {
-    id: 'pro-04',
-    name: 'أزرق وبرتقالي',
-    layout: split({ edge: 'straight' }),
-    theme: T({
-      bg: '#0f2c59',
-      panel: '#0f2c59',
-      ink: '#ffffff',
-      soft: '#b9c7e0',
-      accent: '#f58220',
-      onAccent: '#ffffff',
-      price: 'block',
-    }),
-  },
-  {
-    id: 'pro-05',
-    name: 'عنابي',
-    layout: split({ edge: 'curve' }),
-    theme: T({
-      bg: '#5b1a2b',
-      panel: '#5b1a2b',
-      ink: '#ffffff',
-      soft: '#e8c9cf',
-      accent: '#e9c46a',
-      onAccent: '#3d0f1c',
-      price: 'pill',
-    }),
-  },
-  {
-    id: 'pro-06',
-    name: 'فحمي وأصفر',
-    layout: split({ edge: 'slant' }),
-    theme: T({
-      bg: '#1f2326',
-      panel: '#1f2326',
-      ink: '#ffffff',
-      soft: '#c7c9cb',
-      accent: '#ffc400',
-      onAccent: '#1f2326',
-      price: 'ribbon',
-    }),
-  },
-  {
-    id: 'pro-07',
-    name: 'كحلي',
-    layout: sidebar({ bar: true }),
-    theme: T({
-      bg: '#14213d',
-      panel: '#14213d',
-      ink: '#ffffff',
-      soft: '#aab4c8',
-      accent: '#fca311',
-      onAccent: '#14213d',
-      price: 'block',
-    }),
-  },
-  {
-    id: 'pro-08',
-    name: 'طيني',
-    layout: sidebar(),
-    theme: T({
-      bg: '#b5562f',
-      panel: '#b5562f',
-      ink: '#ffffff',
-      soft: '#ffe3d1',
-      accent: '#fff3e0',
-      onAccent: '#9a4524',
-      price: 'pill',
-    }),
-  },
-  {
-    id: 'pro-09',
-    name: 'غابة',
-    layout: sidebar({ bar: true }),
-    theme: T({
-      bg: '#1e3d2f',
-      panel: '#1e3d2f',
-      ink: '#ffffff',
-      soft: '#c3d6c9',
-      accent: '#c9a227',
-      onAccent: '#1e3d2f',
-      price: 'brush',
-    }),
-  },
-  {
-    id: 'pro-10',
-    name: 'كريمي أنيق',
-    layout: magazine(),
-    theme: T({
-      bg: '#f5efe6',
-      panel: '#e8dccb',
-      ink: '#3b2f2f',
-      soft: '#8a7563',
-      accent: '#a47148',
-      onAccent: '#ffffff',
-      price: 'text',
-    }),
-  },
-  {
-    id: 'pro-11',
-    name: 'أبيض وأسود',
-    layout: magazine(),
-    theme: T({
-      bg: '#ffffff',
-      panel: '#eeeeee',
-      ink: '#111111',
-      soft: '#777777',
-      accent: '#111111',
-      onAccent: '#ffffff',
-      price: 'block',
-    }),
-  },
-  {
-    id: 'pro-12',
-    name: 'أزرق سماوي',
-    layout: collage(),
-    theme: T({
-      bg: '#ffffff',
-      panel: '#0b5ed7',
-      ink: '#0f172a',
-      soft: '#64748b',
-      accent: '#0b5ed7',
-      onAccent: '#ffffff',
-      price: 'pill',
-      plate: '#ffffff',
-    }),
-  },
-  {
-    id: 'pro-13',
-    name: 'فيروزي داكن',
-    layout: collage(),
-    theme: T({
-      bg: '#101820',
-      panel: '#0b2a33',
-      ink: '#ffffff',
-      soft: '#9fb3c8',
-      accent: '#14b8a6',
-      onAccent: '#ffffff',
-      price: 'block',
-      plate: '#ffffff',
-    }),
-  },
-  {
-    id: 'pro-14',
-    name: 'رملي وأحمر',
-    layout: collage(),
-    theme: T({
-      bg: '#f4ede1',
-      panel: '#c1272d',
-      ink: '#2b2118',
-      soft: '#7d6b57',
-      accent: '#c1272d',
-      onAccent: '#ffffff',
-      price: 'brush',
-      plate: '#ffffff',
-    }),
-  },
-  {
-    id: 'pro-15',
-    name: 'دوائر فيروزية',
-    layout: circles(),
-    theme: T({
-      bg: '#0f766e',
-      panel: '#ffffff',
-      ink: '#ffffff',
-      soft: '#ccfbf1',
-      accent: '#fbbf24',
-      onAccent: '#134e4a',
-      onPanel: '#134e4a',
-      price: 'pill',
-      plate: '#ffffff',
-    }),
-  },
-  {
-    id: 'pro-16',
-    name: 'دوائر بنفسجية',
-    layout: circles(),
-    theme: T({
-      bg: '#4c1d95',
-      panel: '#ffffff',
-      ink: '#ffffff',
-      soft: '#ddd6fe',
-      accent: '#f472b6',
-      onAccent: '#ffffff',
-      onPanel: '#3b0764',
-      price: 'block',
-      plate: '#ffffff',
-    }),
-  },
-  {
-    id: 'pro-17',
-    name: 'قوس زيتوني',
-    layout: arch(),
-    theme: T({
-      bg: '#efe8dc',
-      panel: '#d9cbb3',
-      ink: '#3d3a2a',
-      soft: '#857f69',
-      accent: '#6b705c',
-      onAccent: '#ffffff',
-      price: 'pill',
-    }),
-  },
-  {
-    id: 'pro-18',
-    name: 'قوس وردي',
-    layout: arch(),
-    theme: T({
-      bg: '#f7ede8',
-      panel: '#e8d3cc',
-      ink: '#4a3b3b',
-      soft: '#9b8585',
-      accent: '#c08497',
-      onAccent: '#ffffff',
-      price: 'block',
-    }),
-  },
-  {
-    id: 'pro-19',
-    name: 'صور خشبية',
-    layout: polaroid(),
-    theme: T({
-      bg: '#4e342e',
-      panel: '#1b0f0c',
-      ink: '#ffffff',
-      soft: '#d7ccc8',
-      accent: '#ffb300',
-      onAccent: '#3e2723',
-      price: 'brush',
-      plate: '#ffffff',
-    }),
-  },
-  {
-    id: 'pro-20',
-    name: 'صور زرقاء',
-    layout: polaroid(),
-    theme: T({
-      bg: '#334e68',
-      panel: '#102a43',
-      ink: '#ffffff',
-      soft: '#bcccdc',
-      accent: '#f0b429',
-      onAccent: '#102a43',
-      price: 'ribbon',
-      plate: '#ffffff',
-    }),
-  },
-  {
-    id: 'pro-21',
-    name: 'أصفر وأسود',
-    layout: banner(),
-    theme: T({
-      bg: '#ffffff',
-      panel: '#111111',
-      ink: '#111111',
-      soft: '#555555',
-      accent: '#ffd400',
-      onAccent: '#111111',
-      price: 'brush',
-    }),
-  },
-  {
-    id: 'pro-22',
-    name: 'أحمر وأبيض',
-    layout: banner(),
-    theme: T({
-      bg: '#ffffff',
-      panel: '#b71c1c',
-      ink: '#1a1a1a',
-      soft: '#666666',
-      accent: '#e53935',
-      onAccent: '#ffffff',
-      price: 'block',
-    }),
-  },
-  {
-    id: 'pro-23',
-    name: 'برتقالي وكحلي',
-    layout: banner(),
-    theme: T({
-      bg: '#fdf6ec',
-      panel: '#1d3557',
-      ink: '#1d3557',
-      soft: '#5c6b80',
-      accent: '#f77f00',
-      onAccent: '#ffffff',
-      price: 'pill',
-    }),
-  },
-  {
-    id: 'pro-24',
-    name: 'بطاقة ذهبية',
-    layout: card(),
-    theme: T({
-      bg: '#000000',
-      panel: '#ffffff',
-      ink: '#1a1a1a',
-      soft: '#6b6b6b',
-      accent: '#c8a24a',
-      onAccent: '#ffffff',
-      price: 'pill',
-      plate: '#ffffff',
-    }),
-  },
-  {
-    id: 'pro-25',
-    name: 'بطاقة داكنة',
-    layout: card(),
-    theme: T({
-      bg: '#0b0d12',
-      panel: '#15171c',
-      ink: '#ffffff',
-      soft: '#a0a4ad',
-      accent: '#3b82f6',
-      onAccent: '#ffffff',
-      price: 'block',
-      plate: '#ffffff',
-    }),
-  },
+  // Style « agence » (bandeau noir, titre français sur pinceau, atouts en ronds, contact WhatsApp + QR)
+  { id: 'agence-1', name: 'أحمر وأسود', layout: agencyLayout({ header: 'center', title: 'anton', band: 'brush', tilt: 0, radius: 0 }), theme: T({ bg: '#ffffff', panel: '#111111', ink: '#141414', soft: '#555555', accent: '#e3131b', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'agence-2', name: 'أحمر مائل', layout: agencyLayout({ header: 'cut', title: 'marker', band: 'brush', tilt: -0.06, radius: 0 }), theme: T({ bg: '#ffffff', panel: '#111111', ink: '#141414', soft: '#555555', accent: '#e3131b', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'agence-3', name: 'أحمر فاخر', layout: agencyLayout({ header: 'center', title: 'serif', band: 'brush', tilt: 0, radius: 6, border: '#c9a046' }), theme: T({ bg: '#ffffff', panel: '#0d0d0d', ink: '#141414', soft: '#555555', accent: '#a50e14', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'agence-4', name: 'أحمر ممزق', layout: agencyLayout({ header: 'cut', title: 'anton', band: 'torn', tilt: 0, radius: 22 }), theme: T({ bg: '#ffffff', panel: '#111111', ink: '#141414', soft: '#555555', accent: '#e3131b', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'agence-7', name: 'أسود وأحمر', layout: agencyLayout({ header: 'center', title: 'anton', band: 'torn', tilt: 0, radius: 0, dark: true }), theme: T({ bg: '#111111', panel: '#111111', ink: '#ffffff', soft: '#cccccc', accent: '#e3131b', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'agence-h1', name: 'أحمر بصورة كبيرة', layout: agencyLayout({ header: 'center', title: 'anton', band: 'brush', tilt: -0.02, radius: 0, hero: true }), theme: T({ bg: '#ffffff', panel: '#111111', ink: '#141414', soft: '#555555', accent: '#e3131b', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'agence-h2', name: 'أزرق بصورة كبيرة', layout: agencyLayout({ header: 'center', title: 'anton', band: 'torn', tilt: 0, radius: 12, hero: true }), theme: T({ bg: '#ffffff', panel: '#0d1b2a', ink: '#141414', soft: '#555555', accent: '#0b5ed7', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'agence-h3', name: 'أخضر بصورة كبيرة', layout: agencyLayout({ header: 'center', title: 'marker', band: 'brush', tilt: -0.04, radius: 0, hero: true }), theme: T({ bg: '#ffffff', panel: '#111111', ink: '#141414', soft: '#555555', accent: '#0f8a4b', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'agence-h4', name: 'أسود وذهبي بصورة كبيرة', layout: agencyLayout({ header: 'center', title: 'serif', band: 'torn', tilt: 0, radius: 6, hero: true, border: '#c9a046', hi: '#d4af5a' }), theme: T({ bg: '#ffffff', panel: '#0b0b0b', ink: '#141414', soft: '#555555', accent: '#1c1c1c', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'agence-5', name: 'أزرق وأسود', layout: agencyLayout({ header: 'center', title: 'anton', band: 'torn', tilt: -0.02, radius: 10 }), theme: T({ bg: '#ffffff', panel: '#0d1b2a', ink: '#141414', soft: '#555555', accent: '#0b5ed7', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'agence-6', name: 'أخضر وأسود', layout: agencyLayout({ header: 'cut', title: 'anton', band: 'brush', tilt: -0.03, radius: 0 }), theme: T({ bg: '#ffffff', panel: '#111111', ink: '#141414', soft: '#555555', accent: '#0f8a4b', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'agence-8', name: 'برتقالي وأسود', layout: agencyLayout({ header: 'center', title: 'marker', band: 'torn', tilt: -0.03, radius: 14 }), theme: T({ bg: '#ffffff', panel: '#111111', ink: '#141414', soft: '#555555', accent: '#f26b1d', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'agence-9', name: 'عنابي وذهبي', layout: agencyLayout({ header: 'cut', title: 'serif', band: 'brush', tilt: 0, radius: 0, border: '#c9a046', hi: '#d4af5a' }), theme: T({ bg: '#ffffff', panel: '#140a0c', ink: '#141414', soft: '#555555', accent: '#7a1022', onAccent: '#ffffff', price: 'block' }) },
+  // Style « luxe » (titre calligraphié or, photo fondue, cadre prix doré)
+  { id: 'luxe-1', name: 'فخامة ليلية', layout: luxe(), theme: T({ bg: '#0f1e3d', panel: '#12234a', ink: '#ffffff', soft: '#c9b27a', accent: '#d4af5a', onAccent: '#12234a', price: 'block' }) },
+  { id: 'luxe-2', name: 'فخامة سوداء', layout: luxe(), theme: T({ bg: '#0b0b0b', panel: '#17171a', ink: '#ffffff', soft: '#c9b27a', accent: '#d4af5a', onAccent: '#111111', price: 'block' }) },
+  { id: 'luxe-3', name: 'فخامة زمردية', layout: luxe(), theme: T({ bg: '#062a24', panel: '#0b3a31', ink: '#ffffff', soft: '#c9b27a', accent: '#d4af5a', onAccent: '#0b3a31', price: 'block' }) },
+  { id: 'luxe-4', name: 'فخامة عنابية', layout: luxe(), theme: T({ bg: '#2e0a12', panel: '#45101c', ink: '#ffffff', soft: '#c9b27a', accent: '#d4af5a', onAccent: '#45101c', price: 'block' }) },
+  { id: 'luxe-5', name: 'فخامة كريمية', layout: luxe({ light: true }), theme: T({ bg: '#f6efe3', panel: '#14244a', ink: '#14244a', soft: '#8a7650', accent: '#c19a45', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'luxe-6', name: 'فخامة بيضاء', layout: luxe({ light: true }), theme: T({ bg: '#ffffff', panel: '#121212', ink: '#121212', soft: '#8a7650', accent: '#c19a45', onAccent: '#ffffff', price: 'block' }) },
+  { id: 'luxe-7', name: 'فخامة رملية', layout: luxe({ light: true }), theme: T({ bg: '#efe6d6', panel: '#2f3b2a', ink: '#2f3b2a', soft: '#7d7259', accent: '#b8913d', onAccent: '#ffffff', price: 'block' }) },
+  // Style « fiche » (titre empilé or, photo en courbe, tuiles, cartes, bandeaux prix et contact)
+  { id: 'fiche-1', name: 'كحلي وذهبي', layout: fiche(), theme: T({ bg: '#ffffff', panel: '#16264a', ink: '#16264a', soft: '#5d6b85', accent: '#c9a046', onAccent: '#16264a', price: 'block', plate: '#ffffff' }) },
+  { id: 'fiche-2', name: 'أخضر ملكي وذهبي', layout: fiche(), theme: T({ bg: '#ffffff', panel: '#0f3d33', ink: '#0f3d33', soft: '#5a7068', accent: '#c9a046', onAccent: '#0f3d33', price: 'block', plate: '#ffffff' }) },
+  { id: 'fiche-3', name: 'عنابي وذهبي فاتح', layout: fiche(), theme: T({ bg: '#ffffff', panel: '#5a1428', ink: '#5a1428', soft: '#7d5a63', accent: '#c9a046', onAccent: '#5a1428', price: 'block', plate: '#ffffff' }) },
+  { id: 'fiche-4', name: 'أسود وذهبي', layout: fiche(), theme: T({ bg: '#ffffff', panel: '#141414', ink: '#141414', soft: '#5c5c5c', accent: '#c9a046', onAccent: '#141414', price: 'block', plate: '#ffffff' }) },
+  { id: 'fiche-5', name: 'تركوازي وذهبي', layout: fiche(), theme: T({ bg: '#ffffff', panel: '#0d4d57', ink: '#0d4d57', soft: '#557276', accent: '#c9a046', onAccent: '#0d4d57', price: 'block', plate: '#ffffff' }) },
 ];
 
 // Dessine un modèle à la taille demandée : format choisi d'après les proportions, dessin à une taille de référence.

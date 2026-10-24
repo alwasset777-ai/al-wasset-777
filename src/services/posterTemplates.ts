@@ -2,9 +2,9 @@
 // - 25 modèles professionnels (proTemplates.ts), dessinés à la taille de chaque plateforme ;
 // - les modèles ajoutés par l'utilisateur : une image de fond + des zones (photos, titre, prix…) placées à la main.
 // Toutes les informations de l'agence (logo, nom, téléphones, QR WhatsApp) viennent des paramètres (agencySettings.ts).
-import { agencyLogo, agencyPhones, whatsappLink } from './agencySettings';
-import { Img, PosterData, coverInPath, coverRect, drawIcon, ensureFonts, headlineOf, posterVideoFrom, qr, rr } from './posterMaker';
-import { allSpecs, boxText, phonesLine, pick, placeOf, priceOf, subOf } from './posterKit';
+import { agencyLogo, agencyPhones } from './agencySettings';
+import { Img, PosterData, coverInPath, coverRect, drawIcon, ensureFonts, headlineOf, posterVideoFrom, rr } from './posterMaker';
+import { allSpecs, boxText, phonesLine, pick, placeOf, priceOf, qrBox, subOf } from './posterKit';
 import { PRO_DESIGNS, ProDesign, drawPro } from './proTemplates';
 
 // ---------- Modèles ajoutés par l'utilisateur ----------
@@ -182,9 +182,8 @@ export function drawCustomBlocks(ctx: CanvasRenderingContext2D, blocks: Template
       continue;
     }
     if (b.kind === 'qr') {
-      const link = whatsappLink();
       const s = Math.min(w, h);
-      if (link) qr(ctx, link, x + (w - s) / 2, y + (h - s) / 2, s);
+      qrBox(ctx, x + (w - s) / 2, y + (h - s) / 2, s);
       continue;
     }
     const pad = Math.min(w, h) * 0.08;
