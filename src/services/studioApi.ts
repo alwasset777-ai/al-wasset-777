@@ -90,6 +90,7 @@ function agencyText(d: PosterData, lang: 'ar' | 'fr', short: boolean): string {
       place ? `📍 ${place}` : '',
       specs,
       ...d.features.map((f) => `✅ ${f}`),
+      ...d.extras.map((x) => x.trim()).filter(Boolean).map((x) => `✅ ${x}`),
       price ? `💰 الثمن: ${price}` : '',
       phones.length ? `📞 للتواصل: ${phones.join(' / ')}` : '',
       [a.name, a.address].filter((x) => x.trim()).join(' – '),

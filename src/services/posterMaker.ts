@@ -24,6 +24,7 @@ export interface PosterData {
   bathrooms: number;
   price: string;
   features: string[];
+  extras: string[]; // jusqu'à 4 phrases libres (« معفي من رسوم التنازل »…), une par ligne
 }
 
 export const AR = 'Tajawal, sans-serif';

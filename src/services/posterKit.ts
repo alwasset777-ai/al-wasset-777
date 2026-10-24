@@ -41,7 +41,7 @@ export function allSpecs(d: PosterData, n = 6): Spec[] {
 
 // ---------- Texte dans une zone ----------
 export interface TextOpts {
-  color: string;
+  color: string | CanvasGradient;
   align?: 'right' | 'center' | 'left';
   weight?: number;
   maxSize?: number;
