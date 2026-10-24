@@ -3,7 +3,7 @@
 // Les zones vides (pas de prix, pas de logo, un seul numéro…) disparaissent sans laisser de trou.
 import { agency, agencyPhones } from './agencySettings';
 import type { IconNode } from 'lucide';
-import { Bath, BedDouble, Coins, House, MapPin, Maximize, Phone, ShieldCheck } from 'lucide';
+import { BadgeCheck, Bath, BedDouble, Coins, House, MapPin, Maximize, Phone, ShieldCheck } from 'lucide';
 import { Img, PosterData, TYPE_LABELS, coverInPath, drawIcon, featureInfo, headlineOf } from './posterMaker';
 import {
   allSpecs,
@@ -1059,7 +1059,7 @@ interface Card {
   label: string;
   value: string;
 }
-function cardsOf(d: PosterData): Card[] {
+function cardsOf(d: PosterData, skip: number): Card[] {
   const out: Card[] = [];
   if (d.surface)
     out.push({
@@ -1074,7 +1074,7 @@ function cardsOf(d: PosterData): Card[] {
     label: 'النوع',
     value: TYPE_LABELS[d.type || 'Appartement'].ar,
   });
-  d.features.slice(2).forEach((f) => out.push({ icon: featureInfo(f).icon, label: 'ميزة', value: f }));
+  d.features.slice(skip).forEach((f) => out.push({ icon: featureInfo(f).icon, label: 'متوفر', value: f }));
   return out.slice(0, 5);
 }
 
@@ -1090,8 +1090,17 @@ const fiche = (): Layout => (ctx, d, p, t, f) => {
   // Hauteur de la photo : agrandie quand il y a peu d'informations dessous (pas de vide)
   const fh = wide ? 112 : f.shape === 'story' ? 140 : 116;
   const fy = f.bot - fh;
-  const list = cardsOf(d);
-  const note = agency().address.trim() || agency().slogan.trim();
+  // Tuiles : jusqu'à 2 ou 3 lignes (phrases libres d'abord, puis atouts) ; une phrase de plus va dans la pastille.
+  const slots = wide ? 2 : f.shape === 'story' ? 3 : 2;
+  const extra = d.extras.map((x) => x.trim()).filter(Boolean);
+  const rows = [
+    ...extra.map((x) => ({ text: x, icon: BadgeCheck, sub: '' })),
+    ...d.features.map((x) => ({ text: x, icon: featureInfo(x).icon, sub: featureInfo(x).sub })),
+  ].slice(0, slots);
+  const shownFeatures = Math.max(0, rows.length - extra.length);
+  const overflow = extra[slots];
+  const note = overflow || agency().address.trim() || agency().slogan.trim();
+  const list = cardsOf(d, shownFeatures);
   const below = (list.length >= 2 ? 228 : 0) + (priceOf(d) ? 146 : 0) + (note ? 94 : 0) + 40;
   const T = wide ? H : Math.max(f.shape === 'story' ? f.top + 960 : 740, fy - below);
   const edge = (dx: number) => {
@@ -1174,14 +1183,14 @@ const fiche = (): Layout => (ctx, d, p, t, f) => {
         }
       : null,
   ];
-  const feats: Item[] = d.features.slice(0, wide ? 2 : f.shape === 'story' ? 3 : 2).map((ft) => ({
+  const feats: Item[] = rows.map((row) => ({
     h: wide ? 104 : 92,
     draw: (y: number, h: number) => {
       const fx = wide ? 470 : 40;
       const fw = wide ? 400 : x0 - 80;
-      tile(ctx, featureInfo(ft).icon, fx, y + h * 0.06, h * 0.88, navy, '#ffffff');
-      const sub = featureInfo(ft).sub;
-      boxText(ctx, ft, fx + h + 12, y + (sub ? h * 0.04 : h * 0.2), fw - h - 12, sub ? h * 0.5 : h * 0.6, {
+      tile(ctx, row.icon, fx, y + h * 0.06, h * 0.88, navy, '#ffffff');
+      const sub = row.sub;
+      boxText(ctx, row.text, fx + h + 12, y + (sub ? h * 0.04 : h * 0.06), fw - h - 12, sub ? h * 0.5 : h * 0.88, {
         color: navy,
         weight: 900,
         align: 'right',
@@ -1270,7 +1279,7 @@ const fiche = (): Layout => (ctx, d, p, t, f) => {
             ctx.strokeStyle = t.accent;
             ctx.stroke();
             ctx.restore();
-            drawIcon(ctx, a.address.trim() ? MapPin : ShieldCheck, px + pw - h * 0.6, y + h / 2, h * 0.55, t.accent, 2.2);
+            drawIcon(ctx, !overflow && a.address.trim() ? MapPin : ShieldCheck, px + pw - h * 0.6, y + h / 2, h * 0.55, t.accent, 2.2);
             boxText(ctx, note, px + h * 0.4, y + h * 0.16, pw - h * 1.5, h * 0.68, { color: navy, weight: 800, maxSize: h * 0.42 });
           },
         }

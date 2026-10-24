@@ -67,7 +67,7 @@ const FEATURE_TITLES = FEATURES.map((f) => f.title);
 const PREFS_KEY = 'studio.platforms'; // plateformes cochées + modèle de chacune (sur cet appareil)
 
 const EMPTY: PosterData = {
-  deal: 'vente', type: 'Appartement', headline: '', city: '', district: '', surface: 0, surfaceMax: 0, bedrooms: 0, bathrooms: 0, price: '', features: [],
+  deal: 'vente', type: 'Appartement', headline: '', city: '', district: '', surface: 0, surfaceMax: 0, bedrooms: 0, bathrooms: 0, price: '', features: [], extras: [],
 };
 
 interface Prefs {
@@ -633,6 +633,16 @@ export const PublishStudioView: React.FC = () => {
                 </button>
               </div>
             </div>
+            <label className="block space-y-1">
+              <span className={label}>جمل إضافية (اختياري، جملة في كل سطر، حتى 4)</span>
+              <textarea
+                rows={3}
+                value={data.extras.join('\n')}
+                onChange={(e) => set('extras', e.target.value.split('\n').slice(0, 4))}
+                placeholder={'مثال: معفي من رسوم التنازل\nمؤجر لكبرى الشركات'}
+                className={`${input} text-sm`}
+              />
+            </label>
             <label className="block space-y-1">
               <span className={label}>العنوان الكبير (اختياري)</span>
               <input value={data.headline} onChange={(e) => set('headline', e.target.value)} placeholder={headlineOf({ ...data, headline: '' })} className={`${input} font-black`} />
