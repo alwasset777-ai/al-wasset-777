@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, ImagePlus, Loader2, Trash2, X } from 'lucide-react';
+import { ArrowRight, Check, ImagePlus, Loader2, Trash2 } from 'lucide-react';
 import { PosterData, ensureFonts } from '../services/posterMaker';
 import { BLOCK_LABELS, BlockKind, CustomTemplate, TemplateBlock, drawCustomBlocks } from '../services/posterTemplates';
 
@@ -191,8 +191,8 @@ export const TemplateEditor: React.FC<Props> = ({ initial, data, photos, onSave,
   return (
     <div dir="rtl" className="fixed inset-0 z-50 bg-[#f6f6f6] overflow-y-auto font-tajawal">
       <div className="sticky top-0 z-10 bg-[#111] text-white px-4 py-3 flex items-center gap-3">
-        <button onClick={onClose} aria-label="إغلاق" className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center cursor-pointer">
-          <X className="w-5 h-5" />
+        <button onClick={onClose} className="px-3 py-2 rounded-xl bg-white/10 font-bold text-sm flex items-center gap-1 cursor-pointer">
+          <ArrowRight className="w-4 h-4" /> رجوع
         </button>
         <h2 className="font-black text-lg flex-1">{initial ? 'تعديل القالب' : 'قالب جديد'}</h2>
         <button onClick={save} disabled={saving} className="px-4 py-2 rounded-xl bg-[#e3131b] font-black flex items-center gap-1 cursor-pointer disabled:opacity-60">
