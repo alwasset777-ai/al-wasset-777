@@ -218,6 +218,41 @@ export const PublishStudioView: React.FC = () => {
   };
   const makeMain = (id: string) => setPhotos((prev) => [...prev.filter((x) => x.id === id), ...prev.filter((x) => x.id !== id)]);
 
+  // ---------- Ouvert dans l'application du bureau (iframe, bouton « إصنع إعلانا ») : le bien arrive pré-rempli ----------
+  // Le bureau attend « w777-studio-ready » puis envoie { type: 'w777-prefill', data, photos: Blob[] }.
+  useEffect(() => {
+    if (window.parent === window) return;
+    const trusted = (o: string) => o === 'https://alwasset777-ai.github.io' || /^http:\/\/localhost(:\d+)?$/.test(o);
+    const str = (v: unknown, max = 120) => (typeof v === 'string' ? v.slice(0, max) : '');
+    const int = (v: unknown) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(100000, Math.round(Number(v)))) : 0);
+    const onMessage = async (e: MessageEvent) => {
+      if (!trusted(e.origin) || e.source !== window.parent || e.data?.type !== 'w777-prefill') return;
+      const d = e.data.data || {};
+      setData({
+        ...EMPTY,
+        deal: d.deal in DEAL_LABELS ? d.deal : 'vente',
+        type: d.type in TYPE_LABELS ? d.type : '',
+        city: str(d.city) || agency().city,
+        district: str(d.district),
+        surface: int(d.surface),
+        bedrooms: int(d.bedrooms),
+        bathrooms: int(d.bathrooms),
+        price: str(d.price, 60),
+        features: (Array.isArray(d.features) ? d.features : []).map((f: unknown) => str(f, 40)).filter(Boolean).slice(0, 8),
+      });
+      const blobs = (Array.isArray(e.data.photos) ? e.data.photos : []).filter((b: unknown): b is Blob => b instanceof Blob && b.type.startsWith('image/'));
+      const loaded = (await Promise.all(blobs.slice(0, MAX_PHOTOS).map((b: Blob) => loadPhoto(b).catch(() => null)))).filter((p): p is StudioPhoto => !!p);
+      setPhotos((prev) => {
+        prev.forEach((p) => URL.revokeObjectURL(p.url));
+        return loaded;
+      });
+      setToast('تم ملء معلومات العقار ✓');
+    };
+    window.addEventListener('message', onMessage);
+    window.parent.postMessage({ type: 'w777-studio-ready' }, '*');
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
   // ---------- Informations ----------
   const set = <K extends keyof PosterData>(k: K, v: PosterData[K]) => setData((prev) => ({ ...prev, [k]: v }));
   const toggleFeature = (f: string) => {
