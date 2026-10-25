@@ -11,6 +11,8 @@ import {
   mainSpecs,
   boxText,
   brandBlock,
+  circlePhoto,
+  framedPhoto,
   brush,
   hasQr,
   qrBox,
@@ -75,6 +77,35 @@ function alpha(hex: string, a: number) {
 const hasSpecs = (d: PosterData) => mainSpecs(d).length + d.features.length > 0;
 
 const extras = (p: Img[], n: number) => (p.length ? Math.min(n, p.length - 1) : n);
+
+// Petites photos (de « from » à from + count - 1) rangées dans une zone : 1 grande, 2 côte à côte ou l'une
+// sous l'autre, 3 = une large + deux, 4 = grille 2 × 2.
+function photoGrid(ctx: CanvasRenderingContext2D, p: Img[], from: number, count: number, x: number, y: number, w: number, h: number, gap: number, r: number, border = 0, borderColor = '#ffffff') {
+  const put = (i: number, px: number, py: number, pw: number, ph: number) =>
+    border ? framedPhoto(ctx, pick(p, from + i), px, py, pw, ph, border, borderColor, r) : photo(ctx, pick(p, from + i), px, py, pw, ph, r);
+  const hw = (w - gap) / 2;
+  const hh = (h - gap) / 2;
+  if (count <= 0) return;
+  if (count === 1) put(0, x, y, w, h);
+  else if (count === 2) {
+    if (h > w * 0.7) {
+      put(0, x, y, w, hh);
+      put(1, x, y + hh + gap, w, hh);
+    } else {
+      put(0, x, y, hw, h);
+      put(1, x + hw + gap, y, hw, h);
+    }
+  } else if (count === 3) {
+    put(0, x, y, w, hh);
+    put(1, x, y + hh + gap, hw, hh);
+    put(2, x + hw + gap, y + hh + gap, hw, hh);
+  } else {
+    put(0, x, y, hw, hh);
+    put(1, x + hw + gap, y, hw, hh);
+    put(2, x, y + hh + gap, hw, hh);
+    put(3, x + hw + gap, y + hh + gap, hw, hh);
+  }
+}
 
 type Item = { h: number; flex?: boolean; draw: (y: number, h: number) => void };
 // Empile des éléments dans une hauteur : réduit tout si ça déborde, agrandit les éléments « flex » s'il reste de la place.
@@ -217,6 +248,16 @@ const fiche = (): Layout => (ctx, d, p, t, f) => {
   ctx.fill();
   ctx.restore();
   coverInPath(ctx, pick(p, 0), () => edge(0), x0, 0, W - x0, T);
+  // Jusqu'à 4 autres photos en ronds le long du bas de la photo (5 photos en tout)
+  const kf = extras(p, 4);
+  if (kf) {
+    const left = wide ? 960 : x0 + 70;
+    const span = (wide ? W - 40 : W - 24) - left;
+    const r = Math.min(wide ? 66 : 74, span / (kf * 2 + (kf - 1) * 0.25) );
+    const step = kf > 1 ? (span - r * 2) / (kf - 1) : 0;
+    const cy = wide ? fy - r - 24 : T - r * 0.55;
+    for (let i = 0; i < kf; i++) circlePhoto(ctx, pick(p, i + 1), left + span - r - i * step, cy, r, 7, '#ffffff');
+  }
 
   // Onglet du logo en haut à gauche
   const a = agency();
@@ -752,9 +793,9 @@ const agencyLayout = (o: AgencyStyle): Layout => (ctx, d, p, t, f) => {
 
   // --- photos secondaires + étiquette de prix
   const pRad = o.radius;
-  const n = extras(p, 3);
+  const n = extras(p, 4); // jusqu'à 4 photos en plus de la principale (5 en tout)
   if (wide) {
-    if (n) thumbRow(ctx, p, 1, Math.min(n, 2), 880, 572, W - 880 - 36, H - 572 - 36, 14, pRad);
+    photoGrid(ctx, p, 1, n, 880, 572, W - 880 - 36, H - 572 - 36, 12, pRad);
     hangTag(ctx, d, W - 200, 500, 300, 110, red, -0.08);
   } else if (hero) {
     hangTag(ctx, d, W - 210, hdrH + 110, 330, 124, red, -0.08);
@@ -794,12 +835,9 @@ const agencyLayout = (o: AgencyStyle): Layout => (ctx, d, p, t, f) => {
   else {
     const cw2 = W * 0.44;
     const tw3 = W - 36 - cw2 - 14 - 36;
-    const k = Math.max(0, Math.min(2, n - (o.header === 'cut' || hero ? 0 : 1)));
+    const k = Math.max(0, o.header === 'cut' || hero ? n : n - 1);
     const from = o.header === 'cut' || hero ? 1 : 2;
-    if (k === 2) {
-      photo(ctx, pick(p, from), 36, bottomY, tw3, (bottomH - 10) / 2, pRad);
-      photo(ctx, pick(p, from + 1), 36, bottomY + (bottomH + 10) / 2, tw3, (bottomH - 10) / 2, pRad);
-    } else if (k === 1) photo(ctx, pick(p, from), 36, bottomY, tw3, bottomH, pRad);
+    photoGrid(ctx, p, from, k, 36, bottomY, tw3, bottomH, 10, pRad);
     if (k) contact(W - 36 - cw2, bottomY, cw2, bottomH);
     else contact(36, bottomY, W - 72, bottomH); // pas d'autres photos : contact sur toute la largeur
   }
@@ -1001,7 +1039,9 @@ const luxe = (o: { light?: boolean } = {}): Layout => (ctx, d, p, t, f) => {
     subBlock(40, 700, 330, 80);
     featList(40, 330, 430, 300);
     specCircles(390, 360, 470, 150);
-    priceBox(860, 640, 420, 130);
+    priceBox(860, 600, 420, 130);
+    const kw = extras(p, 4);
+    if (kw) thumbRow(ctx, p, 1, kw, 800, 760, kw * 180 + (kw - 1) * 12, 110, 12, 0, 3, gold);
     contactRow(40, 700, 770, 110);
     return;
   }
@@ -1012,7 +1052,7 @@ const luxe = (o: { light?: boolean } = {}): Layout => (ctx, d, p, t, f) => {
       { h: 250 * k, draw: (y, h) => titleBlock(150, W - 300, y, h) },
       subtitle ? { h: 70, draw: (y, h) => subBlock(160, W - 320, y, h) } : null,
       {
-        h: story ? 640 : 400,
+        h: story ? 560 : 320,
         flex: true,
         draw: (y, h) => {
           fadedPhoto(0, y, W, h, 'v');
@@ -1020,6 +1060,17 @@ const luxe = (o: { light?: boolean } = {}): Layout => (ctx, d, p, t, f) => {
         },
       },
       { h: 50, draw: () => undefined },
+      extras(p, 4)
+        ? {
+            h: story ? 190 : 130,
+            draw: (y, h) => {
+              const k = extras(p, 4);
+              const tw = Math.min((W - 120 - 14 * 3) / 4, h * 1.5);
+              const total = k * tw + (k - 1) * 14;
+              thumbRow(ctx, p, 1, k, (W - total) / 2, y, total, h, 14, 0, 4, gold);
+            },
+          }
+        : null,
       mainSpecs(d).length || d.features.length ? { h: story ? 190 : 160, draw: (y, h) => specCircles(60, W - 120, y, h) } : null,
       rowsOf(d, 6).length ? { h: story ? 220 : 170, draw: (y, h) => featGrid(60, W - 120, y, h) } : null,
       { h: story ? 160 : 130, draw: (y, h) => contactRow(60, W - 120, y, h) },
