@@ -79,7 +79,7 @@ export const headlineOf = (d: PosterData) => d.headline.trim() || `${TYPE_LABELS
 let assetsReady: Promise<unknown> | null = null;
 export function ensureFonts(): Promise<unknown> {
   assetsReady ||= Promise.all([
-    ...['500 40px Tajawal', '700 40px Tajawal', '800 40px Tajawal', '900 40px Tajawal', '700 40px Inter', '800 40px Inter', '900 40px Inter', '700 40px "Playfair Display"'].map((f) =>
+    ...['500 40px Tajawal', '700 40px Tajawal', '800 40px Tajawal', '900 40px Tajawal', '700 40px Inter', '800 40px Inter', '900 40px Inter', '700 40px "Playfair Display"', '400 40px Anton', '400 40px "Permanent Marker"', '700 40px Amiri'].map((f) =>
       document.fonts?.load(f).catch(() => null)
     ),
     loadAgency(),

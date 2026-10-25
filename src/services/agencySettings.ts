@@ -6,6 +6,7 @@ export interface AgencySettings {
   name: string; // nom affiché sur les affiches
   slogan: string;
   logo: string; // image (data URL) ; vide = pas de logo
+  qr: string; // QR de l'agence (image) ; vide = QR WhatsApp créé automatiquement
   address: string;
   city: string;
   phones: string[]; // 1 à 3 numéros
@@ -21,6 +22,7 @@ export const EMPTY_AGENCY: AgencySettings = {
   name: '',
   slogan: '',
   logo: '',
+  qr: '',
   address: '',
   city: '',
   phones: [],
@@ -37,10 +39,12 @@ const OLD_LOGO_KEY = 'studio.logo'; // ancienne case « الشعار » (avant l
 
 let current: AgencySettings = { ...EMPTY_AGENCY };
 let logoImg: HTMLImageElement | null = null;
+let qrImg: HTMLImageElement | null = null;
 const listeners = new Set<() => void>();
 
 export const agency = () => current;
 export const agencyLogo = () => logoImg;
+export const agencyQr = () => qrImg;
 export const agencyPhones = () => current.phones.map((p) => p.trim()).filter(Boolean);
 export const isAgencyEmpty = (a: AgencySettings = current) => !a.name.trim() && !agencyPhones().length && !a.logo;
 
@@ -84,6 +88,7 @@ export function loadAgency(): Promise<void> {
   ready ||= (async () => {
     current = read();
     logoImg = await loadImage(current.logo);
+    qrImg = await loadImage(current.qr);
     listeners.forEach((l) => l());
   })();
   return ready;
@@ -93,6 +98,7 @@ export function loadAgency(): Promise<void> {
 export async function saveAgency(a: AgencySettings): Promise<boolean> {
   current = { ...a, phones: a.phones.map((p) => p.trim()).filter(Boolean) };
   logoImg = await loadImage(current.logo);
+  qrImg = await loadImage(current.qr);
   listeners.forEach((l) => l());
   try {
     localStorage.setItem(KEY, JSON.stringify(current));
