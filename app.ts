@@ -70,8 +70,8 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.post('/api/ads/generate', async (req, res) => {
-  // Quand Firebase est configuré, seule l'équipe connectée peut consommer le quota IA.
-  if (adminAuth && !(await isAdmin(req))) {
+  // Seule l'équipe connectée peut consommer le quota IA (refusé aussi si Firebase n'est pas configuré).
+  if (!(await isAdmin(req))) {
     res.status(401).json({ error: 'Connexion requise' });
     return;
   }
@@ -165,7 +165,7 @@ function sanitizeContents(raw: unknown): { role: 'user' | 'model'; parts: Part[]
 
 app.post('/api/agent/chat', async (req, res) => {
   const mode: AgentMode = req.body?.mode === 'manager' ? 'manager' : 'customer';
-  if (mode === 'manager' && adminAuth && !(await isAdmin(req))) {
+  if (mode === 'manager' && !(await isAdmin(req))) {
     res.status(401).json({ error: 'Connexion requise' });
     return;
   }
@@ -251,7 +251,7 @@ function sanitizeFiles(raw: unknown, max = 12): InlineFile[] {
 }
 
 async function requireStudio(req: express.Request, res: express.Response): Promise<boolean> {
-  if (adminAuth && !(await isAdmin(req))) {
+  if (!(await isAdmin(req))) {
     res.status(401).json({ error: 'Connexion requise' });
     return false;
   }
