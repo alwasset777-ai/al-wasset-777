@@ -150,6 +150,7 @@ export interface ClientLead {
   notes: string;
   linkedPropIds: number[];
   dateAdded: string;
+  welcomeVideoSentAt?: string; // date d'envoi de la vidéo de bienvenue (ISO)
 }
 
 export interface UserProfile {

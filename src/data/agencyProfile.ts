@@ -14,6 +14,8 @@ export const agencyProfile = {
   phonesLocal: ['0777777848', '0777777959'],
   phonesIntl: ['00212777777848', '00212777777959'],
   whatsapp: '212777777848',
+  email: 'alwasset777@gmail.com',
+  siteUrl: 'https://al-wasset-777.vercel.app',
   sloganAr: 'التجربة دليل الكفاءة',
   sloganFr: "L'expérience, preuve de compétence",
   brandHashtags: ['#الوسيط_777', '#AlWassit777', '#عقارات_مكناس', '#ImmobilierMeknes'],

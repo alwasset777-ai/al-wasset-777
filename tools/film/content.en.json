@@ -1,0 +1,2871 @@
+{
+ "lang": "en",
+ "ui": {
+  "steps": "Step by step",
+  "tip": "Pro tip",
+  "whatsapp": "WhatsApp"
+ },
+ "segments": [
+  {
+   "id": "A",
+   "kind": "opening",
+   "page": 4,
+   "slate": "Opening A · INT. — A cluttered real-estate office — Night",
+   "title": "Before…",
+   "photo": "assets/opening-a.jpg",
+   "screen": "“How many deals did you lose this month?”",
+   "narr": [
+    {
+     "text": "Paper everywhere.",
+     "tts": "Paper everywhere."
+    },
+    {
+     "text": "A phone that never stops ringing.",
+     "tts": "A phone that never stops ringing."
+    },
+    {
+     "text": "A client is waiting… and their number is lost.",
+     "tts": "A client is waiting… and their number is lost."
+    },
+    {
+     "text": "A great property… but nobody knows it exists.",
+     "tts": "A great property… but nobody knows it exists."
+    },
+    {
+     "text": "This is how most real-estate agents live… every single day.",
+     "tts": "This is how most real estate agents live… every single day."
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ring",
+     "at": 0.3,
+     "dur": 4
+    },
+    {
+     "name": "tick",
+     "at": 0.0,
+     "dur": 22
+    },
+    {
+     "name": "sigh",
+     "at": 17.0
+    }
+   ],
+   "music": {
+    "mood": "tense",
+    "intensity": 0.3
+   },
+   "camera": "لقطة بطيئة (Slow motion) للأوراق وهي تتطاير حول الوكيل المرهق ← زوم بطيء على وجهه ← الهاتف يرن بلا توقف.",
+   "tod": "tod-night"
+  },
+  {
+   "id": "B",
+   "kind": "opening",
+   "page": 5,
+   "slate": "Opening B · INT. — The same office — Midnight",
+   "title": "The moment",
+   "photo": null,
+   "screen": "“What if…?”",
+   "narr": [
+    {
+     "text": "Then… everything stops.",
+     "tts": "Then… everything stops."
+    },
+    {
+     "text": "A deep breath. What if there were another way?",
+     "tts": "A deep breath. What if there were another way?"
+    },
+    {
+     "text": "A smarter way… faster… and stronger?",
+     "tts": "A smarter way… faster… and stronger?"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 5.0,
+     "gain": 0.8
+    }
+   ],
+   "music": {
+    "mood": "pure",
+    "intensity": 0.5
+   },
+   "camera": "الشاشة تسود تماما (Fade to black) لثانيتين ← ضوء ذهبي صغير يظهر في الوسط ويكبر ← الشعار يتشكل من جزيئات ذهبية.",
+   "tod": "tod-night"
+  },
+  {
+   "id": "T",
+   "kind": "title",
+   "page": 1,
+   "t1": "Al Wassit 777",
+   "t2": "The future of your profession… starts now",
+   "imgs": [
+    "assets/cover-a.jpg",
+    "assets/cover-b.jpg",
+    "assets/cover-c.jpg"
+   ],
+   "narr": [
+    {
+     "text": "Al Wassit 777.",
+     "tts": "Al Wasseet seven seven seven."
+    },
+    {
+     "text": "The future of your profession… starts now.",
+     "tts": "The future of your profession… starts now."
+    }
+   ],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.3,
+     "gain": 0.7
+    }
+   ],
+   "music": {
+    "mood": "build",
+    "intensity": 0.5
+   }
+  },
+  {
+   "id": "WHY",
+   "kind": "why",
+   "page": 2,
+   "title": "Why Al Wassit 777 Group?",
+   "intro": {
+    "text": "The first Arabic app that brings together real-estate agency management, artificial intelligence and a huge partner network in Morocco and worldwide — all in one app that works even offline.",
+    "tts": "The first Arabic app that brings together real estate agency management, artificial intelligence and a huge partner network in Morocco and worldwide, all in one app that works even offline."
+   },
+   "stats": [
+    {
+     "num": "777",
+     "label": "real-estate agencies",
+     "extra": "🇲🇦 700 · 🌍 77",
+     "tts": "Seven hundred seventy-seven real estate agencies: seven hundred in Morocco, and seventy-seven abroad."
+    },
+    {
+     "num": "777",
+     "label": "real-estate brokers",
+     "tts": "Seven hundred seventy-seven real estate brokers."
+    },
+    {
+     "num": "1554",
+     "label": "construction and finishing companies",
+     "tts": "One thousand five hundred fifty-four construction and finishing companies."
+    },
+    {
+     "num": "20+",
+     "label": "ready-made contracts",
+     "tts": "More than twenty ready-made contracts."
+    }
+   ],
+   "feats": [
+    {
+     "icon": "🏠",
+     "title": "Property management",
+     "text": "A professional file for every property, with photos and video, and instant sharing via WhatsApp.",
+     "tts": "Property management: a professional file for every property, with photos and video, and instant sharing via WhatsApp."
+    },
+    {
+     "icon": "👥",
+     "title": "Clients and follow-up",
+     "text": "Every client is saved with their budget and follow-up — from now on, no client gets lost.",
+     "tts": "Clients and follow-up: every client is saved with their budget and follow-up. From now on, no client gets lost."
+    },
+    {
+     "icon": "🎯",
+     "title": "Smart matching",
+     "text": "An automatic match score between every client and every property.",
+     "tts": "Smart matching: an automatic match score between every client and every property."
+    },
+    {
+     "icon": "📅",
+     "title": "Appointments",
+     "text": "Alerts, client reminders via WhatsApp, and adding to your calendar.",
+     "tts": "Appointments: alerts, client reminders via WhatsApp, and adding to your calendar."
+    },
+    {
+     "icon": "📊",
+     "title": "Market price",
+     "text": "Instant comparison with market prices, backed by official references.",
+     "tts": "Market price: instant comparison with market prices, backed by official references."
+    },
+    {
+     "icon": "🤖",
+     "title": "AI assistant",
+     "text": "It speaks Darija and 5 languages, and answers by voice.",
+     "tts": "A I assistant: it speaks Dareeja and five languages, and answers by voice."
+    },
+    {
+     "icon": "🌍",
+     "title": "Partner network",
+     "text": "Network properties and a 50/50 commission split between agencies.",
+     "tts": "Partner network: network properties, and a fifty-fifty commission split between agencies."
+    },
+    {
+     "icon": "🚀",
+     "title": "Projects and funding",
+     "text": "Post your project and meet investors.",
+     "tts": "Projects and funding: post your project and meet investors."
+    },
+    {
+     "icon": "⚖️",
+     "title": "Legal solutions",
+     "text": "Instant legal guidance and referral to a lawyer, a notary and adouls.",
+     "tts": "Legal solutions: instant legal guidance, and referral to a lawyer, a notary and adools."
+    }
+   ],
+   "music": {
+    "mood": "steady",
+    "intensity": 0.5
+   }
+  },
+  {
+   "id": "P1",
+   "kind": "part",
+   "page": 6,
+   "emoji": "🚀",
+   "label": "Part one",
+   "title": "Get started in two minutes",
+   "list": [
+    {
+     "num": "01",
+     "title": "Welcome to Al Wassit 777 Group"
+    },
+    {
+     "num": "02",
+     "title": "Log in to your account"
+    },
+    {
+     "num": "03",
+     "title": "Home screen: your dashboard"
+    },
+    {
+     "num": "04",
+     "title": "Quick-add button “+”"
+    }
+   ],
+   "narr": [
+    {
+     "text": "Part one… get started in two minutes.",
+     "tts": "Part one… get started in two minutes."
+    }
+   ],
+   "sfx": [],
+   "music": {
+    "mood": "build",
+    "intensity": 0.4
+   }
+  },
+  {
+   "id": "1",
+   "kind": "scene",
+   "page": 7,
+   "num": "01",
+   "slate": "Scene 1 · EXT. — A street in Meknes — Sunrise",
+   "title": "Welcome to Al Wassit 777 Group",
+   "tagline": "The real-estate agency that works in your pocket",
+   "imgs": [
+    "assets/s01-a.jpg",
+    "assets/s01-b.jpg"
+   ],
+   "screen": "“Your real-estate agency… in your pocket”",
+   "narr": [
+    {
+     "text": "Every morning… thousands of real-estate agents start their day with the same question: where do I start?",
+     "tts": "Every morning… thousands of real estate agents start their day with the same question: where do I start?"
+    },
+    {
+     "text": "Today… the answer is in your hands.",
+     "tts": "Today… the answer is in your hands."
+    },
+    {
+     "text": "Al Wassit 777 Group.",
+     "tts": "Al Wasseet seven seven seven Group."
+    },
+    {
+     "text": "Your entire real-estate agency… in your pocket.",
+     "tts": "Your entire real estate agency… in your pocket."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Open the app link on your phone or computer — no app store needed.",
+     "tts": "Open the app link on your phone or computer: no app store needed."
+    },
+    {
+     "text": "On iPhone: “Share” button → “Add to Home Screen”. On Android: ⋮ menu → “Install app”.",
+     "tts": "On iPhone: the Share button, then Add to Home Screen. On Android: the three-dot menu, then Install app."
+    },
+    {
+     "text": "The “Al Wassit 777 Group” icon appears on your screen and opens like any professional app.",
+     "tts": "The Al Wasseet seven seven seven Group icon appears on your screen and opens like any professional app."
+    },
+    {
+     "text": "The app works even without internet, and all your data is saved on your device and in the cloud.",
+     "tts": "The app works even without internet, and all your data is saved on your device and in the cloud."
+    }
+   ],
+   "tip": {
+    "text": "Try the “Demo data” button to explore the app with ready-made properties and clients before entering your own data.",
+    "tts": "Try the Demo data button to explore the app with ready-made properties and clients before entering your own data."
+   },
+   "sfx": [
+    {
+     "name": "heartbeat",
+     "at": 0.3,
+     "dur": 3
+    },
+    {
+     "name": "whoosh",
+     "at": 1.4
+    }
+   ],
+   "music": {
+    "mood": "piano",
+    "intensity": 0.4
+   },
+   "fx": "",
+   "camera": "لقطة جوية بطيئة للمدينة مع شروق الشمس ← قطع حاد على يد تُخرج الهاتف ← الشاشة تضيء بشعار الوسيط 777.",
+   "tod": "tod-dawn"
+  },
+  {
+   "id": "2",
+   "kind": "scene",
+   "page": 8,
+   "num": "02",
+   "slate": "Scene 2 · INT. — The agency office — Morning",
+   "title": "Log in to your account",
+   "tagline": "A private, secure account for every subscriber",
+   "imgs": [
+    "assets/s02-a.jpg",
+    "assets/s02-b.jpg"
+   ],
+   "screen": "“A secure door… only you can open”",
+   "narr": [
+    {
+     "text": "Your own key. A code… and a password.",
+     "tts": "Your own key. A code… and a password."
+    },
+    {
+     "text": "For every agency, every broker, every company… a secure door only you can open.",
+     "tts": "For every agency, every broker, every company… a secure door only you can open."
+    },
+    {
+     "text": "And on phone or computer… your office follows you wherever you go.",
+     "tts": "And on phone or computer… your office follows you wherever you go."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Settings” in the bottom bar.",
+     "tts": "Tap Settings in the bottom bar."
+    },
+    {
+     "text": "Scroll down to the “Cloud sync” card.",
+     "tts": "Scroll down to the Cloud sync card."
+    },
+    {
+     "text": "Enter your personal code: agence001 (agency) · W001 (broker) · B001 (construction) · F001 (finishing).",
+     "tts": "Enter your personal code: agence zero zero one, for an agency. W zero zero one, for a broker. B zero zero one, for construction. F zero zero one, for finishing."
+    },
+    {
+     "text": "Enter the password sent to you by the Al Wassit 777 office, then tap “Log in”.",
+     "tts": "Enter the password sent to you by the Al Wasseet seven seven seven office, then tap Log in."
+    },
+    {
+     "text": "This is also where you enter your office name, phone and city: they then appear automatically on every listing and every property sheet.",
+     "tts": "This is also where you enter your office name, phone and city: they then appear automatically on every listing and every property sheet."
+    }
+   ],
+   "tip": {
+    "text": "The same account works on both phone and computer: add a property on your phone and find it on your computer within seconds.",
+    "tts": "The same account works on both phone and computer: add a property on your phone and find it on your computer within seconds."
+   },
+   "sfx": [
+    {
+     "name": "click",
+     "at": 2.5
+    }
+   ],
+   "music": {
+    "mood": "electro",
+    "intensity": 0.45
+   },
+   "fx": "",
+   "camera": "لقطة قريبة جدا (Macro) على الأصابع وهي تكتب الرمز ← تركيز على زر «دخول» ← انتقال سلس من الهاتف إلى شاشة الحاسوب.",
+   "tod": "tod-morning"
+  },
+  {
+   "id": "3",
+   "kind": "scene",
+   "page": 9,
+   "num": "03",
+   "slate": "Scene 3 · INT. — The agency office — Morning",
+   "title": "Home screen: your dashboard",
+   "tagline": "Your whole day at a glance",
+   "imgs": [
+    "assets/s03-a.jpg",
+    "assets/s03-b.jpg"
+   ],
+   "screen": "“Your whole day… at a glance”",
+   "narr": [
+    {
+     "text": "Look… your whole day at a single glance.",
+     "tts": "Look… your whole day at a single glance."
+    },
+    {
+     "text": "Your properties. Your clients.",
+     "tts": "Your properties. Your clients."
+    },
+    {
+     "text": "Your best opportunities. And today's appointments.",
+     "tts": "Your best opportunities. And today's appointments."
+    },
+    {
+     "text": "No paperwork. No chaos. Just… clarity.",
+     "tts": "No paperwork. No chaos. Just… clarity."
+    }
+   ],
+   "steps": [
+    {
+     "text": "At the top: quick buttons — Add property, Add request, Matching, Appointments, Price comparison.",
+     "tts": "At the top: quick buttons. Add property, add request, matching, appointments, price comparison."
+    },
+    {
+     "text": "Below them, the “Al Wassit 777 Network” portal with nine tiles: Agencies, Brokers, Construction, Finishing, Projects, Events, News, Al Hiba (the gift), Disputes.",
+     "tts": "Below them, the Al Wasseet seven seven seven Network portal with nine tiles: agencies, brokers, construction, finishing, projects, events, news, Al Hiba, the gift, and disputes."
+    },
+    {
+     "text": "Then the key figures: available properties, open requests, strong matches, and the value of properties for sale.",
+     "tts": "Then the key figures: available properties, open requests, strong matches, and the value of properties for sale."
+    },
+    {
+     "text": "Finally: the best opportunities between clients and properties, today's appointments, and follow-ups due.",
+     "tts": "Finally: the best opportunities between clients and properties, today's appointments, and follow-ups due."
+    }
+   ],
+   "tip": {
+    "text": "The home screen updates automatically with your activity — open it every morning to know exactly what to do today.",
+    "tts": "The home screen updates automatically with your activity. Open it every morning to know exactly what to do today."
+   },
+   "sfx": [
+    {
+     "name": "digital",
+     "at": 1.5,
+     "count": 8
+    }
+   ],
+   "music": {
+    "mood": "steady",
+    "intensity": 0.5
+   },
+   "fx": "",
+   "camera": "حركة كاميرا عمودية بطيئة (Tilt) على الشاشة ← الأرقام تقفز بحركة عدّاد.",
+   "tod": "tod-morning"
+  },
+  {
+   "id": "4",
+   "kind": "scene",
+   "page": 10,
+   "num": "04",
+   "slate": "Scene 4 · INT. — A parked car — Day",
+   "title": "Quick-add button “+”",
+   "tagline": "Any action in two taps",
+   "imgs": [
+    "assets/s04-a.jpg"
+   ],
+   "screen": "“Two taps… that's all”",
+   "narr": [
+    {
+     "text": "A new property? A new client?",
+     "tts": "A new property? A new client?"
+    },
+    {
+     "text": "An appointment? Two taps. Just two taps.",
+     "tts": "An appointment? Two taps. Just two taps."
+    }
+   ],
+   "steps": [
+    {
+     "text": "From any page, tap the red “+” button at the bottom of the screen.",
+     "tts": "From any page, tap the red plus button at the bottom of the screen."
+    },
+    {
+     "text": "Choose what you need: Add property, Client request, New appointment, Agencies, Post a project, Legal issue, or Price comparison.",
+     "tts": "Choose what you need: add property, client request, new appointment, agencies, post a project, legal issue, or price comparison."
+    },
+    {
+     "text": "The right form opens instantly.",
+     "tts": "The right form opens instantly."
+    }
+   ],
+   "tip": {
+    "text": "The round button with the Group logo on the left is the AI assistant — we'll get to know it later.",
+    "tts": "The round button with the Group logo on the left is the A I assistant. We'll get to know it later."
+   },
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 2.0
+    }
+   ],
+   "music": {
+    "mood": "electro",
+    "intensity": 0.5
+   },
+   "fx": "",
+   "camera": "لقطة من فوق الكتف داخل السيارة ← إصبع يضغط «+» ← القائمة تنفتح بالحركة البطيئة.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "P2",
+   "kind": "part",
+   "page": 11,
+   "emoji": "🏢",
+   "label": "Part two",
+   "title": "Your digital real-estate agency",
+   "list": [
+    {
+     "num": "05",
+     "title": "Add a property — Basic information"
+    },
+    {
+     "num": "06",
+     "title": "Add a property — Area, price and photos"
+    },
+    {
+     "num": "07",
+     "title": "Property list"
+    },
+    {
+     "num": "08",
+     "title": "Property page and sharing"
+    },
+    {
+     "num": "09",
+     "title": "Client requests"
+    },
+    {
+     "num": "10",
+     "title": "Client profile"
+    },
+    {
+     "num": "11",
+     "title": "Smart matching"
+    },
+    {
+     "num": "12",
+     "title": "Appointments and reminders"
+    },
+    {
+     "num": "13",
+     "title": "Comparing the price with the market"
+    },
+    {
+     "num": "14",
+     "title": "Contract library"
+    },
+    {
+     "num": "15",
+     "title": "Steps to owning a property"
+    },
+    {
+     "num": "16",
+     "title": "Real-Estate Agent Academy"
+    },
+    {
+     "num": "17",
+     "title": "AI assistant"
+    }
+   ],
+   "narr": [
+    {
+     "text": "Part two… your digital real-estate agency.",
+     "tts": "Part two… your digital real estate agency."
+    }
+   ],
+   "sfx": [],
+   "music": {
+    "mood": "steady",
+    "intensity": 0.55
+   }
+  },
+  {
+   "id": "5",
+   "kind": "scene",
+   "page": 12,
+   "num": "05",
+   "slate": "Scene 5 · EXT. — Outside a villa for sale — Day",
+   "title": "Add a property — Basic information",
+   "tagline": "A professional file for every property",
+   "imgs": [
+    "assets/s05-a.jpg",
+    "assets/s05-b.jpg"
+   ],
+   "screen": "“A smart form… that understands you”",
+   "narr": [
+    {
+     "text": "A new property, right in front of you.",
+     "tts": "A new property, right in front of you."
+    },
+    {
+     "text": "Sale, rental, rahn, “sarout”… the form understands you.",
+     "tts": "Sale, rental, rahn, saroot… the form understands you."
+    },
+    {
+     "text": "It adapts to every type of property… and only asks what matters.",
+     "tts": "It adapts to every type of property… and only asks what matters."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Add property”.",
+     "tts": "Tap Add property."
+    },
+    {
+     "text": "Choose the transaction type: sale, rental, furnished rental, rahn, seasonal rental, sale of a business, off-plan sale, exchange…",
+     "tts": "Choose the transaction type: sale, rental, furnished rental, rahn, seasonal rental, sale of a business, off-plan sale, exchange…"
+    },
+    {
+     "text": "Choose the property type (apartment, house, villa, riad, plot, shop, office…) and its status (available, reserved…).",
+     "tts": "Choose the property type: apartment, house, villa, reeyad, plot, shop, office… then its status: available, reserved…"
+    },
+    {
+     "text": "Set the location: city, neighborhood, address, and a Google Maps link if you like.",
+     "tts": "Set the location: city, neighborhood, address, and a Google Maps link if you like."
+    }
+   ],
+   "tip": {
+    "text": "Fields adapt automatically to the property type: a villa asks for the pool and garden, a shop for its frontage… no unnecessary fields.",
+    "tts": "Fields adapt automatically to the property type: a villa asks for the pool and garden, a shop for its frontage… no unnecessary fields."
+   },
+   "sfx": [
+    {
+     "name": "typing",
+     "at": 1.0,
+     "dur": 3
+    }
+   ],
+   "music": {
+    "mood": "steady",
+    "intensity": 0.55
+   },
+   "fx": "",
+   "camera": "لقطة واسعة للوكيل أمام الفيلا ← قطع على الشاشة والخانات تتغير بحركة سلسة (Morph).",
+   "tod": "tod-day"
+  },
+  {
+   "id": "6",
+   "kind": "scene",
+   "page": 13,
+   "num": "06",
+   "slate": "Scene 6 · INT. — The villa's living room — Day",
+   "title": "Add a property — Area, price and photos",
+   "tagline": "Every detail in one place",
+   "imgs": [
+    "assets/s06-a.jpg",
+    "assets/s06-b.jpg"
+   ],
+   "screen": "“W777 — Property ready to sell”",
+   "narr": [
+    {
+     "text": "The area. The rooms.",
+     "tts": "The area. The rooms."
+    },
+    {
+     "text": "The price… in dirhams and in millions.",
+     "tts": "The price… in dirhams and in millions."
+    },
+    {
+     "text": "Photos… video… straight from your phone.",
+     "tts": "Photos… video… straight from your phone."
+    },
+    {
+     "text": "And the owner? Their details stay private.",
+     "tts": "And the owner? Their details stay private."
+    },
+    {
+     "text": "One tap… and your property is born with its own number: W777.",
+     "tts": "One tap… and your property is born with its own number: W, seven seven seven."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Enter the total and built area, the number of rooms and bathrooms, and the floor.",
+     "tts": "Enter the total and built area, the number of rooms and bathrooms, and the floor."
+    },
+    {
+     "text": "Pick the features: elevator, parking, balcony, heating, pool…",
+     "tts": "Pick the features: elevator, parking, balcony, heating, pool…"
+    },
+    {
+     "text": "Enter the minimum and maximum price (shown automatically in million centimes) and mark whether it's negotiable.",
+     "tts": "Enter the minimum and maximum price, shown automatically in million centimes, and mark whether it's negotiable."
+    },
+    {
+     "text": "Add photos and video straight from your phone, then write the description.",
+     "tts": "Add photos and video straight from your phone, then write the description."
+    },
+    {
+     "text": "The owner's details (name and phone) stay confidential, for your office only. Tap “Save property”: it gets a reference like W777-0001.",
+     "tts": "The owner's details, name and phone, stay confidential, for your office only. Tap Save property: it gets a reference like W, seven seven seven, zero zero zero one."
+    }
+   ],
+   "tip": {
+    "text": "The first photo you add becomes the cover photo — pick your best shot of the facade.",
+    "tts": "The first photo you add becomes the cover photo. Pick your best shot of the facade."
+   },
+   "sfx": [
+    {
+     "name": "shutter",
+     "at": 1.2
+    },
+    {
+     "name": "shutter",
+     "at": 1.8
+    },
+    {
+     "name": "shutter",
+     "at": 2.4
+    },
+    {
+     "name": "ding",
+     "at": 9.0
+    }
+   ],
+   "music": {
+    "mood": "build",
+    "intensity": 0.6
+   },
+   "fx": "",
+   "camera": "لقطات سريعة متتالية (Montage) للهاتف يصور الصالون ← الصور تطير إلى داخل التطبيق ← الرقم المرجعي يظهر بالذهبي.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "7",
+   "kind": "scene",
+   "page": 14,
+   "num": "07",
+   "slate": "Scene 7 · INT. — The agency office — Day",
+   "title": "Property list",
+   "tagline": "Search, filter and sort in seconds",
+   "imgs": [
+    "assets/s07-a.jpg"
+   ],
+   "screen": "“Green = golden opportunity”",
+   "narr": [
+    {
+     "text": "All your properties… in one showcase.",
+     "tts": "All your properties… in one showcase."
+    },
+    {
+     "text": "And these badges? Green: a deal below market price.",
+     "tts": "And these badges? Green: a deal below market price."
+    },
+    {
+     "text": "Red: a high price.",
+     "tts": "Red: a high price."
+    },
+    {
+     "text": "One piece of information… makes the difference in every deal.",
+     "tts": "One piece of information… makes the difference in every deal."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Properties” in the bottom bar.",
+     "tts": "Tap Properties in the bottom bar."
+    },
+    {
+     "text": "Filter by: All, Sale, Rent, and status (Listed, Available, Reserved…).",
+     "tts": "Filter by: all, sale, rent, and by status: listed, available, reserved…"
+    },
+    {
+     "text": "Sort by: newest, price low to high or high to low, area.",
+     "tts": "Sort by: newest, price low to high or high to low, area."
+    },
+    {
+     "text": "Green badge ▼: price below market. Red badge ▲: price above market.",
+     "tts": "Green badge: price below market. Red badge: price above market."
+    },
+    {
+     "text": "Use the search bar at the top: by reference, neighborhood, type, owner, phone or price.",
+     "tts": "Use the search bar at the top: by reference, neighborhood, type, owner, phone or price."
+    }
+   ],
+   "tip": {
+    "text": "A green badge is a golden opportunity: these properties sell faster, so show them to your clients first.",
+    "tts": "A green badge is a golden opportunity: these properties sell faster, so show them to your clients first."
+   },
+   "sfx": [
+    {
+     "name": "digital",
+     "at": 3.0,
+     "count": 2,
+     "step": 0.5
+    },
+    {
+     "name": "digital",
+     "at": 6.0,
+     "count": 2,
+     "step": 0.5
+    }
+   ],
+   "music": {
+    "mood": "steady",
+    "intensity": 0.6
+   },
+   "fx": "",
+   "camera": "تمرير سلس للقائمة ← زوم سريع (Snap Zoom) على شارة حمراء ثم خضراء.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "8",
+   "kind": "scene",
+   "page": 15,
+   "num": "08",
+   "slate": "Scene 8 · INT. — A café — Day",
+   "title": "Property page and sharing",
+   "tagline": "Present properties like a pro",
+   "imgs": [
+    "assets/s08-a.jpg",
+    "assets/s08-b.jpg"
+   ],
+   "screen": "“From the app… to the client's WhatsApp”",
+   "narr": [
+    {
+     "text": "Your client is waiting at the café.",
+     "tts": "Your client is waiting at the café."
+    },
+    {
+     "text": "Big photos… every detail… and one tap on “Share”.",
+     "tts": "Big photos… every detail… and one tap on Share."
+    },
+    {
+     "text": "The property lands in the client's WhatsApp… before the coffee gets cold.",
+     "tts": "The property lands in the client's WhatsApp… before the coffee gets cold."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Open any property to see all its photos and details.",
+     "tts": "Open any property to see all its photos and details."
+    },
+    {
+     "text": "The “Share” button sends the property and its photos straight to the client via WhatsApp.",
+     "tts": "The Share button sends the property and its photos straight to the client via WhatsApp."
+    },
+    {
+     "text": "The “Print / PDF” button creates a professional property sheet with your agency's logo.",
+     "tts": "The Print or P D F button creates a professional property sheet with your agency's logo."
+    },
+    {
+     "text": "You'll also find: a price comparison with the market, a ready-to-copy ad, the owner, and the client requests matching this property.",
+     "tts": "You'll also find: a price comparison with the market, a ready-to-copy ad, the owner, and the client requests matching this property."
+    }
+   ],
+   "tip": {
+    "text": "The ready-made ad is written automatically, with emojis and your phone number — copy it and post it on Facebook or in WhatsApp groups.",
+    "tts": "The ready-made ad is written automatically, with emojis and your phone number. Copy it and post it on Facebook or in WhatsApp groups."
+   },
+   "sfx": [
+    {
+     "name": "vibrate",
+     "at": 5.0
+    },
+    {
+     "name": "notif",
+     "at": 6.2
+    }
+   ],
+   "music": {
+    "mood": "warm",
+    "intensity": 0.6
+   },
+   "fx": "",
+   "camera": "لقطة للزبون يرتشف القهوة ← هاتفه يهتز ← يبتسم وهو يرى صور العقار.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "9",
+   "kind": "scene",
+   "page": 16,
+   "num": "09",
+   "slate": "Scene 9 · INT. — The agency office — Afternoon",
+   "title": "Client requests",
+   "tagline": "Never lose a client again",
+   "imgs": [
+    "assets/s09-a.jpg",
+    "assets/s09-b.jpg"
+   ],
+   "screen": "“No more lost clients… from today on”",
+   "narr": [
+    {
+     "text": "How many clients have you lost because you forgot their number?",
+     "tts": "How many clients have you lost because you forgot their number?"
+    },
+    {
+     "text": "A lost note… an unanswered call… From today on, never again.",
+     "tts": "A lost note… an unanswered call… From today on, never again."
+    },
+    {
+     "text": "Every client, on record. Their budget.",
+     "tts": "Every client, on record. Their budget."
+    },
+    {
+     "text": "What they're looking for. And when to call them.",
+     "tts": "What they're looking for. And when to call them."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Requests”, then “New request”.",
+     "tts": "Tap Requests, then New request."
+    },
+    {
+     "text": "Add the client: name, phone, WhatsApp, and how they heard about the agency.",
+     "tts": "Add the client: name, phone, WhatsApp, and how they heard about the agency."
+    },
+    {
+     "text": "Specify what they want: transaction type, property types, city and neighborhoods, area, rooms.",
+     "tts": "Specify what they want: transaction type, property types, city and neighborhoods, area, rooms."
+    },
+    {
+     "text": "Enter the budget and the follow-up date (when to call them back).",
+     "tts": "Enter the budget and the follow-up date, meaning when to call them back."
+    },
+    {
+     "text": "In the list, every request gets a number like DM-0001, plus how many properties match it.",
+     "tts": "In the list, every request gets a number like D M, zero zero zero one, plus how many properties match it."
+    }
+   ],
+   "tip": {
+    "text": "A request marked 🔥 is a hot request — a client in a hurry. Call them first.",
+    "tts": "A request marked with a flame is a hot request: a client in a hurry. Call them first."
+   },
+   "sfx": [
+    {
+     "name": "tear",
+     "at": 1.0
+    },
+    {
+     "name": "whoosh",
+     "at": 6.0
+    }
+   ],
+   "music": {
+    "mood": "build",
+    "intensity": 0.65
+   },
+   "fx": "bw",
+   "camera": "لقطة بالأبيض والأسود لورقة تسقط في سلة المهملات (Slow motion) ← انتقال إلى الألوان مع الشاشة المنظمة.",
+   "tod": "tod-after"
+  },
+  {
+   "id": "10",
+   "kind": "scene",
+   "page": 17,
+   "num": "10",
+   "slate": "Scene 10 · INT. — The agency office — Afternoon",
+   "title": "Client profile",
+   "tagline": "Everything you need about your client",
+   "imgs": [
+    "assets/s10-a.jpg",
+    "assets/s10-b.jpg"
+   ],
+   "screen": "“100% — Call now”",
+   "narr": [
+    {
+     "text": "A complete profile for every client.",
+     "tts": "A complete profile for every client."
+    },
+    {
+     "text": "Their status… their contact details… and the properties that suit them, ranked by match percentage.",
+     "tts": "Their status… their contact details… and the properties that suit them, ranked by match percentage."
+    },
+    {
+     "text": "A hundred percent? Call now.",
+     "tts": "A hundred percent? Call now."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Open the request to see the client's full profile.",
+     "tts": "Open the request to see the client's full profile."
+    },
+    {
+     "text": "WhatsApp and phone buttons for instant contact.",
+     "tts": "WhatsApp and phone buttons for instant contact."
+    },
+    {
+     "text": "Change the status in one tap: New, Searching, Viewing scheduled, Offer / Negotiation, Deal closed, Canceled.",
+     "tts": "Change the status in one tap: new, searching, viewing scheduled, offer or negotiation, deal closed, canceled."
+    },
+    {
+     "text": "At the bottom: matching properties ranked by percentage, to send to the client or to schedule a viewing.",
+     "tts": "At the bottom: matching properties ranked by percentage, to send to the client or to schedule a viewing."
+    }
+   ],
+   "tip": {
+    "text": "Tracking each client's status gives you a clear picture of your upcoming sales.",
+    "tts": "Tracking each client's status gives you a clear picture of your upcoming sales."
+   },
+   "sfx": [
+    {
+     "name": "chime",
+     "at": 6.0
+    }
+   ],
+   "music": {
+    "mood": "steady",
+    "intensity": 0.65
+   },
+   "fx": "",
+   "camera": "زوم بطيء على دائرة 100% الخضراء وهي تمتلئ.",
+   "tod": "tod-after"
+  },
+  {
+   "id": "11",
+   "kind": "scene",
+   "page": 18,
+   "num": "11",
+   "slate": "Scene 11 · INT. — The agency office — Night",
+   "title": "Smart matching",
+   "tagline": "The app thinks with you",
+   "imgs": [
+    "assets/s11-a.jpg"
+   ],
+   "screen": "“Smart matching ✦”",
+   "narr": [
+    {
+     "text": "And this is where… the magic begins.",
+     "tts": "And this is where… the magic begins."
+    },
+    {
+     "text": "The app compares every client with every property.",
+     "tts": "The app compares every client with every property."
+    },
+    {
+     "text": "Type… price… neighborhood… size.",
+     "tts": "Type… price… neighborhood… size."
+    },
+    {
+     "text": "And in a second… it tells you: this is the one.",
+     "tts": "And in a second… it tells you: this is the one."
+    },
+    {
+     "text": "The right client.",
+     "tts": "The right client."
+    },
+    {
+     "text": "The right property.",
+     "tts": "The right property."
+    },
+    {
+     "text": "At the right time.",
+     "tts": "At the right time."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Matching” on the home screen.",
+     "tts": "Tap Matching on the home screen."
+    },
+    {
+     "text": "The app automatically compares every request with every property.",
+     "tts": "The app automatically compares every request with every property."
+    },
+    {
+     "text": "Scoring: property type, price, neighborhood, area, rooms, features — provided the transaction type and city match.",
+     "tts": "Scoring: property type, price, neighborhood, area, rooms, features, provided the transaction type and city match."
+    },
+    {
+     "text": "Choose the minimum score: 50%, 60%, 70%, or 80% and above.",
+     "tts": "Choose the minimum score: fifty percent, sixty percent, seventy percent, or eighty percent and above."
+    },
+    {
+     "text": "For each match: send the property to the client via WhatsApp, or schedule a viewing.",
+     "tts": "For each match: send the property to the client via WhatsApp, or schedule a viewing."
+    }
+   ],
+   "tip": {
+    "text": "Start your day with matches above 80%: they're the deals closest to signing.",
+    "tts": "Start your day with matches above eighty percent: they're the deals closest to signing."
+   },
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 7.0
+    }
+   ],
+   "music": {
+    "mood": "epic",
+    "intensity": 0.8
+   },
+   "fx": "flash",
+   "camera": "خطوط ضوئية ذهبية تربط بطاقات الزبناء بالعقارات (مؤثر بصري) ← توقف على أعلى نسبة.",
+   "tod": "tod-night"
+  },
+  {
+   "id": "12",
+   "kind": "scene",
+   "page": 19,
+   "num": "12",
+   "slate": "Scene 12 · EXT. — In front of a building — Morning",
+   "title": "Appointments and reminders",
+   "tagline": "Every viewing, right on time",
+   "imgs": [
+    "assets/s12-a.jpg",
+    "assets/s12-b.jpg"
+   ],
+   "screen": "“Everyone… on time”",
+   "narr": [
+    {
+     "text": "Ten in the morning: a viewing.",
+     "tts": "Ten in the morning: a viewing."
+    },
+    {
+     "text": "Twelve o'clock: a meeting.",
+     "tts": "Twelve o'clock: a meeting."
+    },
+    {
+     "text": "Four o'clock: signing at the notary's.",
+     "tts": "Four o'clock: signing at the notary's."
+    },
+    {
+     "text": "The app reminds you… and reminds your client on WhatsApp.",
+     "tts": "The app reminds you… and reminds your client on WhatsApp."
+    },
+    {
+     "text": "Everyone's on time.",
+     "tts": "Everyone's on time."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Appointments”, then “New appointment”.",
+     "tts": "Tap Appointments, then New appointment."
+    },
+    {
+     "text": "Choose the type: property viewing, office meeting, phone call, signing at the notary's.",
+     "tts": "Choose the type: property viewing, office meeting, phone call, signing at the notary's."
+    },
+    {
+     "text": "Set the date, time, place, linked property, and alert time.",
+     "tts": "Set the date, time, place, linked property, and alert time."
+    },
+    {
+     "text": "In the appointments list: “Remind client” via WhatsApp, “Add to calendar” for your phone's agenda, and “Done”.",
+     "tts": "In the appointments list: Remind client, via WhatsApp. Add to calendar, for your phone's agenda. And Done."
+    }
+   ],
+   "tip": {
+    "text": "Send the client a reminder one hour before the appointment — attendance goes up dramatically.",
+    "tts": "Send the client a reminder one hour before the appointment: attendance goes up dramatically."
+   },
+   "sfx": [
+    {
+     "name": "tick",
+     "at": 0.3,
+     "dur": 6
+    },
+    {
+     "name": "notif",
+     "at": 7.0
+    }
+   ],
+   "music": {
+    "mood": "steady",
+    "intensity": 0.65
+   },
+   "fx": "",
+   "camera": "ساعة حائط تدور بسرعة (Time-lapse) ← تنبيه على الهاتف ← الزبون يصل في الوقت.",
+   "tod": "tod-morning"
+  },
+  {
+   "id": "13",
+   "kind": "scene",
+   "page": 20,
+   "num": "13",
+   "slate": "Scene 13 · INT. — The owner's living room — Day",
+   "title": "Comparing the price with the market",
+   "tagline": "Official figures that convince everyone",
+   "imgs": [
+    "assets/s13-a.jpg",
+    "assets/s13-b.jpg"
+   ],
+   "screen": "“Numbers end the debate”",
+   "narr": [
+    {
+     "text": "The owner is sure his house is worth more… No arguing.",
+     "tts": "The owner is sure his house is worth more… No arguing."
+    },
+    {
+     "text": "Just numbers. The price per square meter in the neighborhood… versus his price.",
+     "tts": "Just numbers. The price per square meter in the neighborhood… versus his price."
+    },
+    {
+     "text": "Thirty-five percent higher.",
+     "tts": "Thirty-five percent higher."
+    },
+    {
+     "text": "Official figures… end the debate.",
+     "tts": "Official figures… end the debate."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Price comparison”.",
+     "tts": "Tap Price comparison."
+    },
+    {
+     "text": "Choose the city, neighborhood and property type, then enter the area and the asking price.",
+     "tts": "Choose the city, neighborhood and property type, then enter the area and the asking price."
+    },
+    {
+     "text": "Instant result: the asking price per m² versus the market price per m².",
+     "tts": "Instant result: the asking price per square meter, versus the market price per square meter."
+    },
+    {
+     "text": "A percentage in green (below market) or red (above market), plus the estimated value in million centimes.",
+     "tts": "A percentage in green, below market, or in red, above market, plus the estimated value in million centimes."
+    },
+    {
+     "text": "Sources: real-estate asset price indices (Land Registry and Bank Al-Maghrib) and market platforms.",
+     "tts": "Sources: the real estate asset price indices from the Land Registry and Bank Al Maghrib, and market platforms."
+    }
+   ],
+   "tip": {
+    "text": "Show this screen to a hesitant owner: numbers will convince him better than any words.",
+    "tts": "Show this screen to a hesitant owner: numbers will convince him better than any words."
+   },
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 6.0,
+     "gain": 0.5
+    }
+   ],
+   "music": {
+    "mood": "build",
+    "intensity": 0.7
+   },
+   "fx": "",
+   "camera": "لقطة متقابلة (Shot/Reverse) بين الوكيل والمالك ← الهاتف يُدار نحو المالك ← وجهه يتغير.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "14",
+   "kind": "scene",
+   "page": 21,
+   "num": "14",
+   "slate": "Scene 14 · INT. — The agency office — Day",
+   "title": "Contract library",
+   "tagline": "More than 20 ready-made contracts",
+   "imgs": [
+    "assets/s14-a.jpg"
+   ],
+   "screen": "“20+ ready-made contracts”",
+   "narr": [
+    {
+     "text": "A lease? A promise of sale?",
+     "tts": "A lease? A promise of sale?"
+    },
+    {
+     "text": "A viewing slip that protects your commission?",
+     "tts": "A viewing slip that protects your commission?"
+    },
+    {
+     "text": "More than twenty contracts… ready to go.",
+     "tts": "More than twenty contracts… ready to go."
+    },
+    {
+     "text": "Choose… download… print.",
+     "tts": "Choose… download… print."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Contracts” in the bottom bar.",
+     "tts": "Tap Contracts in the bottom bar."
+    },
+    {
+     "text": "Pick a template: residential, commercial or furnished lease, promise of sale, agency mandate, deposit receipt, inspection report, viewing slip…",
+     "tts": "Pick a template: residential, commercial or furnished lease, promise of sale, agency mandate, deposit receipt, inspection report, viewing slip…"
+    },
+    {
+     "text": "For each contract: view, download, print.",
+     "tts": "For each contract: view, download, print."
+    },
+    {
+     "text": "Editable official templates (Word): final sale, gift deed (hiba), exchange, rahn (pledge) — to be drawn up by a notary.",
+     "tts": "Editable official templates, in Word format: final sale, gift deed, called hiba, exchange, rahn, meaning pledge… to be drawn up by a notary."
+    }
+   ],
+   "tip": {
+    "text": "Use the “Viewing slip” before every viewing: it legally protects your commission.",
+    "tts": "Use the Viewing slip before every viewing: it legally protects your commission."
+   },
+   "sfx": [
+    {
+     "name": "page",
+     "at": 1.0
+    },
+    {
+     "name": "page",
+     "at": 1.4
+    },
+    {
+     "name": "typing",
+     "at": 3.0,
+     "dur": 2
+    }
+   ],
+   "music": {
+    "mood": "electro",
+    "intensity": 0.7
+   },
+   "fx": "",
+   "camera": "بطاقات العقود تتساقط كأوراق لعب ثم تترتب ← طابعة تُخرج العقد.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "15",
+   "kind": "scene",
+   "page": 22,
+   "num": "15",
+   "slate": "Scene 15 · INT. — A young couple's home — Evening",
+   "title": "Steps to owning a property",
+   "tagline": "The buying guide, step by step",
+   "imgs": [
+    "assets/s15-a.jpg",
+    "assets/s15-b.jpg"
+   ],
+   "screen": "“From broker… to trusted advisor”",
+   "narr": [
+    {
+     "text": "A couple buying their first home… afraid of the unknown.",
+     "tts": "A couple buying their first home… afraid of the unknown."
+    },
+    {
+     "text": "You show them the way: ten steps.",
+     "tts": "You show them the way: ten steps."
+    },
+    {
+     "text": "Every fee. Every document.",
+     "tts": "Every fee. Every document."
+    },
+    {
+     "text": "You're no longer just a broker… you're the advisor they trust.",
+     "tts": "You're no longer just a broker… you're the advisor they trust."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Ownership” in the bottom bar.",
+     "tts": "Tap Ownership in the bottom bar."
+    },
+    {
+     "text": "Ten steps: budget and financing, viewing, legal checks, promise of sale, loan, documents, signing, registration, land titling…",
+     "tts": "Ten steps: budget and financing, viewing, legal checks, promise of sale, loan, documents, signing, registration, land titling…"
+    },
+    {
+     "text": "Cost calculator: registration duties, Land Registry fees, notary fees — based on the price.",
+     "tts": "Cost calculator: registration duties, Land Registry fees, notary fees… based on the price."
+    },
+    {
+     "text": "Content based on official sources: the Land Registry, the General Tax Directorate, the Finance Act.",
+     "tts": "Content based on official sources: the Land Registry, the General Tax Directorate, the Finance Act."
+    }
+   ],
+   "tip": {
+    "text": "Send this page to your client before the purchase: they'll arrive at the notary's prepared, and confident in you.",
+    "tts": "Send this page to your client before the purchase: they'll arrive at the notary's prepared, and confident in you."
+   },
+   "sfx": [],
+   "music": {
+    "mood": "emotional",
+    "intensity": 0.6
+   },
+   "fx": "",
+   "camera": "لقطة دافئة للزوجين أمام الحاسوب ← خط زمني يتقدم على الشاشة مرحلة بمرحلة.",
+   "tod": "tod-evening"
+  },
+  {
+   "id": "16",
+   "kind": "scene",
+   "page": 23,
+   "num": "16",
+   "slate": "Scene 16 · INT. — The agency meeting room — Morning",
+   "title": "Real-Estate Agent Academy",
+   "tagline": "Your team learns and grows",
+   "imgs": [
+    "assets/s16-a.jpg"
+   ],
+   "screen": "“Learn · Progress · Excel”",
+   "narr": [
+    {
+     "text": "A strong team… sells more.",
+     "tts": "A strong team… sells more."
+    },
+    {
+     "text": "Six training modules: law, valuation, marketing, financing.",
+     "tts": "Six training modules: law, valuation, marketing, financing."
+    },
+    {
+     "text": "Learn… progress… excel.",
+     "tts": "Learn… progress… excel."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Training” in the bottom bar.",
+     "tts": "Tap Training in the bottom bar."
+    },
+    {
+     "text": "Six modules: real-estate law, urban planning and technical inspection, valuation and appraisal, sales and prospecting, digital marketing, financing and loans.",
+     "tts": "Six modules: real estate law, urban planning and technical inspection, valuation and appraisal, sales and prospecting, digital marketing, financing and loans."
+    },
+    {
+     "text": "For each module: its sections, PDF download, printing, and the “I've read this module” checkmark to track your progress.",
+     "tts": "For each module: its sections, P D F download, printing, and the I've read this module checkmark, to track your progress."
+    }
+   ],
+   "tip": {
+    "text": "Set aside one hour a week for one module with your team — the results show in your sales.",
+    "tts": "Set aside one hour a week for one module with your team: the results show in your sales."
+   },
+   "sfx": [
+    {
+     "name": "digital",
+     "at": 2.0,
+     "count": 5,
+     "step": 0.5
+    }
+   ],
+   "music": {
+    "mood": "steady",
+    "intensity": 0.7
+   },
+   "fx": "",
+   "camera": "لقطة للفريق حول الطاولة ← علامات ✓ تظهر واحدة تلو الأخرى.",
+   "tod": "tod-morning"
+  },
+  {
+   "id": "17",
+   "kind": "scene",
+   "page": 24,
+   "num": "17",
+   "slate": "Scene 17 · INT. — A car on the highway — Night",
+   "title": "AI assistant",
+   "tagline": "It speaks Darija and answers out loud",
+   "imgs": [
+    "assets/s17-a.jpg",
+    "assets/s17-b.jpg"
+   ],
+   "screen": "“It speaks your language… and works with you 24/7”",
+   "narr": [
+    {
+     "text": "The road is long… hands on the wheel.",
+     "tts": "The road is long… hands on the wheel."
+    },
+    {
+     "text": "“What are my appointments tomorrow?”… and a voice answers you.",
+     "tts": "What are my appointments tomorrow?… and a voice answers you."
+    },
+    {
+     "text": "Your AI assistant understands Darija… it searches, reminds, adds… and works with you 24 hours a day.",
+     "tts": "Your A I assistant understands Dareeja… it searches, reminds, adds… and works with you twenty-four hours a day."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap the round button with the Group logo at the bottom of the screen.",
+     "tts": "Tap the round button with the Group logo at the bottom of the screen."
+    },
+    {
+     "text": "Type, or tap the microphone and speak: “I want a villa for sale between 100 and 200 million”.",
+     "tts": "Type, or tap the microphone and speak: I want a villa for sale between one hundred and two hundred million."
+    },
+    {
+     "text": "The assistant searches your properties, clients and appointments, and answers you by voice and in writing.",
+     "tts": "The assistant searches your properties, clients and appointments, and answers you by voice and in writing."
+    },
+    {
+     "text": "It understands Darija in Arabic and Latin script, plus Arabic, French, English, Spanish and Italian — pick the language at the top.",
+     "tts": "It understands Dareeja in Arabic and Latin script, plus Arabic, French, English, Spanish and Italian. Pick the language at the top."
+    },
+    {
+     "text": "It can also open any page, add a request or an appointment once you confirm, and give you legal guidance.",
+     "tts": "It can also open any page, add a request or an appointment once you confirm, and give you legal guidance."
+    }
+   ],
+   "tip": {
+    "text": "Use it while driving: “What are my appointments today?” — it reads you the answer out loud.",
+    "tts": "Use it while driving: What are my appointments today?… It reads you the answer out loud."
+   },
+   "sfx": [
+    {
+     "name": "engine",
+     "at": 0.0,
+     "dur": 6,
+     "gain": 0.6
+    },
+    {
+     "name": "digital",
+     "at": 5.0,
+     "count": 6
+    }
+   ],
+   "music": {
+    "mood": "electro",
+    "intensity": 0.6
+   },
+   "fx": "",
+   "camera": "أضواء الطريق تنعكس على الزجاج ← لقطة قريبة للهاتف على الحامل ← موجة صوتية متحركة على الشاشة.",
+   "tod": "tod-night"
+  },
+  {
+   "id": "P3",
+   "kind": "part",
+   "page": 25,
+   "emoji": "🌍",
+   "label": "Part three",
+   "title": "The Al Wassit 777 Network",
+   "list": [
+    {
+     "num": "18",
+     "title": "Al Wassit 777 Network portal"
+    },
+    {
+     "num": "19",
+     "title": "Network properties"
+    },
+    {
+     "num": "20",
+     "title": "Agency directory: in Morocco and abroad"
+    },
+    {
+     "num": "21",
+     "title": "My Account: your directory card"
+    },
+    {
+     "num": "22",
+     "title": "Real-estate brokers"
+    },
+    {
+     "num": "23",
+     "title": "Construction and finishing companies"
+    },
+    {
+     "num": "24",
+     "title": "Projects: find funding"
+    },
+    {
+     "num": "25",
+     "title": "Tracking my projects"
+    },
+    {
+     "num": "26",
+     "title": "Real-estate events"
+    },
+    {
+     "num": "27",
+     "title": "Real-estate news"
+    },
+    {
+     "num": "28",
+     "title": "Al Hiba (the gift): a roof for every family"
+    },
+    {
+     "num": "29",
+     "title": "Disputes: the instant legal solution"
+    },
+    {
+     "num": "30",
+     "title": "Referring the case to a specialist"
+    },
+    {
+     "num": "31",
+     "title": "Legal guide and my files"
+    }
+   ],
+   "narr": [
+    {
+     "text": "Part three… the Al Wassit 777 Network.",
+     "tts": "Part three… the Al Wasseet seven seven seven Network."
+    }
+   ],
+   "sfx": [],
+   "music": {
+    "mood": "build",
+    "intensity": 0.8
+   }
+  },
+  {
+   "id": "18",
+   "kind": "scene",
+   "page": 26,
+   "num": "18",
+   "slate": "Scene 18 · EXT. — Morocco from above at night — Night",
+   "title": "Al Wassit 777 Network portal",
+   "tagline": "The largest connected real-estate network",
+   "imgs": [
+    "assets/s18-a.jpg",
+    "assets/s18-b.jpg"
+   ],
+   "screen": "“One network · One force”",
+   "narr": [
+    {
+     "text": "But… what if you weren't alone?",
+     "tts": "But… what if you weren't alone?"
+    },
+    {
+     "text": "Imagine… 777 agencies.",
+     "tts": "Imagine… seven hundred seventy-seven agencies."
+    },
+    {
+     "text": "And just as many brokers.",
+     "tts": "And just as many brokers."
+    },
+    {
+     "text": "Construction companies… and finishing companies.",
+     "tts": "Construction companies… and finishing companies."
+    },
+    {
+     "text": "One network. One force.",
+     "tts": "One network. One force."
+    },
+    {
+     "text": "This… is the Al Wassit 777 Group.",
+     "tts": "This… is the Al Wasseet seven seven seven Group."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Once logged in to your account, you'll find the “✦ Al Wassit 777 Network” portal on the home screen.",
+     "tts": "Once logged in to your account, you'll find the Al Wasseet seven seven seven Network portal on the home screen."
+    },
+    {
+     "text": "Real-estate agencies: 777 agencies — 700 in Morocco and 77 abroad.",
+     "tts": "Real estate agencies: seven hundred seventy-seven agencies. Seven hundred in Morocco, and seventy-seven abroad."
+    },
+    {
+     "text": "Brokers: 777 · Construction companies: 777 · Finishing companies: 777.",
+     "tts": "Brokers: seven hundred seventy-seven. Construction companies: seven hundred seventy-seven. Finishing companies: seven hundred seventy-seven."
+    },
+    {
+     "text": "Then: Projects (seeking funding), Events, News, Al Hiba (the gift) and Disputes.",
+     "tts": "Then: projects, for seeking funding, events, news, Al Hiba, the gift, and disputes."
+    }
+   ],
+   "tip": {
+    "text": "The network is open to every subscriber with an account activated by the Al Wassit 777 office.",
+    "tts": "The network is open to every subscriber with an account activated by the Al Wasseet seven seven seven office."
+   },
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 1.0
+    },
+    {
+     "name": "whoosh",
+     "at": 1.2
+    }
+   ],
+   "music": {
+    "mood": "epic",
+    "intensity": 1.0
+   },
+   "fx": "flash",
+   "camera": "خريطة المغرب ليلا تضيء نقطة بعد نقطة ← نقاط خارج الحدود تضيء (أوروبا) ← انتقال إلى الخانات التسع.",
+   "tod": "tod-night"
+  },
+  {
+   "id": "19",
+   "kind": "scene",
+   "page": 27,
+   "num": "19",
+   "slate": "Scene 19 · INT. — Two agencies in two cities — Day",
+   "title": "Network properties",
+   "tagline": "Thousands of properties at your fingertips",
+   "imgs": [
+    "assets/s19-a.jpg",
+    "assets/s19-b.jpg"
+   ],
+   "screen": "“50/50 — Everyone wins”",
+   "narr": [
+    {
+     "text": "Your client in Meknes… wants a house in Fez.",
+     "tts": "Your client in Meknes… wants a house in Fez."
+    },
+    {
+     "text": "Until now? A lost deal.",
+     "tts": "Until now? A lost deal."
+    },
+    {
+     "text": "Today? A partner agency in Fez… the property is there… and the commission is split 50/50.",
+     "tts": "Today? A partner agency in Fez… the property is there… and the commission is split fifty-fifty."
+    },
+    {
+     "text": "No property sits idle… no client slips away.",
+     "tts": "No property sits idle… no client slips away."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Real-estate agencies” → “Network properties”.",
+     "tts": "Tap Real estate agencies, then Network properties."
+    },
+    {
+     "text": "Your available properties are shared automatically with the network — without the owner's name or phone number.",
+     "tts": "Your available properties are shared automatically with the network, without the owner's name or phone number."
+    },
+    {
+     "text": "Filter by region (in / outside Morocco), transaction, type, city and agency.",
+     "tts": "Filter by region, in or outside Morocco, by transaction, type, city and agency."
+    },
+    {
+     "text": "Open the property, then contact the listing agency by phone or WhatsApp to work together.",
+     "tts": "Open the property, then contact the listing agency by phone or WhatsApp to work together."
+    },
+    {
+     "text": "Commission: 50% to the property's agency and 50% to the client's agency.",
+     "tts": "Commission: fifty percent to the property's agency, and fifty percent to the client's agency."
+    }
+   ],
+   "tip": {
+    "text": "Client looking in another city? Don't lose them: search the network properties and split the commission.",
+    "tts": "Client looking in another city? Don't lose them: search the network properties and split the commission."
+   },
+   "sfx": [
+    {
+     "name": "glass",
+     "at": 4.0
+    }
+   ],
+   "music": {
+    "mood": "warm",
+    "intensity": 0.8
+   },
+   "fx": "",
+   "camera": "شاشة مقسومة (Split screen): وكيل في مكناس ووكيل في فاس ← يتصافحان رقميا بإيموجي 🤝.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "20",
+   "kind": "scene",
+   "page": 28,
+   "num": "20",
+   "slate": "Scene 20 · EXT. — Paris and Brussels — Day",
+   "title": "Agency directory: in Morocco and abroad",
+   "tagline": "700 in Morocco · 77 worldwide",
+   "imgs": [
+    "assets/s20-a.jpg",
+    "assets/s20-b.jpg"
+   ],
+   "screen": "“700 🇲🇦 + 77 🌍”",
+   "narr": [
+    {
+     "text": "700 agencies in Morocco… and 77 across Europe and the world.",
+     "tts": "Seven hundred agencies in Morocco… and seventy-seven across Europe and the world."
+    },
+    {
+     "text": "Moroccans abroad are looking for trust… and the bridge is ready.",
+     "tts": "Moroccans abroad are looking for trust… and the bridge is ready."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Real-estate agencies” → “Directory”.",
+     "tts": "Tap Real estate agencies, then Directory."
+    },
+    {
+     "text": "Seat counters: in Morocco, abroad, and seats remaining.",
+     "tts": "Seat counters: in Morocco, abroad, and seats remaining."
+    },
+    {
+     "text": "Filter by region: 🇲🇦 in Morocco (700) or 🌍 outside Morocco (77), then by city and service.",
+     "tts": "Filter by region: in Morocco, seven hundred, or outside Morocco, seventy-seven. Then by city and service."
+    },
+    {
+     "text": "Each agency shows: name, city, country, services, a short bio, and Phone and WhatsApp buttons.",
+     "tts": "Each agency shows: name, city, country, services, a short bio, and Phone and WhatsApp buttons."
+    }
+   ],
+   "tip": {
+    "text": "Agencies outside Morocco are your bridge to Moroccans abroad: big-budget clients looking for someone they can trust.",
+    "tts": "Agencies outside Morocco are your bridge to Moroccans abroad: big-budget clients looking for someone they can trust."
+   },
+   "sfx": [
+    {
+     "name": "engine",
+     "at": 0.5,
+     "dur": 5,
+     "gain": 0.4
+    }
+   ],
+   "music": {
+    "mood": "steady",
+    "intensity": 0.75
+   },
+   "fx": "",
+   "camera": "لقطات سريعة لبرج إيفل وبروكسيل ← دبوس على الخريطة ← بطاقات الوكالات بالخارج.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "21",
+   "kind": "scene",
+   "page": 29,
+   "num": "21",
+   "slate": "Scene 21 · INT. — The agency office — Day",
+   "title": "My Account: your directory card",
+   "tagline": "Be visible to the whole network",
+   "imgs": [
+    "assets/s21-a.jpg",
+    "assets/s21-b.jpg"
+   ],
+   "screen": "“Be visible… to the entire network”",
+   "narr": [
+    {
+     "text": "Your card is your shop window.",
+     "tts": "Your card is your shop window."
+    },
+    {
+     "text": "Your name. Your city. Your services… in one tap.",
+     "tts": "Your name. Your city. Your services… in one tap."
+    },
+    {
+     "text": "Complete it… and the whole network will see you.",
+     "tts": "Complete it… and the whole network will see you."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “My Account”.",
+     "tts": "Tap My Account."
+    },
+    {
+     "text": "Enter your official name, phone, WhatsApp and city.",
+     "tts": "Enter your official name, phone, WhatsApp and city."
+    },
+    {
+     "text": "Pick your services with one tap on the ready-made suggestions, or type them in.",
+     "tts": "Pick your services with one tap on the ready-made suggestions, or type them in."
+    },
+    {
+     "text": "Add a short bio: your experience, your areas, what sets you apart.",
+     "tts": "Add a short bio: your experience, your areas, what sets you apart."
+    },
+    {
+     "text": "Tap “Save”: your card instantly appears in the directory for all members.",
+     "tts": "Tap Save: your card instantly appears in the directory for all members."
+    }
+   ],
+   "tip": {
+    "text": "Complete card = more calls. Leave no field empty.",
+    "tts": "A complete card means more calls. Leave no field empty."
+   },
+   "sfx": [
+    {
+     "name": "digital",
+     "at": 2.0,
+     "count": 5,
+     "step": 0.45
+    }
+   ],
+   "music": {
+    "mood": "build",
+    "intensity": 0.75
+   },
+   "fx": "",
+   "camera": "بطاقة تتشكل تدريجيا (تأثير بناء) ← تنضم إلى شبكة البطاقات في الدليل.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "22",
+   "kind": "scene",
+   "page": 30,
+   "num": "22",
+   "slate": "Scene 22 · EXT. — A working-class neighborhood — Day",
+   "title": "Real-estate brokers",
+   "tagline": "777 brokers in one network",
+   "imgs": [
+    "assets/s22-a.jpg"
+   ],
+   "screen": "“777 brokers join the force”",
+   "narr": [
+    {
+     "text": "The broker who knows every alley… every house… every owner.",
+     "tts": "The broker who knows every alley… every house… every owner."
+    },
+    {
+     "text": "777 of them… are now part of the force.",
+     "tts": "Seven hundred seventy-seven of them… are now part of the force."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Brokers” in the portal.",
+     "tts": "Tap Brokers, in the portal."
+    },
+    {
+     "text": "Each broker logs in with a code like W001, then completes their card.",
+     "tts": "Each broker logs in with a code like W, zero zero one, then completes their card."
+    },
+    {
+     "text": "Brokers add their properties just like agencies, and those properties appear on the network.",
+     "tts": "Brokers add their properties just like agencies, and those properties appear on the network."
+    },
+    {
+     "text": "Search for a broker by city or service, and contact them directly.",
+     "tts": "Search for a broker by city or service, and contact them directly."
+    }
+   ],
+   "tip": {
+    "text": "A broker who knows the neighborhood well is a treasure: team up with them in cities you don't cover.",
+    "tts": "A broker who knows the neighborhood well is a treasure: team up with them in cities you don't cover."
+   },
+   "sfx": [
+    {
+     "name": "murmur",
+     "at": 0.0,
+     "dur": 6,
+     "gain": 0.6
+    }
+   ],
+   "music": {
+    "mood": "steady",
+    "intensity": 0.75
+   },
+   "fx": "",
+   "camera": "لقطة متتبعة (Tracking) لوسيط يمشي في الحي ويحيي الناس ← يرفع الهاتف ← بطاقته في الدليل.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "23",
+   "kind": "scene",
+   "page": 31,
+   "num": "23",
+   "slate": "Scene 23 · EXT. — A building site, then a finished apartment — Day",
+   "title": "Construction and finishing companies",
+   "tagline": "From foundations to the final touch",
+   "imgs": [
+    "assets/s23-a.jpg",
+    "assets/s23-b.jpg"
+   ],
+   "screen": "“From the foundations… to the final touch”",
+   "narr": [
+    {
+     "text": "From the first stone… to the final touch.",
+     "tts": "From the first stone… to the final touch."
+    },
+    {
+     "text": "Companies that build. Hands that craft beauty: zellige, marble, plasterwork, decor.",
+     "tts": "Companies that build. Hands that craft beauty: zelleej, marble, plasterwork, decor."
+    },
+    {
+     "text": "1554 companies… at your client's service.",
+     "tts": "One thousand five hundred fifty-four companies… at your client's service."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Construction companies” or “Finishing companies”.",
+     "tts": "Tap Construction companies, or Finishing companies."
+    },
+    {
+     "text": "Construction: villas and buildings, major works, land subdivision, renovation, turnkey building.",
+     "tts": "Construction: villas and buildings, major works, land subdivision, renovation, turnkey building."
+    },
+    {
+     "text": "Finishing: zellige and marble, plaster, painting, carpentry, aluminum, electrical, plumbing, decor.",
+     "tts": "Finishing: zelleej and marble, plaster, painting, carpentry, aluminum, electrical, plumbing, decor."
+    },
+    {
+     "text": "Filter by city and service, then call directly.",
+     "tts": "Filter by city and service, then call directly."
+    }
+   ],
+   "tip": {
+    "text": "Your client bought a property that needs work? Suggest a company from the network: an extra service that builds their trust in you.",
+    "tts": "Your client bought a property that needs work? Suggest a company from the network: an extra service that builds their trust in you."
+   },
+   "sfx": [
+    {
+     "name": "gavel",
+     "at": 1.0
+    }
+   ],
+   "music": {
+    "mood": "build",
+    "intensity": 0.75
+   },
+   "fx": "",
+   "camera": "انتقال مطابق (Match cut) من جدار إسمنتي إلى نفس الجدار مكسوا بالزليج.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "24",
+   "kind": "scene",
+   "page": 32,
+   "num": "24",
+   "slate": "Scene 24 · INT. — A luxurious meeting room — Day",
+   "title": "Projects: find funding",
+   "tagline": "Your idea deserves an investor",
+   "imgs": [
+    "assets/s24-a.jpg",
+    "assets/s24-b.jpg"
+   ],
+   "screen": "“Your idea… deserves to be built”",
+   "narr": [
+    {
+     "text": "You have land… a permit… and a dream.",
+     "tts": "You have land… a permit… and a dream."
+    },
+    {
+     "text": "All you're missing is the backer. Post your project: the amount, the partnership, the return.",
+     "tts": "All you're missing is the backer. Post your project: the amount, the partnership, the return."
+    },
+    {
+     "text": "The Al Wassit office reviews it… then every investor sees it.",
+     "tts": "The Al Wasseet office reviews it… then every investor sees it."
+    },
+    {
+     "text": "Your idea… deserves to be built.",
+     "tts": "Your idea… deserves to be built."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Projects”, then “Post a project”.",
+     "tts": "Tap Projects, then Post a project."
+    },
+    {
+     "text": "Enter the title, the type (residential, commercial, tourism, subdivision…), the city and the country.",
+     "tts": "Enter the title, the type, for example residential, commercial, tourism or subdivision, then the city and the country."
+    },
+    {
+     "text": "Set the funding you need and the type of partnership: profit share, equity stake, loan, off-plan sale…",
+     "tts": "Set the funding you need and the type of partnership: profit share, equity stake, loan, off-plan sale…"
+    },
+    {
+     "text": "Describe the project: land, permits, completion time, expected return, then tap “Submit for review”.",
+     "tts": "Describe the project: land, permits, completion time, expected return, then tap Submit for review."
+    },
+    {
+     "text": "Once the Al Wassit 777 office approves it, the project is shown to all subscribers, with Call and WhatsApp buttons.",
+     "tts": "Once the Al Wasseet seven seven seven office approves it, the project is shown to all subscribers, with Call and WhatsApp buttons."
+    }
+   ],
+   "tip": {
+    "text": "A project described with clear figures (area, permit, return) attracts investors faster.",
+    "tts": "A project described with clear figures, such as the area, the permit and the return, attracts investors faster."
+   },
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 2.0
+    }
+   ],
+   "music": {
+    "mood": "build",
+    "intensity": 0.85
+   },
+   "fx": "",
+   "camera": "مخطط معماري ينبثق ثلاثي الأبعاد من الطاولة ← مبلغ «8 500 000 درهم» يظهر بالذهبي.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "25",
+   "kind": "scene",
+   "page": 33,
+   "num": "25",
+   "slate": "Scene 25 · INT. — The agency office — Day",
+   "title": "Tracking my projects",
+   "tagline": "Track every project step by step",
+   "imgs": [
+    "assets/s25-a.jpg"
+   ],
+   "screen": "“From idea… to funding”",
+   "narr": [
+    {
+     "text": "Track your project step by step… from review to publication… to the day you get to write: “Funded.”",
+     "tts": "Track your project step by step… from review to publication… to the day you get to write: funded."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “My projects”.",
+     "tts": "Tap My projects."
+    },
+    {
+     "text": "See each project's status: awaiting review, published, rejected (with the reason) or closed.",
+     "tts": "See each project's status: awaiting review, published, rejected with the reason, or closed."
+    },
+    {
+     "text": "The “Edit” button lets you improve the project — it goes back to review automatically.",
+     "tts": "The Edit button lets you improve the project. It goes back to review automatically."
+    },
+    {
+     "text": "Tap “Close” once you've found the funding.",
+     "tts": "Tap Close once you've found the funding."
+    }
+   ],
+   "tip": {
+    "text": "If your project is rejected, read the office's note, edit it and submit it again.",
+    "tts": "If your project is rejected, read the office's note, edit it and submit it again."
+   },
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 5.0
+    }
+   ],
+   "music": {
+    "mood": "warm",
+    "intensity": 0.7
+   },
+   "fx": "",
+   "camera": "شارة «في انتظار المراجعة» تتحول إلى «منشور» بتأثير تحول.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "26",
+   "kind": "scene",
+   "page": 34,
+   "num": "26",
+   "slate": "Scene 26 · INT. — A real-estate fair hall — Day",
+   "title": "Real-estate events",
+   "tagline": "Never miss a fair",
+   "imgs": [
+    "assets/s26-a.jpg",
+    "assets/s26-b.jpg"
+   ],
+   "screen": "“The countdown… has begun”",
+   "narr": [
+    {
+     "text": "Riyadh… Cannes… Paris… Casablanca.",
+     "tts": "Riyadh… Cannes… Paris… Casablanca."
+    },
+    {
+     "text": "Every fair… every trade show… every opportunity.",
+     "tts": "Every fair… every trade show… every opportunity."
+    },
+    {
+     "text": "The countdown has begun. Are you ready?",
+     "tts": "The countdown has begun. Are you ready?"
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Events”.",
+     "tts": "Tap Events."
+    },
+    {
+     "text": "“Upcoming” tab: fairs, trade shows and conferences, with a countdown: “X days left”.",
+     "tts": "Upcoming tab: fairs, trade shows and conferences, with a countdown: X days left."
+    },
+    {
+     "text": "“Past” tab: an archive of previous events.",
+     "tts": "Past tab: an archive of previous events."
+    },
+    {
+     "text": "For each event: date, city and country, venue, description and a link to the details.",
+     "tts": "For each event: date, city and country, venue, description and a link to the details."
+    }
+   ],
+   "tip": {
+    "text": "Fairs are a golden opportunity to meet developers and Moroccans abroad — plan to attend with your team.",
+    "tts": "Fairs are a golden opportunity to meet developers and Moroccans abroad. Plan to attend with your team."
+   },
+   "sfx": [
+    {
+     "name": "murmur",
+     "at": 0.3,
+     "dur": 5,
+     "gain": 0.5
+    }
+   ],
+   "music": {
+    "mood": "steady",
+    "intensity": 0.8
+   },
+   "fx": "",
+   "camera": "لقطات سريعة لأروقة معارض مزدحمة ← رقم «باقي 41 يوم» يتناقص.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "27",
+   "kind": "scene",
+   "page": 35,
+   "num": "27",
+   "slate": "Scene 27 · INT. — The agency office — Early morning",
+   "title": "Real-estate news",
+   "tagline": "Automatically updated every day",
+   "imgs": [
+    "assets/s27-a.jpg",
+    "assets/s27-b.jpg"
+   ],
+   "screen": "“The first to know”",
+   "narr": [
+    {
+     "text": "Every morning… before your coffee.",
+     "tts": "Every morning… before your coffee."
+    },
+    {
+     "text": "The latest real-estate news, from Morocco and around the world.",
+     "tts": "The latest real estate news, from Morocco and around the world."
+    },
+    {
+     "text": "Subsidies… loans… prices.",
+     "tts": "Subsidies… loans… prices."
+    },
+    {
+     "text": "Always be… the first to know.",
+     "tts": "Always be… the first to know."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “News”.",
+     "tts": "Tap News."
+    },
+    {
+     "text": "“Morocco news” tab: housing, subsidies, loans, prices, major projects.",
+     "tts": "Morocco news tab: housing, subsidies, loans, prices, major projects."
+    },
+    {
+     "text": "“World news” tab: international property markets, the Gulf and Europe.",
+     "tts": "World news tab: international property markets, the Gulf and Europe."
+    },
+    {
+     "text": "Search by keyword (rent, loans, Meknes…), and tap a story to read it at its source.",
+     "tts": "Search by keyword, for example rent, loans or Meknes, and tap a story to read it at its source."
+    },
+    {
+     "text": "News is gathered automatically twice a day from news sources.",
+     "tts": "News is gathered automatically twice a day from news sources."
+    }
+   ],
+   "tip": {
+    "text": "Share important news with your clients (like the direct housing subsidy): they'll see you as a well-informed expert.",
+    "tts": "Share important news with your clients, like the direct housing subsidy: they'll see you as a well-informed expert."
+   },
+   "sfx": [
+    {
+     "name": "glass",
+     "at": 0.8,
+     "gain": 0.4
+    },
+    {
+     "name": "digital",
+     "at": 3.0,
+     "count": 4
+    }
+   ],
+   "music": {
+    "mood": "electro",
+    "intensity": 0.7
+   },
+   "fx": "",
+   "camera": "فنجان قهوة يُوضع بجانب الهاتف ← شريط الأخبار يتحرك على الشاشة.",
+   "tod": "tod-morning"
+  },
+  {
+   "id": "28",
+   "kind": "scene",
+   "page": 36,
+   "num": "28",
+   "slate": "Scene 28 · INT. — A modest home — Evening",
+   "title": "Al Hiba (the gift): a roof for every family",
+   "tagline": "Real estate in the service of people",
+   "imgs": [
+    "assets/s28-a.jpg",
+    "assets/s28-b.jpg"
+   ],
+   "screen": "“A roof for every family 🤲”",
+   "narr": [
+    {
+     "text": "Behind every door… a story.",
+     "tts": "Behind every door… a story."
+    },
+    {
+     "text": "A mother and three children… without a roof.",
+     "tts": "A mother and three children… without a roof."
+    },
+    {
+     "text": "At Al Wassit 777, real estate isn't just business… real estate is compassion.",
+     "tts": "At Al Wasseet seven seven seven, real estate isn't just business… real estate is compassion."
+    },
+    {
+     "text": "Contribute via the office… and give a family the key to safety.",
+     "tts": "Contribute via the office… and give a family the key to safety."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Al Hiba”.",
+     "tts": "Tap Al Hiba."
+    },
+    {
+     "text": "Published cases: rent, purchase or home repairs — no names or photos, to preserve dignity.",
+     "tts": "Published cases: rent, purchase or home repairs. No names or photos, to preserve dignity."
+    },
+    {
+     "text": "Each case shows a reference number (HB-…), the amount needed and a contributions bar.",
+     "tts": "Each case shows a reference number starting with H B, the amount needed and a contributions bar."
+    },
+    {
+     "text": "The “Contribute via the office” button opens the Al Wassit 777 office's WhatsApp with the case number.",
+     "tts": "The Contribute via the office button opens the Al Wasseet seven seven seven office's WhatsApp with the case number."
+    },
+    {
+     "text": "Know a family in need? Tap “Suggest a case”: the office verifies it before publishing.",
+     "tts": "Know a family in need? Tap Suggest a case: the office verifies it before publishing."
+    }
+   ],
+   "tip": {
+    "text": "Every contribution goes through the Al Wassit 777 office, with a receipt, so it reaches those who truly need it.",
+    "tts": "Every contribution goes through the Al Wasseet seven seven seven office, with a receipt, so it reaches those who truly need it."
+   },
+   "sfx": [
+    {
+     "name": "click",
+     "at": 1.5
+    }
+   ],
+   "music": {
+    "mood": "emotional",
+    "intensity": 0.7
+   },
+   "fx": "",
+   "camera": "لقطة بطيئة ليد طفل تمسك مفتاحا ← ضوء دافئ يملأ الغرفة ← شريط المساهمة يمتلئ.",
+   "tod": "tod-evening"
+  },
+  {
+   "id": "29",
+   "kind": "scene",
+   "page": 37,
+   "num": "29",
+   "slate": "Scene 29 · INT. — The agency office — Night",
+   "title": "Disputes: the instant legal solution",
+   "tagline": "Know your rights in one minute",
+   "imgs": [
+    "assets/s29-a.jpg",
+    "assets/s29-b.jpg"
+   ],
+   "screen": "“Know your rights… in one minute”",
+   "narr": [
+    {
+     "text": "A tenant who hasn't paid in five months.",
+     "tts": "A tenant who hasn't paid in five months."
+    },
+    {
+     "text": "A developer running late on delivery.",
+     "tts": "A developer running late on delivery."
+    },
+    {
+     "text": "Heirs at odds… sleepless nights.",
+     "tts": "Heirs at odds… sleepless nights."
+    },
+    {
+     "text": "The Disputes section tells you instantly: what the law says… what steps to take… and who the right specialist is.",
+     "tts": "The Disputes section tells you instantly: what the law says… what steps to take… and who the right specialist is."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Tap “Disputes”.",
+     "tts": "Tap Disputes."
+    },
+    {
+     "text": "Choose the type of problem: rent, commercial lease, syndic, inheritance, sale and deposit, property developer, land titling, construction, taxes, commission, expropriation…",
+     "tts": "Choose the type of problem: rent, commercial lease, syndic, inheritance, sale and deposit, property developer, land titling, construction, taxes, commission, expropriation…"
+    },
+    {
+     "text": "Guidance appears instantly: the relevant Moroccan laws, the suggested steps and the right specialist.",
+     "tts": "Guidance appears instantly: the relevant Moroccan laws, the suggested steps, and the right specialist."
+    },
+    {
+     "text": "Enter a short title and describe the problem, then tap “Give me the legal solution”.",
+     "tts": "Enter a short title and describe the problem, then tap Give me the legal solution."
+    }
+   ],
+   "tip": {
+    "text": "Your file is fully confidential: only you and the Al Wassit 777 office can see it.",
+    "tts": "Your file is fully confidential: only you and the Al Wasseet seven seven seven office can see it."
+   },
+   "sfx": [
+    {
+     "name": "tick",
+     "at": 0.2,
+     "dur": 5
+    }
+   ],
+   "music": {
+    "mood": "tense",
+    "intensity": 0.5
+   },
+   "fx": "",
+   "camera": "لقطة متوترة: إضاءة خافتة، رجل يقرأ رسالة إنذار ← يفتح التطبيق ← الضوء يتحول تدريجيا إلى دافئ.",
+   "tod": "tod-night"
+  },
+  {
+   "id": "30",
+   "kind": "scene",
+   "page": 38,
+   "num": "30",
+   "slate": "Scene 30 · INT. — A law firm — Day",
+   "title": "Referring the case to a specialist",
+   "tagline": "Lawyers, notaries and adouls at your service",
+   "imgs": [
+    "assets/s30-a.jpg",
+    "assets/s30-b.jpg"
+   ],
+   "screen": "“You're not alone… ever”",
+   "narr": [
+    {
+     "text": "And a complex dispute?",
+     "tts": "And a complex dispute?"
+    },
+    {
+     "text": "One tap… and your file is in the specialist's hands.",
+     "tts": "One tap… and your file is in the specialist's hands."
+    },
+    {
+     "text": "Lawyer. Notary. Adouls. Accountant.",
+     "tts": "Lawyer. Notary. Adouls. Accountant."
+    },
+    {
+     "text": "You… are never alone.",
+     "tts": "You… are never alone."
+    }
+   ],
+   "steps": [
+    {
+     "text": "Once saved, your file gets a number (NZ-…) along with legal guidance.",
+     "tts": "Once saved, your file gets a number starting with N Z, along with legal guidance."
+    },
+    {
+     "text": "Complex problem? Tap “Refer to a specialist”.",
+     "tts": "Complex problem? Tap Refer to a specialist."
+    },
+    {
+     "text": "Choose: lawyer, notary, adouls, accountant, legal adviser or real-estate adviser — and confirm your phone number.",
+     "tts": "Choose: lawyer, notary, adools, accountant, legal adviser or real estate adviser. Then confirm your phone number."
+    },
+    {
+     "text": "The office calls you and guides you; you can speed things up via WhatsApp.",
+     "tts": "The office calls you and guides you. You can speed things up via WhatsApp."
+    },
+    {
+     "text": "The “Ask the AI assistant” button gives you an initial analysis of your case.",
+     "tts": "The Ask the A I assistant button gives you an initial analysis of your case."
+    }
+   ],
+   "tip": {
+    "text": "The app's guidance is general, not an official consultation — for complex cases, always refer the file.",
+    "tts": "The app's guidance is general, not an official consultation. For complex cases, always refer the file."
+   },
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 3.0
+    }
+   ],
+   "music": {
+    "mood": "warm",
+    "intensity": 0.7
+   },
+   "fx": "",
+   "camera": "الملف ينزلق رقميا من الهاتف إلى مكتب محام ← المحامي يرفع رأسه ويبتسم.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "31",
+   "kind": "scene",
+   "page": 39,
+   "num": "31",
+   "slate": "Scene 31 · INT. — A law library — Day",
+   "title": "Legal guide and my files",
+   "tagline": "A legal library and transparent tracking",
+   "imgs": [
+    "assets/s31-a.jpg",
+    "assets/s31-b.jpg"
+   ],
+   "screen": "“From problem… to solution”",
+   "narr": [
+    {
+     "text": "A complete legal library in your hands… and all your files before your eyes.",
+     "tts": "A complete legal library in your hands… and all your files before your eyes."
+    },
+    {
+     "text": "From filing… to resolution.",
+     "tts": "From filing… to resolution."
+    }
+   ],
+   "steps": [
+    {
+     "text": "“Legal guide” tab: every type of dispute, with the laws and the steps.",
+     "tts": "Legal guide tab: every type of dispute, with the laws and the steps."
+    },
+    {
+     "text": "“My files” tab: each file's status (new, referred, in progress, closed), the specialist and the office's reply.",
+     "tts": "My files tab: each file's status, whether new, referred, in progress or closed, the specialist, and the office's reply."
+    },
+    {
+     "text": "Close the file once the problem is solved.",
+     "tts": "Close the file once the problem is solved."
+    }
+   ],
+   "tip": {
+    "text": "Go through the legal guide with your clients before signing any contract: prevention beats litigation.",
+    "tts": "Go through the legal guide with your clients before signing any contract: prevention beats litigation."
+   },
+   "sfx": [
+    {
+     "name": "page",
+     "at": 1.0
+    },
+    {
+     "name": "page",
+     "at": 1.5
+    },
+    {
+     "name": "page",
+     "at": 2.0
+    }
+   ],
+   "music": {
+    "mood": "piano",
+    "intensity": 0.6
+   },
+   "fx": "",
+   "camera": "كتب قانون تنفتح وتتحول صفحاتها إلى بطاقات رقمية.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "P4",
+   "kind": "part",
+   "page": 40,
+   "emoji": "👑",
+   "label": "Part four",
+   "title": "The manager's dashboard",
+   "list": [
+    {
+     "num": "32",
+     "title": "Account management (manager)"
+    },
+    {
+     "num": "33",
+     "title": "Reviewing projects and donations"
+    },
+    {
+     "num": "34",
+     "title": "Handling disputes"
+    }
+   ],
+   "narr": [
+    {
+     "text": "Part four… the manager's dashboard.",
+     "tts": "Part four… the manager's dashboard."
+    }
+   ],
+   "sfx": [],
+   "music": {
+    "mood": "build",
+    "intensity": 0.7
+   }
+  },
+  {
+   "id": "32",
+   "kind": "scene",
+   "page": 41,
+   "num": "32",
+   "slate": "Scene 32 · INT. — Al Wassit 777 Group headquarters — Night",
+   "title": "Account management (manager)",
+   "tagline": "777 × 4 accounts under your control",
+   "imgs": [
+    "assets/s32-a.jpg",
+    "assets/s32-b.jpg"
+   ],
+   "screen": "“Command center 👑”",
+   "narr": [
+    {
+     "text": "And at the heart of it all… the command center.",
+     "tts": "And at the heart of it all… the command center."
+    },
+    {
+     "text": "More than three thousand accounts.",
+     "tts": "More than three thousand accounts."
+    },
+    {
+     "text": "Activate… edit… and send login details over WhatsApp in one tap.",
+     "tts": "Activate… edit… and send login details over WhatsApp in one tap."
+    },
+    {
+     "text": "A giant network… and simple control.",
+     "tts": "A giant network… and simple control."
+    }
+   ],
+   "steps": [
+    {
+     "text": "In each section (Agencies, Brokers, Construction, Finishing), the manager sees the “🔑 Admin (777)” tab.",
+     "tts": "In each section, agencies, brokers, construction and finishing, the manager sees the Admin seven seven seven tab."
+    },
+    {
+     "text": "Stats: total accounts, activated, profiles completed, in / outside Morocco, and those that added properties.",
+     "tts": "Stats: total accounts, activated, profiles completed, in or outside Morocco, and those that added properties."
+    },
+    {
+     "text": "The 👁 button shows the password, and the “Send login” button sends the code and password to the member via WhatsApp.",
+     "tts": "The eye button shows the password, and the Send login button sends the code and password to the member via WhatsApp."
+    },
+    {
+     "text": "The ✏️ button edits the name, phone, city, country and services; there's also a “Suspend / Activate” button.",
+     "tts": "The pencil button edits the name, phone, city, country and services. There's also a Suspend or Activate button."
+    }
+   ],
+   "tip": {
+    "text": "Only the manager can see passwords — share them only with the account holder.",
+    "tts": "Only the manager can see passwords. Share them only with the account holder."
+   },
+   "sfx": [
+    {
+     "name": "engine",
+     "at": 0.0,
+     "dur": 6,
+     "gain": 0.35
+    }
+   ],
+   "music": {
+    "mood": "build",
+    "intensity": 0.5
+   },
+   "fx": "",
+   "camera": "لقطة من خلف المدير أمام شاشات متعددة مضيئة ← زوم على زر «صيفط الدخول».",
+   "tod": "tod-night"
+  },
+  {
+   "id": "33",
+   "kind": "scene",
+   "page": 42,
+   "num": "33",
+   "slate": "Scene 33 · INT. — The Group's headquarters — Day",
+   "title": "Reviewing projects and donations",
+   "tagline": "Quality and trust before publishing",
+   "imgs": [
+    "assets/s33-a.jpg",
+    "assets/s33-b.jpg"
+   ],
+   "screen": "“Trust… is our capital”",
+   "narr": [
+    {
+     "text": "Nothing appears on the network… until it has been reviewed.",
+     "tts": "Nothing appears on the network… until it has been reviewed."
+    },
+    {
+     "text": "A project… a humanitarian case… everything, handled with care.",
+     "tts": "A project… a humanitarian case… everything, handled with care."
+    },
+    {
+     "text": "Because trust… is our capital.",
+     "tts": "Because trust… is our capital."
+    }
+   ],
+   "steps": [
+    {
+     "text": "The “🛡️ Review” tab in Projects and in Al Hiba (the gift).",
+     "tts": "The Review tab, in Projects and in Al Hiba, the gift."
+    },
+    {
+     "text": "For each request: “✅ Publish” or “✖ Reject”, with a written reason for the submitter.",
+     "tts": "For each request: Publish, or Reject, with a written reason for the submitter."
+    },
+    {
+     "text": "In Al Hiba: the “💰 Contributions” button records the amount received and marks the request “Funded”.",
+     "tts": "In Al Hiba: the Contributions button records the amount received and marks the request as Funded."
+    }
+   ],
+   "tip": {
+    "text": "Review requests every day: fast publishing encourages members to take part.",
+    "tts": "Review requests every day: fast publishing encourages members to take part."
+   },
+   "sfx": [
+    {
+     "name": "stamp",
+     "at": 4.0
+    }
+   ],
+   "music": {
+    "mood": "warm",
+    "intensity": 0.6
+   },
+   "fx": "",
+   "camera": "ختم رقمي «✅ منشور» يُطبع على البطاقة بحركة بطيئة.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "34",
+   "kind": "scene",
+   "page": 43,
+   "num": "34",
+   "slate": "Scene 34 · INT. — The Group's headquarters — Day",
+   "title": "Handling disputes",
+   "tagline": "Every file finds a solution",
+   "imgs": [
+    "assets/s34-a.jpg",
+    "assets/s34-b.jpg"
+   ],
+   "screen": "Every file… finds a solution",
+   "narr": [
+    {
+     "text": "And every dispute that comes in… finds its way to a solution.",
+     "tts": "And every dispute that comes in… finds its way to a solution."
+    },
+    {
+     "text": "The status… the specialist… and the reply reaches the file owner instantly.",
+     "tts": "The status… the specialist… and the reply reaches the file owner instantly."
+    },
+    {
+     "text": "This isn't a service… it's a responsibility.",
+     "tts": "This isn't a service… it's a responsibility."
+    }
+   ],
+   "steps": [
+    {
+     "text": "The “🛡️ All files” tab in Disputes.",
+     "tts": "The All files tab, in Disputes."
+    },
+    {
+     "text": "Counters: new, referred to the office, in progress, closed.",
+     "tts": "Counters: new, referred to the office, in progress, closed."
+    },
+    {
+     "text": "“⚙️ Process” button: change the status, choose the specialist and write a reply the file owner will see.",
+     "tts": "Process button: change the status, choose the specialist, and write a reply the file owner will see."
+    },
+    {
+     "text": "WhatsApp button to contact the file owner directly.",
+     "tts": "WhatsApp button to contact the file owner directly."
+    }
+   ],
+   "tip": {
+    "text": "Build a network of trusted specialists (lawyers, notaries, adouls) to refer files quickly.",
+    "tts": "Build a network of trusted specialists, lawyers, notaries, adools, to refer files quickly."
+   },
+   "sfx": [
+    {
+     "name": "notif",
+     "at": 5.0
+    }
+   ],
+   "music": {
+    "mood": "build",
+    "intensity": 0.8
+   },
+   "fx": "",
+   "camera": "رسالة «رد المكتب» تطير من شاشة المدير إلى هاتف العضو الذي يتنفس بارتياح.",
+   "tod": "tod-day"
+  },
+  {
+   "id": "END",
+   "kind": "closing",
+   "page": 44,
+   "slate": "Closing · EXT. — A villa at sunset — Evening",
+   "photo": "assets/closing-villa.jpg",
+   "title": "Everything your real-estate agency needs… and more",
+   "checks": [
+    "Complete digital office that works even offline",
+    "AI assistant that speaks Darija and answers by voice",
+    "Network of 777 agencies, in Morocco and abroad",
+    "777 brokers and 1554 construction & finishing firms",
+    "Projects and funding, events and daily news",
+    "Legal guidance and referral to specialists",
+    "Al Hiba (the gift): real estate serving people",
+    "Fair 50/50 commission split between partners"
+   ],
+   "cta": "Joining is free this year",
+   "phone": "0777 777 959",
+   "screen": "“Al Wassit 777 Group — Together, we grow”",
+   "montage": [
+    "assets/s03-b.jpg",
+    "assets/s07-a.jpg",
+    "assets/s08-a.jpg",
+    "assets/s11-a.jpg",
+    "assets/s13-b.jpg",
+    "assets/s17-a.jpg",
+    "assets/s18-a.jpg",
+    "assets/s19-a.jpg",
+    "assets/s24-a.jpg",
+    "assets/s26-a.jpg",
+    "assets/s28-a.jpg",
+    "assets/s29-b.jpg"
+   ],
+   "narr": [
+    {
+     "text": "A complete digital office.",
+     "tts": "A complete digital office.",
+     "phase": "villa"
+    },
+    {
+     "text": "An AI assistant that speaks your language.",
+     "tts": "An A I assistant that speaks your language.",
+     "phase": "villa"
+    },
+    {
+     "text": "And a network of thousands of partners… in Morocco and around the world.",
+     "tts": "And a network of thousands of partners… in Morocco and around the world.",
+     "phase": "villa"
+    },
+    {
+     "text": "This isn't just an app… it's the future of your profession.",
+     "tts": "This isn't just an app… it's the future of your profession.",
+     "phase": "flash"
+    },
+    {
+     "text": "Al Wassit 777 Group.",
+     "tts": "Al Wasseet seven seven seven Group.",
+     "phase": "flash"
+    },
+    {
+     "text": "Everything your real-estate agency needs… and more.",
+     "tts": "Everything your real estate agency needs… and more.",
+     "phase": "checks"
+    },
+    {
+     "text": "Joining is free this year.",
+     "tts": "Joining is free this year.",
+     "phase": "cta"
+    },
+    {
+     "text": "WhatsApp: 0777 777 959.",
+     "tts": "WhatsApp: zero, seven, seven, seven… seven, seven, seven… nine, five, nine.",
+     "phase": "cta"
+    },
+    {
+     "text": "Al Wassit 777 Group… together, we grow.",
+     "tts": "Al Wasseet seven seven seven Group… together, we grow.",
+     "phase": "end"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "murmur",
+     "at": 0.5,
+     "dur": 3,
+     "gain": 0.3
+    }
+   ],
+   "music": {
+    "mood": "finale",
+    "intensity": 1.0
+   },
+   "camera": "عائلة تتسلم مفتاح الفيلا عند الغروب ← الوكيل يبتسم ← لقطات خاطفة (Flash montage) لأجمل شاشات التطبيق على الإيقاع ← سواد ← الشعار في الوسط مع رقم واتساب ثابتا 5 ثوان.",
+   "tod": "tod-evening"
+  }
+ ]
+}

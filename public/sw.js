@@ -17,7 +17,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
-  if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+  if (req.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/videos/')) return; // vidéos : lecture directe (trop lourdes pour le cache)
   // Réseau d'abord, cache en secours (hors connexion).
   event.respondWith(
     fetch(req)
