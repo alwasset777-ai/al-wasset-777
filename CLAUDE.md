@@ -15,3 +15,6 @@
 ## أوامر
 - خادم واحد `server.ts` يشغّل الموقع والـ API معاً: `npm run dev` للتطوير، `npm run build && npm start` للإنتاج (Cloud Run / AI Studio)، `npm run lint` للتحقق.
 - الحزم تُدار بـ `bun` (ملف `bun.lock`).
+
+## طريقة الخدمة
+- **قبل أي خدمة** طبّق الـ skill `brief-first` (`.claude/skills/brief-first/SKILL.md`): ملخص مهني دقيق + 2–3 أفكار جديدة، فابور فقط، وفالأخير شنو تدار/تجرب/ما تجربش.
