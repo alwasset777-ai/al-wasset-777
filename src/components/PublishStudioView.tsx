@@ -62,6 +62,27 @@ const TARGETS: TargetSpec[] = [
 ];
 const target = (id: StudioTarget) => TARGETS.find((x) => x.id === id)!;
 
+// Formats officiels de chaque réseau (2026) : le premier est celui par défaut.
+interface Fmt {
+  id: string;
+  label: string;
+  size: [number, number];
+}
+const F = (id: string, label: string, w: number, h: number): Fmt => ({ id, label, size: [w, h] });
+const POST = F('4:5', 'منشور عمودي', 1080, 1350);
+const SQUARE = F('1:1', 'مربع', 1080, 1080);
+const STORY = F('9:16', 'ستوري / ريلز', 1080, 1920);
+const FORMATS: Record<Target, Fmt[]> = {
+  facebook: [POST, SQUARE, STORY, F('wide', 'عريض (رابط)', 1200, 630)],
+  instagram: [POST, SQUARE, STORY],
+  tiktok: [F('9:16', 'عمودي 9:16', 1080, 1920)],
+  youtube: [F('9:16', 'Short عمودي', 1080, 1920), F('16:9', 'عريض 16:9', 1280, 720)],
+  upscrolled: [POST, SQUARE, STORY],
+  linkedin: [POST, F('1:1', 'مربع', 1200, 1200), F('wide', 'عريض', 1200, 627)],
+  twitter: [F('16:9', 'عريض 16:9', 1600, 900), POST, SQUARE],
+  threads: [POST, SQUARE, STORY],
+};
+
 const MAX_PHOTOS = 5;
 const FEATURE_TITLES = FEATURES.map((f) => f.title);
 const PREFS_KEY = 'studio.platforms'; // plateformes cochées + modèle de chacune (sur cet appareil)
@@ -73,14 +94,15 @@ const EMPTY: PosterData = {
 interface Prefs {
   selected: Target[];
   templates: Partial<Record<Target, string>>;
+  formats: Partial<Record<Target, string>>;
 }
 
 function readPrefs(): Prefs {
-  const fallback: Prefs = { selected: ['facebook', 'instagram', 'tiktok'], templates: {} };
+  const fallback: Prefs = { selected: ['facebook', 'instagram', 'tiktok'], templates: {}, formats: {} };
   try {
     const p = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null');
     if (!p || !Array.isArray(p.selected)) return fallback;
-    return { selected: p.selected.filter((t: Target) => TARGETS.some((x) => x.id === t)), templates: p.templates || {} };
+    return { selected: p.selected.filter((t: Target) => TARGETS.some((x) => x.id === t)), templates: p.templates || {}, formats: p.formats && typeof p.formats === 'object' ? p.formats : {} };
   } catch {
     return fallback;
   }
@@ -179,9 +201,12 @@ export const PublishStudioView: React.FC = () => {
   }, []);
   const templates = useMemo(() => [...BUILTIN_TEMPLATES, ...customTpls], [customTpls]);
   // Modèle choisi pour la plateforme, s'il convient à son format ; sinon le premier modèle (adaptable).
+  const fmtOf = (id: Target) => FORMATS[id].find((f) => f.id === prefs.formats?.[id]) || FORMATS[id][0];
+  const sizeOf = (id: Target) => fmtOf(id).size;
+  const chooseFormat = (id: Target, f: string) => setPrefs((p) => ({ ...p, formats: { ...(p.formats || {}), [id]: f } }));
   const tplOf = (id: Target) => {
     const t = templates.find((x) => x.id === prefs.templates[id]);
-    const [w, h] = target(id).size;
+    const [w, h] = sizeOf(id);
     return t && fitsAspect(t, w / h) ? t : DEFAULT_TEMPLATE;
   };
   const chooseTemplate = (id: Target, templateId: string) => setPrefs((p) => ({ ...p, templates: { ...p.templates, [id]: templateId } }));
@@ -284,10 +309,10 @@ export const PublishStudioView: React.FC = () => {
       const cache = new Map<string, Blob>(); // même modèle + même taille = même image
       const out: Poster[] = [];
       for (const id of selected) {
-        const t = target(id);
+        const size = sizeOf(id);
         const tpl = tplOf(id);
-        const key = `${tpl.id}|${t.size.join('x')}`;
-        if (!cache.has(key)) cache.set(key, await templateBlob(data, imgs, ...t.size, tpl));
+        const key = `${tpl.id}|${size.join('x')}`;
+        if (!cache.has(key)) cache.set(key, await templateBlob(data, imgs, ...size, tpl));
         const blob = cache.get(key)!;
         out.push({ target: id, blob, url: URL.createObjectURL(blob) });
       }
@@ -308,7 +333,7 @@ export const PublishStudioView: React.FC = () => {
   useBackClose(!!editor, () => setEditor(null));
 
   // Nom en lettres latines : les navigateurs ignorent souvent les noms de fichier en arabe.
-  const fileName = (id: Target, ext = 'jpg') => `annonce-${id}-${target(id).size.join('x')}.${ext}`;
+  const fileName = (id: Target, ext = 'jpg') => `annonce-${id}-${sizeOf(id).join('x')}.${ext}`;
   const posterOf = (id: StudioTarget) => posters?.find((p) => p.target === id);
 
   const sharePoster = (p: Poster, text = headlineOf(data)) =>
@@ -363,7 +388,7 @@ export const PublishStudioView: React.FC = () => {
             updatePost(id, { status: 'publié' });
           } else {
             // YouTube n'accepte que la vidéo : l'affiche devient un Short de 8 secondes.
-            const size = target(id).size;
+            const size = sizeOf(id);
             const video = id === 'youtube' ? await uploadMedia(batch, await templateVideo(data, imgs, ...size, tplOf(id)), fileName(id, 'mp4')) : undefined;
             const r = await schedulePost({
               network: id,
@@ -437,7 +462,7 @@ export const PublishStudioView: React.FC = () => {
                   <Logo t={t} small />
                   <span className="font-black">{t.label}</span>
                   <span className="text-xs text-[#999] font-bold" dir="ltr">
-                    {t.size.join('×')}
+                    {sizeOf(p.target).join('×')}
                   </span>
                   <span className="text-xs text-[#999] font-bold mr-auto">{tplOf(p.target).name}</span>
                 </div>
@@ -691,7 +716,8 @@ export const PublishStudioView: React.FC = () => {
               {TARGETS.map((t) => {
                 const on = prefs.selected.includes(t.id);
                 return (
-                  <div key={t.id} className={`flex items-center gap-3 p-2 rounded-2xl border ${on ? 'border-[#f3a3a6] bg-[#fffafa]' : 'border-[#ececec]'}`}>
+                  <div key={t.id} className={`p-2 rounded-2xl border ${on ? 'border-[#f3a3a6] bg-[#fffafa]' : 'border-[#ececec]'}`}>
+                  <div className="flex items-center gap-3">
                     <button onClick={() => toggleTarget(t.id)} aria-pressed={on} className="relative cursor-pointer" aria-label={t.label}>
                       <Logo t={t} on={on} />
                       {on && (
@@ -703,7 +729,7 @@ export const PublishStudioView: React.FC = () => {
                     <button onClick={() => toggleTarget(t.id)} className="flex-1 min-w-0 text-right cursor-pointer">
                       <span className={`block font-black ${on ? 'text-[#121212]' : 'text-[#999]'}`}>{t.label}</span>
                       <span className="block text-[11px] text-[#999] font-bold" dir="ltr" style={{ textAlign: 'right' }}>
-                        {t.size.join('×')}
+                        {sizeOf(t.id).join('×')}
                       </span>
                     </button>
                     <button
@@ -714,6 +740,31 @@ export const PublishStudioView: React.FC = () => {
                       <span className="truncate">{prefs.templates[t.id] ? tplOf(t.id).name : 'اختيار القالب'}</span>
                       <ChevronLeft className="w-3.5 h-3.5 shrink-0" />
                     </button>
+                  </div>
+                  {on && FORMATS[t.id].length > 1 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2" role="radiogroup" aria-label={`مقاس ${t.label}`}>
+                      {FORMATS[t.id].map((f) => {
+                        const sel = fmtOf(t.id).id === f.id;
+                        const [w, h] = f.size;
+                        const k = 16 / Math.max(w, h);
+                        return (
+                          <button
+                            key={f.id}
+                            role="radio"
+                            aria-checked={sel}
+                            onClick={() => chooseFormat(t.id, f.id)}
+                            className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 cursor-pointer ${sel ? 'bg-[#121212] text-white border-[#121212]' : 'bg-white text-[#555] border-[#e5e5e5]'}`}
+                          >
+                            <span className={`inline-block rounded-[3px] border-2 ${sel ? 'border-white' : 'border-[#999]'}`} style={{ width: w * k, height: h * k }} />
+                            {f.label}
+                            <span dir="ltr" className={sel ? 'text-white/70' : 'text-[#aaa]'}>
+                              {w}×{h}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   </div>
                 );
               })}
@@ -742,7 +793,7 @@ export const PublishStudioView: React.FC = () => {
             <div className="flex items-center gap-2 p-2">
               <Logo t={picking} small />
               <span className="font-black flex-1">
-                {picking.label} <span className="text-xs text-[#999]" dir="ltr">{picking.size.join('×')}</span>
+                {picking.label} <span className="text-xs text-[#999]" dir="ltr">{sizeOf(picking.id).join('×')}</span>
               </span>
               <button onClick={() => setPickerFor(null)} className="px-3 py-2 rounded-xl bg-white font-bold text-sm flex items-center gap-1 cursor-pointer">
                 <ArrowRight className="w-4 h-4" /> رجوع
@@ -750,7 +801,7 @@ export const PublishStudioView: React.FC = () => {
             </div>
             <TemplatePicker
               title="اختيار القالب"
-              aspect={picking.size[0] / picking.size[1]}
+              aspect={sizeOf(picking.id)[0] / sizeOf(picking.id)[1]}
               templates={templates}
               selectedId={tplOf(picking.id).id}
               data={data}

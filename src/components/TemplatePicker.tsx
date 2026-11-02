@@ -19,6 +19,33 @@ interface Props {
   version?: string; // change quand le logo change : vignettes redessinées
 }
 
+// Aperçu avant d'ajouter les photos : photos d'exemple (Wikimedia Commons, voir public/samples/credits.json)
+// et informations d'exemple pour les cases vides, pour voir le vrai rendu de chaque modèle.
+const SAMPLES = ['salon', 'kitchen', 'bedroom', 'bathroom', 'balcony'];
+let samplesP: Promise<HTMLImageElement[]> | null = null;
+const loadSamples = () =>
+  (samplesP ||= Promise.all(
+    SAMPLES.map(
+      (k) =>
+        new Promise<HTMLImageElement | null>((res) => {
+          const i = new Image();
+          i.onload = () => res(i);
+          i.onerror = () => res(null);
+          i.src = `${import.meta.env.BASE_URL}samples/${k}.webp`;
+        })
+    )
+  ).then((l) => l.filter((x): x is HTMLImageElement => !!x)));
+const withSample = (d: PosterData): PosterData => ({
+  ...d,
+  city: d.city || 'مكناس',
+  district: d.district || (d.city ? '' : 'حمرية'),
+  surface: d.surface || 120,
+  bedrooms: d.bedrooms || (d.surface ? 0 : 3),
+  bathrooms: d.bathrooms || (d.surface ? 0 : 2),
+  price: d.price || '1250000 درهم',
+  features: d.features.length ? d.features : ['مصعد', 'موقف سيارات'],
+});
+
 export const TemplatePicker: React.FC<Props> = ({ title, aspect, templates: all, selectedId, data, photos, onSelect, onAdd, onEdit, onDelete, version }) => {
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const templates = useMemo(() => all.filter((t) => fitsAspect(t, aspect)), [all, aspect]);
@@ -27,10 +54,12 @@ export const TemplatePicker: React.FC<Props> = ({ title, aspect, templates: all,
     let alive = true;
     const id = setTimeout(async () => {
       await ensureFonts();
+      const imgs = photos.length ? photos : await loadSamples();
+      const d = withSample(data);
       const out: Record<string, string> = {};
       for (const t of templates) {
         const c = document.createElement('canvas');
-        renderPreview(c, data, photos, t, 300, aspect);
+        renderPreview(c, d, imgs, t, 360, aspect);
         out[t.id] = c.toDataURL('image/jpeg', 0.75);
         await new Promise((r) => setTimeout(r, 0)); // laisse respirer l'interface
       }
@@ -74,6 +103,7 @@ export const TemplatePicker: React.FC<Props> = ({ title, aspect, templates: all,
           <span className="text-xs font-bold text-[#555]">من صورة</span>
         </button>
       </div>
+      {!photos.length && <p className="text-[11px] text-[#999]">المعاينة بصور ومعلومات مثال — الإعلان كيتصاوب بالصور والمعلومات ديالك.</p>}
       {current?.kind === 'custom' && (
         <div className="flex gap-2">
           <button onClick={() => onEdit(current)} className="flex-1 py-2.5 rounded-2xl bg-[#f1f1f1] font-bold text-sm flex items-center justify-center gap-1 cursor-pointer">

@@ -6,6 +6,7 @@ import { agencyLogo, agencyPhones } from './agencySettings';
 import { Img, PosterData, coverInPath, coverRect, drawIcon, ensureFonts, headlineOf, posterVideoFrom, rr } from './posterMaker';
 import { allSpecs, boxText, phonesLine, pick, placeOf, priceOf, qrBox, subOf } from './posterKit';
 import { PRO_DESIGNS, ProDesign, drawPro } from './proTemplates';
+import { SIGNATURE_DESIGNS } from './signatureTemplates';
 
 // ---------- Modèles ajoutés par l'utilisateur ----------
 export type BlockKind = 'photo' | 'headline' | 'subtitle' | 'price' | 'address' | 'specs' | 'features' | 'phone' | 'logo' | 'qr' | 'icon' | 'label';
@@ -64,7 +65,7 @@ export type PosterTemplate =
   | { kind: 'pro'; id: string; name: string; design: ProDesign } // adaptable : dessiné à la taille de chaque plateforme
   | { kind: 'custom'; id: string; name: string; tpl: CustomTemplate; bgImg: Img };
 
-export const BUILTIN_TEMPLATES: PosterTemplate[] = PRO_DESIGNS.map((design) => ({ kind: 'pro', id: design.id, name: design.name, design }));
+export const BUILTIN_TEMPLATES: PosterTemplate[] = [...SIGNATURE_DESIGNS, ...PRO_DESIGNS].map((design) => ({ kind: 'pro', id: design.id, name: design.name, design }));
 export const DEFAULT_TEMPLATE: PosterTemplate = BUILTIN_TEMPLATES[0];
 
 // Le modèle convient-il au format de la plateforme ? (modèles pro : toujours)
