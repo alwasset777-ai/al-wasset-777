@@ -36,7 +36,7 @@ import {
 } from './posterKit';
 
 export type Shape = 'portrait' | 'story' | 'wide';
-interface Frame {
+export interface Frame {
   W: number;
   H: number;
   shape: Shape;
@@ -56,7 +56,7 @@ export interface Theme {
   price: PriceStyle;
   plate?: string; // fond du logo
 }
-type Layout = (ctx: CanvasRenderingContext2D, d: PosterData, p: Img[], t: Theme, f: Frame) => void;
+export type Layout = (ctx: CanvasRenderingContext2D, d: PosterData, p: Img[], t: Theme, f: Frame) => void;
 
 export interface ProDesign {
   id: string;
@@ -67,7 +67,7 @@ export interface ProDesign {
 
 // ---------- Outils ----------
 // Couleur #rrggbb avec transparence.
-function alpha(hex: string, a: number) {
+export function alpha(hex: string, a: number) {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
@@ -76,7 +76,7 @@ function alpha(hex: string, a: number) {
 // Surface, chambres, salles de bain ou atouts remplis ?
 const hasSpecs = (d: PosterData) => mainSpecs(d).length + d.features.length > 0;
 
-const extras = (p: Img[], n: number) => (p.length ? Math.min(n, p.length - 1) : n);
+export const extras = (p: Img[], n: number) => (p.length ? Math.min(n, p.length - 1) : n);
 
 // Petites photos (de « from » à from + count - 1) rangées dans une zone : 1 grande, 2 côte à côte ou l'une
 // sous l'autre, 3 = une large + deux, 4 = grille 2 × 2.
@@ -107,9 +107,9 @@ function photoGrid(ctx: CanvasRenderingContext2D, p: Img[], from: number, count:
   }
 }
 
-type Item = { h: number; flex?: boolean; draw: (y: number, h: number) => void };
+export type Item = { h: number; flex?: boolean; draw: (y: number, h: number) => void };
 // Empile des éléments dans une hauteur : réduit tout si ça déborde, agrandit les éléments « flex » s'il reste de la place.
-function stack(items: (Item | null)[], y: number, h: number, gap: number, valign: 'top' | 'center' | 'bottom' = 'center') {
+export function stack(items: (Item | null)[], y: number, h: number, gap: number, valign: 'top' | 'center' | 'bottom' = 'center') {
   const list = items.filter((i): i is Item => !!i);
   if (!list.length) return;
   const fixed = list.reduce((s, i) => s + i.h, 0) + gap * (list.length - 1);
@@ -128,7 +128,7 @@ function stack(items: (Item | null)[], y: number, h: number, gap: number, valign
 // ---------- Fiche « pro » : titre empilé (transaction en or), photo découpée en courbe, atouts en tuiles,
 // cartes des caractéristiques, bandeau du prix, bandeau de contact et feuillage décoratif ----------
 // Mélange d'une couleur #rrggbb avec une autre (k = part de la seconde).
-function mix(a: string, b: string, k: number) {
+export function mix(a: string, b: string, k: number) {
   const pa = parseInt(a.slice(1), 16);
   const pb = parseInt(b.slice(1), 16);
   const c = (sh: number) => Math.round(((pa >> sh) & 255) * (1 - k) + ((pb >> sh) & 255) * k);
