@@ -15,7 +15,28 @@ Tout est **gratuit**. Ça tourne sur **votre ordinateur**. Rien ne se publie, ne
 
 ---
 
-## ⚡ Démarrage rapide (15 minutes)
+## 🍏 Installation en 1 commande (Mac) — recommandé
+1. Ouvrez **Terminal** (⌘ + Espace, tapez « Terminal », Entrée).
+2. Collez cette ligne, puis appuyez sur Entrée :
+```bash
+curl -fsSL https://raw.githubusercontent.com/alwasset777-ai/al-wasset-777/main/bureau-virtuel/installer-mac.sh | bash
+```
+3. Attendez 2 à 5 minutes. La page **Réglages** (en arabe) s'ouvre toute seule : pour chaque outil, cliquez sur le bouton bleu, copiez, collez, puis « حفظ ».
+
+Ce que fait la commande :
+- elle installe tout dans `~/BureauVirtuel` ;
+- elle démarre le bureau automatiquement à chaque allumage du Mac ;
+- elle met deux raccourcis sur votre Bureau : « Bureau Virtuel » et « Réglages Bureau Virtuel ».
+
+Pour **mettre à jour**, recollez la même commande. Vos clés et vos données sont gardées.
+Pour **arrêter** le bureau :
+```bash
+bash ~/BureauVirtuel/desinstaller-mac.sh
+```
+
+Si Python manque, la commande ouvre l'installateur officiel de Python (gratuit). Installez-le, puis recollez la commande.
+
+## ⚡ Démarrage manuel (Windows / Linux)
 
 ### 1) Installer Python (une seule fois)
 - **Windows** : https://www.python.org/downloads/ → cochez **« Add Python to PATH »** pendant l'installation.

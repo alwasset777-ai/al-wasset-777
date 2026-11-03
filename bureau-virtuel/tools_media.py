@@ -13,8 +13,20 @@ import config
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 
 
+def ffmpeg_bin() -> str | None:
+    """FFmpeg de l'ordinateur, sinon celui installé automatiquement avec le bureau (imageio-ffmpeg, gratuit)."""
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return None
+
+
 def ffmpeg_ok() -> bool:
-    return shutil.which("ffmpeg") is not None
+    return ffmpeg_bin() is not None
 
 
 def collect_images(sources: list[str], workdir: Path, max_images: int = 10) -> list[Path]:
@@ -53,7 +65,7 @@ def slideshow(images: list[Path], name: str, seconds: float = 3.0, size=(1080, 1
     config.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)[:60] or "video"
     out = config.MEDIA_DIR / f"{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}_{safe}.mp4"
-    cmd = ["ffmpeg", "-y", "-loglevel", "error"]
+    cmd = [ffmpeg_bin(), "-y", "-loglevel", "error"]
     for img in images:
         cmd += ["-loop", "1", "-t", str(seconds), "-i", str(img)]
     parts = []
