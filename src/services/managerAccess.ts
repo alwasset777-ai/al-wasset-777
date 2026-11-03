@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { isFirebaseEnabled, onUserChange } from './firebase';
 import { loadJSON, saveJSON } from './storage';
+import { checkManagerKey, getManagerKey, setManagerKey } from './managerKey';
 
 const PIN_KEY = 'alwassit777.manager.pin.v1';
 const UNLOCK_KEY = 'alwassit777.manager.unlocked.v1';
@@ -36,7 +37,7 @@ export function useManagerAccess() {
 
   return {
     usesFirebase: isFirebaseEnabled,
-    isManager: isFirebaseEnabled ? firebaseUser : hasPin && localUnlocked,
+    isManager: isFirebaseEnabled ? firebaseUser || (Boolean(getManagerKey()) && localUnlocked) : (hasPin || Boolean(getManagerKey())) && localUnlocked,
     needsSetup: !isFirebaseEnabled && !hasPin,
     async setupPin(pin: string) {
       saveJSON(PIN_KEY, await hash(pin));
@@ -50,6 +51,16 @@ export function useManagerAccess() {
         notify();
       }
       return ok;
+    },
+    // Mot de passe du gérant vérifié par le serveur (MANAGER_KEY sur Vercel) : donne accès à l'IA de منير.
+    async unlockWithKey(code: string) {
+      const status = await checkManagerKey(code);
+      if (status === 'ok') {
+        setManagerKey(code);
+        saveJSON(UNLOCK_KEY, true);
+        notify();
+      }
+      return status;
     },
     lock() {
       saveJSON(UNLOCK_KEY, false);

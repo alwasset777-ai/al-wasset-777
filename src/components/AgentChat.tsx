@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bot, Mic, MicOff, Send, X, Volume2, VolumeX, Trash2, Loader2, Megaphone, Download, Lock, Unlock, MessageCircle, ExternalLink, Wrench } from 'lucide-react';
+import { Mic, MicOff, Send, X, Volume2, VolumeX, Trash2, Loader2, Download, Lock, Unlock, MessageCircle, ExternalLink, Wrench, Brain } from 'lucide-react';
 import { Language, Property } from '../types';
 import { ChatMessage, GeminiContent, runAgentTurn } from '../services/agentChat';
 import { AgentEffect } from '../agent/executor';
@@ -8,6 +8,9 @@ import { loadJSON, saveJSON } from '../services/storage';
 import { canInstallApp, onInstallAvailable, promptInstall, isStandalone } from '../services/pwa';
 import { useManagerAccess } from '../services/managerAccess';
 import { LoginCard } from './AuthGate';
+import { MuneerAvatar } from './MuneerAvatar';
+import { MuneerPanel } from './MuneerPanel';
+import { getAvatar, onMemoryChange } from '../services/muneerMemory';
 
 interface AgentChatProps {
   properties: Property[];
@@ -38,6 +41,9 @@ const TOOL_LABELS: Record<string, string> = {
   ads_summary: 'نتائج الإعلانات',
   prepare_whatsapp: 'رسالة واتساب',
   open_page: 'فتح صفحة',
+  remember: 'تعلّم',
+  forget: 'نسى',
+  list_memory: 'شنو تعلم',
 };
 
 const newMsg = (role: ChatMessage['role'], text: string, extra: Partial<UiMessage> = {}): UiMessage => ({
@@ -61,7 +67,13 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
   const [wantManager, setWantManager] = useState<boolean>(() => loadJSON(MODE_KEY, false));
   const mode: AgentMode = wantManager && access.isManager ? 'manager' : 'customer';
 
-  const [open, setOpen] = useState(false);
+  // Lien direct vers منير (raccourci de l'application installée) : /?muneer=1
+  const fromShortcut = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('muneer');
+  const [open, setOpen] = useState(fromShortcut);
+  const [speaking, setSpeaking] = useState(false);
+  const [showMemory, setShowMemory] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(getAvatar());
+  const [unlockNote, setUnlockNote] = useState('');
   const [messages, setMessages] = useState<UiMessage[]>([]);
   const [contents, setContents] = useState<GeminiContent[]>([]);
   const [input, setInput] = useState('');
@@ -92,7 +104,17 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
   useEffect(() => saveJSON(VOICE_KEY, voice), [voice]);
   useEffect(() => saveJSON(MODE_KEY, wantManager), [wantManager]);
   useEffect(() => onInstallAvailable(() => setInstallable(true)), []);
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages, open, busy]);
+  useEffect(() => onMemoryChange(() => setPhoto(getAvatar())), []);
+  useEffect(() => {
+    if (!fromShortcut) return;
+    if (access.isManager) setWantManager(true);
+    else setShowUnlock(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Accolades : dans Chrome récent, scrollIntoView renvoie une promesse (React la prendrait pour un nettoyage).
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, open, busy]);
 
   const isPhone = () => window.innerWidth < 640;
 
@@ -101,6 +123,9 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text.replace(/[*_#•📊✍️🗂️✅👇📞📍🏡💰📐]/gu, ''));
     u.lang = /[؀-ۿ]/.test(text) ? 'ar-MA' : 'fr-FR';
+    u.onstart = () => setSpeaking(true);
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
     speechSynthesis.speak(u);
   };
 
@@ -163,8 +188,15 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
   const submitPin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pin.length < 4) return setPinError(true);
-    if (access.needsSetup) await access.setupPin(pin);
-    else if (!(await access.unlock(pin))) return setPinError(true);
+    // 1) Mot de passe du serveur (MANAGER_KEY sur Vercel) : donne l'IA de منير.
+    const status = await access.unlockWithKey(pin);
+    if (status === 'wrong') return setPinError(true);
+    if (status !== 'ok') {
+      // 2) Sans MANAGER_KEY : code local à l'appareil (les outils marchent, l'IA reste en mode simple).
+      if (access.needsSetup) await access.setupPin(pin);
+      else if (!(await access.unlock(pin))) return setPinError(true);
+      setUnlockNote(status === 'not-configured' ? 'دخلتي بالرمز ديال هاد الجهاز. باش يخدم الذكاء ديال منير، زيد MANAGER_KEY ف Vercel.' : '');
+    } else setUnlockNote('');
     setPin('');
     setPinError(false);
     setShowUnlock(false);
@@ -182,7 +214,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
 
   const suggestions =
     mode === 'manager'
-      ? ['شنو عندي من مواعيد هاد السيمانة؟', 'قلب ليا على فرص للزبناء ديالي', 'زيد زبون جديد: كريم، 0661000000، كيقلب على شقة ف حمرية ب 900000', 'وجد إعلانات للعقار رقم 3', 'كتب رسالة واتساب لمحمد التازي نقترح عليه شقة المعاريف']
+      ? ['تعلّم: كي نقول ليك «تقرير»، عطيني المواعيد ديال اليوم والزبناء الجداد', 'شنو عندي من مواعيد هاد السيمانة؟', 'قلب ليا على فرص للزبناء ديالي', 'زيد زبون جديد: كريم، 0661000000، كيقلب على شقة ف حمرية ب 900000', 'وجد إعلانات للعقار رقم 3', 'كتب رسالة واتساب لمحمد التازي نقترح عليه شقة المعاريف']
       : [
           t('Je cherche un appartement à Meknès', 'كنقلب على شقة ف مكناس', 'Looking for an apartment in Meknes'),
           t('Villas avec piscine à vendre ?', 'واش عندكم فيلا فيها مسبح للبيع؟', 'Villas with a pool for sale?'),
@@ -195,12 +227,10 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
         <button
           onClick={() => setOpen(true)}
           className="fixed bottom-5 end-5 z-50 flex items-center gap-2 ps-3 pe-4 py-3 rounded-full bg-[#281715] text-white shadow-2xl shadow-[#281715]/30 hover:scale-105 transition-transform cursor-pointer"
-          aria-label="وكيل الوسيط 777"
+          aria-label={mode === 'manager' ? 'منير' : 'وكيل الوسيط 777'}
         >
-          <span className="w-8 h-8 rounded-full bg-[#ff6f61] flex items-center justify-center">
-            <Bot className="w-5 h-5" />
-          </span>
-          <span className="text-sm font-extrabold">{t('Parler à l’agent', 'كلّم الوكيل', 'Talk to agent')}</span>
+          <MuneerAvatar photo={mode === 'manager' ? photo : null} size={32} />
+          <span className="text-sm font-extrabold">{mode === 'manager' ? 'منير' : t('Parler à l’agent', 'كلّم الوكيل', 'Talk to agent')}</span>
         </button>
       )}
 
@@ -208,13 +238,18 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
         <div className="fixed z-50 inset-0 sm:inset-auto sm:bottom-5 sm:end-5 sm:w-[420px] sm:h-[660px] sm:max-h-[88vh] bg-white sm:rounded-3xl shadow-2xl border border-[#f0e4e2] flex flex-col overflow-hidden">
           {/* En-tête */}
           <div className={`text-white px-4 py-3 flex items-center gap-2 ${mode === 'manager' ? 'bg-gradient-to-br from-[#1f3a2e] to-[#281715]' : 'bg-gradient-to-br from-[#281715] to-[#4a2a26]'}`}>
-            <span className="w-10 h-10 rounded-full bg-[#ff6f61] flex items-center justify-center shrink-0">
-              <Megaphone className="w-5 h-5" />
-            </span>
+            <MuneerAvatar photo={mode === 'manager' ? photo : null} speaking={speaking} listening={listening} size={44} />
             <div className="flex-1 min-w-0" dir="rtl">
-              <div className="text-sm font-black">وكيل الوسيط 777</div>
-              <div className="text-[11px] text-white/75">{mode === 'manager' ? 'وضع المدير: مساعدك الشخصي' : 'مساعد الزبائن'}</div>
+              <div className="text-sm font-black">{mode === 'manager' ? 'منير' : 'وكيل الوسيط 777'}</div>
+              <div className="text-[11px] text-white/75">
+                {mode === 'manager' ? (speaking ? 'كيهضر…' : listening ? 'كيسمع ليك…' : 'وكيلك الشخصي · كيتعلم معاك') : 'مساعد الزبائن · مكتب الوسيط 777'}
+              </div>
             </div>
+            {mode === 'manager' && (
+              <button onClick={() => setShowMemory(!showMemory)} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${showMemory ? 'bg-white/15' : ''}`} title="شنو تعلم منير">
+                <Brain className="w-4 h-4" />
+              </button>
+            )}
             <button onClick={toggleManager} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${mode === 'manager' ? 'text-green-300' : ''}`} title={mode === 'manager' ? 'الخروج من وضع المدير' : 'وضع المدير'}>
               {mode === 'manager' ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
             </button>
@@ -245,6 +280,11 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
             </button>
           )}
 
+          {mode === 'manager' && showMemory && <MuneerPanel />}
+          {mode === 'manager' && unlockNote && (
+            <div className="mx-3 mt-2 p-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900" dir="rtl">{unlockNote}</div>
+          )}
+
           {/* Déverrouillage du mode gérant */}
           {showUnlock && (
             <div className="p-3 border-b border-[#f0e4e2] bg-[#fff8f7]" dir="rtl">
@@ -253,12 +293,11 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
               ) : (
                 <form onSubmit={submitPin} className="space-y-2">
                   <div className="text-xs font-bold">
-                    {access.needsSetup ? 'اختر رمزاً سرياً (4 أرقام على الأقل) لوضع المدير على هذا الجهاز:' : 'أدخل الرمز السري لوضع المدير:'}
+                    {access.needsSetup ? 'دخل كلمة السر ديال المدير (اللي حطيتي ف Vercel باسم MANAGER_KEY)، ولا اختار رمز لهاد الجهاز (4 أرقام على الأقل):' : 'دخل كلمة السر ديال المدير:'}
                   </div>
                   <div className="flex gap-2">
                     <input
                       type="password"
-                      inputMode="numeric"
                       autoFocus
                       value={pin}
                       onChange={(e) => { setPin(e.target.value); setPinError(false); }}
@@ -278,10 +317,13 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#fff8f7]">
             {messages.length === 0 && (
               <div className="text-center space-y-3 pt-6" dir="rtl">
-                <div className="text-sm font-extrabold">{mode === 'manager' ? 'السلام عليكم السي منير 👋 أنا رهن إشارتك' : 'مرحباً بك في الوسيط 777 👋'}</div>
+                {mode === 'manager' && (
+                  <div className="flex justify-center"><MuneerAvatar photo={photo} speaking={speaking} size={72} /></div>
+                )}
+                <div className="text-sm font-extrabold">{mode === 'manager' ? 'السلام عليكم السي منير 👋 أنا منير، رهن إشارتك' : 'مرحباً بك في الوسيط 777 👋'}</div>
                 <p className="text-xs text-[#7a5c58]">
                   {mode === 'manager'
-                    ? 'أستطيع تسيير الزبائن والمواعيد، تحضير الإعلانات، البحث عن الفرص، وكتابة رسائل واتساب.'
+                    ? 'كنسيّر الزبناء والمواعيد، كنوجد الإعلانات، كنقلب على الفرص، وكنكتب ميساجات واتساب. وكلما علّمتيني شي حاجة كنعقل عليها 🧠'
                     : 'أساعدك تلقى العقار المناسب وتطلب زيارة. اكتب أو اضغط على الميكروفون.'}
                 </p>
                 <div className="flex flex-col gap-2 items-center">

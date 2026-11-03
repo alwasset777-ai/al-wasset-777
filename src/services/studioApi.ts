@@ -2,7 +2,8 @@
 // (Firebase Storage) et publication via Metricool (server.ts → metricool.ts) ou directement via Meta.
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { agency, agencyPhones } from './agencySettings';
-import { getIdToken, isFirebaseEnabled, requireStorage } from './firebase';
+import { isFirebaseEnabled, requireStorage } from './firebase';
+import { managerHeaders } from './managerKey';
 import { DEAL_LABELS, PosterData, TYPE_LABELS, formatPrice, headlineOf } from './posterMaker';
 import { STUDIO_NETWORK_IDS, StudioLanguage, StudioNetwork, studioSpec } from './studioPlatforms';
 
@@ -31,10 +32,7 @@ export interface StudioPost {
 
 type InlineFile = { mimeType: string; data: string };
 
-async function authHeaders(): Promise<Record<string, string>> {
-  const token = await getIdToken().catch(() => null);
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+const authHeaders = managerHeaders;
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(path, {

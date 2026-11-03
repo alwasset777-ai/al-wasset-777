@@ -2,11 +2,13 @@
 // Utilisée par server.ts (AI Studio / Cloud Run / local) et par api/index.ts (Vercel).
 import 'dotenv/config';
 import express from 'express';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { GoogleGenAI } from '@google/genai';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { metaStatus, publishFacebook, publishInstagram } from './meta.js';
 import { metricoolEnabled, schedulePost, type StudioPostInput } from './metricool.js';
+import { extractMessages, isOwner, sendText, validSignature, verifyChallenge, whatsappEnabled } from './whatsapp.js';
 import { STUDIO_LANGUAGES, STUDIO_NETWORK_IDS, studioSpec, type StudioNetwork } from './src/services/studioPlatforms.js';
 import { toolsForMode, type AgentMode } from './src/agent/toolDefs.js';
 
@@ -22,7 +24,35 @@ const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.VITE_
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
 const adminAuth = FIREBASE_PROJECT_ID ? getAuth(initializeApp({ projectId: FIREBASE_PROJECT_ID })) : null;
 
+// Mot de passe du gérant (variable MANAGER_KEY sur Vercel) : alternative simple à Firebase.
+const MANAGER_KEY = (process.env.MANAGER_KEY || '').trim();
+const managerKeyEnabled = MANAGER_KEY.length >= 6;
+const keyFails = new Map<string, { count: number; reset: number }>();
+
+function sameSecret(a: string, b: string): boolean {
+  const ha = createHmac('sha256', 'alwassit777').update(a).digest();
+  const hb = createHmac('sha256', 'alwassit777').update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
+function clientIp(req: express.Request): string {
+  return String(req.headers['x-forwarded-for'] || req.ip || 'local').split(',')[0].trim();
+}
+
+function hasManagerKey(req: express.Request): boolean {
+  const given = String(req.headers['x-manager-key'] || '');
+  if (!managerKeyEnabled || !given) return false;
+  const ip = clientIp(req);
+  const now = Date.now();
+  const f = keyFails.get(ip);
+  if (f && f.reset > now && f.count >= 10) return false; // trop d'essais : 15 min d'attente
+  if (sameSecret(given, MANAGER_KEY)) return true;
+  keyFails.set(ip, f && f.reset > now ? { count: f.count + 1, reset: f.reset } : { count: 1, reset: now + 15 * 60_000 });
+  return false;
+}
+
 async function isAdmin(req: express.Request): Promise<boolean> {
+  if (hasManagerKey(req)) return true;
   if (!adminAuth) return false;
   const token = (req.headers.authorization || '').replace(/^Bearer /, '');
   if (!token) return false;
@@ -63,10 +93,20 @@ Règles :
 - Réponds uniquement en JSON : {"text": string, "hashtags": string[]}. Les hashtags commencent par #.`;
 
 const app = express();
-app.use(express.json({ limit: '12mb' }));
+app.use(express.json({ limit: '12mb', verify: (req, _res, buf) => { (req as express.Request & { rawBody?: Buffer }).rawBody = buf; } }));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, ai: Boolean(ai), auth: Boolean(adminAuth), meta: metaStatus, metricool: metricoolEnabled });
+  res.json({ ok: true, ai: Boolean(ai), auth: Boolean(adminAuth), managerKey: managerKeyEnabled, whatsapp: whatsappEnabled, meta: metaStatus, metricool: metricoolEnabled });
+});
+
+// Vérifie le mot de passe du gérant (écran « دخول المدير » de l'application).
+app.post('/api/manager/check', async (req, res) => {
+  if (!managerKeyEnabled && !adminAuth) {
+    res.status(503).json({ error: 'MANAGER_KEY non configuré' });
+    return;
+  }
+  const ok = await isAdmin(req);
+  res.status(ok ? 200 : 401).json({ ok });
 });
 
 app.post('/api/ads/generate', async (req, res) => {
@@ -114,9 +154,15 @@ Adresse : شارع باريز بناية سليكت select الطابق الأو
 
 const LANGUAGE_RULE = `Réponds TOUJOURS dans la langue du dernier message de l'utilisateur : darija marocaine (lettres arabes), arabe classique ou français. Phrases courtes, claires, chaleureuses et respectueuses. Pas de jargon technique.`;
 
-const MANAGER_SYSTEM = `Tu es « وكيل الوسيط 777 », l'assistant IA personnel de M. Mounir Radoui, comme un collaborateur expérimenté du bureau.
+const MANAGER_SYSTEM = `Tu es « منير », l'agent IA personnel de M. Mounir Radoui (il t'a donné son prénom), comme son bras droit au bureau.
 ${AGENCY_FACTS}
 ${LANGUAGE_RULE}
+Parle comme lui : darija marocaine chaleureuse et respectueuse avec lui ; pour les clients, son style poli (« السلام عليكم ورحمة الله... », signature « التجربة دليل الكفاءة »). Exemple réel de son écriture :
+"""
+${STYLE_SAMPLE}
+"""
+Tu apprends avec lui : quand il te donne une préférence, une information durable ou une façon de faire (« تعلم… », « عقل… », « من دابا… », « كي نقول ليك X دير Y »), enregistre-la avec l'outil remember (kind "skill" pour une façon de faire), puis confirme en une phrase. S'il demande d'oublier, utilise forget. Applique toujours ce qu'il t'a appris (liste plus bas).
+Ne dis jamais que tu es Gemini ou un modèle d'IA d'une entreprise : tu es منير, l'agent du bureau.
 Tu l'aides à : répondre aux clients (préparer des messages WhatsApp dans son style poli : « السلام عليكم ورحمة الله... »), gérer le bureau (clients, rendez-vous, rappels), organiser les publicités, et repérer les opportunités.
 Règles :
 - Utilise les outils pour lire et modifier les données ; n'invente jamais un bien, un client, un chiffre ou un rendez-vous.
@@ -163,6 +209,16 @@ function sanitizeContents(raw: unknown): { role: 'user' | 'model'; parts: Part[]
   return out.length ? out : null;
 }
 
+// Mémoire de منير (enregistrée dans l'application, envoyée avec chaque message du gérant).
+function memoryBlock(raw: unknown): string {
+  if (!Array.isArray(raw)) return '';
+  const items = raw
+    .filter((m): m is { kind?: unknown; text: string } => Boolean(m) && typeof (m as { text?: unknown }).text === 'string')
+    .slice(0, 60)
+    .map((m) => `- [${m.kind === 'skill' ? 'مهارة' : m.kind === 'style' ? 'أسلوب' : 'معلومة'}] ${m.text.replace(/\s+/g, ' ').slice(0, 400)}`);
+  return items.length ? `\n\nCe que M. Mounir t'a appris (ses consignes, à appliquer) :\n${items.join('\n')}` : '';
+}
+
 app.post('/api/agent/chat', async (req, res) => {
   const mode: AgentMode = req.body?.mode === 'manager' ? 'manager' : 'customer';
   if (mode === 'manager' && !(await isAdmin(req))) {
@@ -183,12 +239,13 @@ app.post('/api/agent/chat', async (req, res) => {
     return;
   }
   const today = new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Casablanca', dateStyle: 'full', timeStyle: 'short' });
+  const memory = mode === 'manager' ? memoryBlock(req.body?.memory) : '';
   try {
     const response = await ai.models.generateContent({
       model: MODEL,
       contents: contents as never,
       config: {
-        systemInstruction: `${mode === 'manager' ? MANAGER_SYSTEM : CUSTOMER_SYSTEM}\n\nDate et heure actuelles (Maroc) : ${today}.`,
+        systemInstruction: `${mode === 'manager' ? MANAGER_SYSTEM : CUSTOMER_SYSTEM}${memory}\n\nDate et heure actuelles (Maroc) : ${today}.`,
         tools: [{ functionDeclarations: toolsForMode(mode).map((t) => ({ name: t.name, description: t.description, parametersJsonSchema: t.parameters })) }],
         temperature: 0.5,
       },
@@ -204,6 +261,61 @@ app.post('/api/agent/chat', async (req, res) => {
     console.error('Erreur agent :', err);
     res.status(502).json({ error: 'Agent indisponible' });
   }
+});
+
+// ---------- « منير » sur WhatsApp ----------
+// Seul le gérant (WHATSAPP_OWNER) reçoit une réponse. Les données du bureau (clients, rendez-vous)
+// restent dans l'application : منير répond, conseille et rédige ; pour agir sur les données il renvoie vers l'application.
+const WA_EXTRA = `Canal : WhatsApp. Réponds en messages courts (moins de 900 caractères), sans Markdown (pas de **, pas de #).
+Ici tu n'as PAS accès aux données du bureau (clients, rendez-vous, registre, annonces) : tu peux conseiller, rédiger des messages, des annonces, des réponses aux clients, calculer, planifier. Pour une action sur les données, dis-lui de l'ouvrir dans l'application (lien : https://al-wasset-777.vercel.app/?muneer=1). N'invente jamais un client, un bien ou un chiffre.`;
+const waHistory = new Map<string, { role: 'user' | 'model'; parts: { text: string }[] }[]>();
+const waSeen = new Set<string>();
+
+app.get('/api/whatsapp/webhook', (req, res) => {
+  const challenge = verifyChallenge(req.query as Record<string, unknown>);
+  if (challenge) res.status(200).type('text/plain').send(challenge);
+  else res.sendStatus(403);
+});
+
+app.post('/api/whatsapp/webhook', async (req, res) => {
+  if (!whatsappEnabled) {
+    res.sendStatus(404);
+    return;
+  }
+  if (!validSignature((req as express.Request & { rawBody?: Buffer }).rawBody, req.headers['x-hub-signature-256'])) {
+    res.sendStatus(401);
+    return;
+  }
+  const messages = extractMessages(req.body).filter((m) => !waSeen.has(m.id));
+  for (const m of messages) {
+    waSeen.add(m.id);
+    if (waSeen.size > 500) waSeen.delete(waSeen.values().next().value as string);
+    if (!isOwner(m.from)) continue; // les clients ne reçoivent pas de réponse automatique
+    try {
+      if (m.unsupported) {
+        await sendText(m.from, 'السي منير، دابا كنفهم غير الميساجات المكتوبة ✍️ كتب ليا وأنا رهن الإشارة.');
+        continue;
+      }
+      if (!ai) {
+        await sendText(m.from, 'منير ما خدامش دابا: خاص المفتاح GEMINI_API_KEY ف Vercel.');
+        continue;
+      }
+      const history = (waHistory.get(m.from) || []).slice(-10);
+      const contents = [...history, { role: 'user' as const, parts: [{ text: m.text }] }];
+      const today = new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Casablanca', dateStyle: 'full', timeStyle: 'short' });
+      const response = await ai.models.generateContent({
+        model: MODEL,
+        contents,
+        config: { systemInstruction: `${MANAGER_SYSTEM}\n${WA_EXTRA}\n\nDate et heure actuelles (Maroc) : ${today}.`, temperature: 0.6 },
+      });
+      const reply = (response.text || '').replace(/\*\*/g, '').trim() || '…';
+      waHistory.set(m.from, [...contents, { role: 'model' as const, parts: [{ text: reply }] }].slice(-12));
+      await sendText(m.from, reply);
+    } catch (err) {
+      console.error('Erreur WhatsApp :', err);
+    }
+  }
+  res.sendStatus(200);
 });
 
 // Publication automatique sur Facebook / Instagram (annonce déjà validée par le gérant).

@@ -3,13 +3,11 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { AdDraft, AdLanguage, AdPlatform, Property } from '../types';
 import { fullPostText, platformSpec } from './adGenerator';
-import { getIdToken, isFirebaseEnabled, requireStorage } from './firebase';
+import { isFirebaseEnabled, requireStorage } from './firebase';
+import { managerHeaders } from './managerKey';
 import { renderPoster } from './visualMaker';
 
-async function authHeaders(): Promise<Record<string, string>> {
-  const token = await getIdToken().catch(() => null);
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+const authHeaders = managerHeaders;
 
 export interface ServerStatus {
   ai: boolean;

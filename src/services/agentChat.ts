@@ -1,7 +1,8 @@
 // Conversation avec l'agent : IA (server.ts → Gemini) si disponible, sinon compréhension simple par mots-clés.
 import { AdDraft, AdLanguage, AdPlatform, Property } from '../types';
 import { PLATFORMS } from './adGenerator';
-import { getIdToken } from './firebase';
+import { managerHeaders } from './managerKey';
+import { memoryForServer } from './muneerMemory';
 import { getDrafts } from './adsStore';
 import { AgentMode } from '../agent/toolDefs';
 import { AgentEffect, runTool } from '../agent/executor';
@@ -81,12 +82,12 @@ export async function runAgentTurn(
   const toolsUsed: string[] = [];
   const ctx = { mode, properties };
   try {
-    const token = await getIdToken().catch(() => null);
+    const auth = mode === 'manager' ? await managerHeaders() : {};
     for (let step = 0; step < MAX_STEPS; step++) {
       const res = await fetch('/api/agent/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ mode, contents }),
+        headers: { 'Content-Type': 'application/json', ...auth },
+        body: JSON.stringify({ mode, contents, ...(mode === 'manager' ? { memory: memoryForServer() } : {}) }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
