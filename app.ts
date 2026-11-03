@@ -4,8 +4,7 @@ import 'dotenv/config';
 import express from 'express';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { GoogleGenAI } from '@google/genai';
-import { initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
+import type { Auth } from 'firebase-admin/auth';
 import { metaStatus, publishFacebook, publishInstagram } from './meta.js';
 import { metricoolEnabled, schedulePost, type StudioPostInput } from './metricool.js';
 import { extractMessages, isOwner, sendText, validSignature, verifyChallenge, whatsappEnabled } from './whatsapp.js';
@@ -22,7 +21,22 @@ const ai =
 // Vérification de l'identité du gérant (jeton Firebase envoyé par l'application).
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-const adminAuth = FIREBASE_PROJECT_ID ? getAuth(initializeApp({ projectId: FIREBASE_PROJECT_ID })) : null;
+// Chargé seulement si Firebase est configuré, et sans jamais faire tomber le serveur
+// (sur Vercel, une dépendance de firebase-admin refusait de se charger et bloquait toute l'API).
+let adminAuthPromise: Promise<Auth | null> | null = null;
+function getAdminAuth(): Promise<Auth | null> {
+  if (!FIREBASE_PROJECT_ID) return Promise.resolve(null);
+  adminAuthPromise ??= (async () => {
+    try {
+      const [{ initializeApp }, { getAuth }] = await Promise.all([import('firebase-admin/app'), import('firebase-admin/auth')]);
+      return getAuth(initializeApp({ projectId: FIREBASE_PROJECT_ID }));
+    } catch (err) {
+      console.error('Firebase Admin indisponible :', err);
+      return null;
+    }
+  })();
+  return adminAuthPromise;
+}
 
 // Mot de passe du gérant (variable MANAGER_KEY sur Vercel) : alternative simple à Firebase.
 const MANAGER_KEY = (process.env.MANAGER_KEY || '').trim();
@@ -53,6 +67,7 @@ function hasManagerKey(req: express.Request): boolean {
 
 async function isAdmin(req: express.Request): Promise<boolean> {
   if (hasManagerKey(req)) return true;
+  const adminAuth = await getAdminAuth();
   if (!adminAuth) return false;
   const token = (req.headers.authorization || '').replace(/^Bearer /, '');
   if (!token) return false;
@@ -95,13 +110,13 @@ Règles :
 const app = express();
 app.use(express.json({ limit: '12mb', verify: (req, _res, buf) => { (req as express.Request & { rawBody?: Buffer }).rawBody = buf; } }));
 
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, ai: Boolean(ai), auth: Boolean(adminAuth), managerKey: managerKeyEnabled, whatsapp: whatsappEnabled, meta: metaStatus, metricool: metricoolEnabled });
+app.get('/api/health', async (_req, res) => {
+  res.json({ ok: true, ai: Boolean(ai), auth: Boolean(await getAdminAuth()), managerKey: managerKeyEnabled, whatsapp: whatsappEnabled, meta: metaStatus, metricool: metricoolEnabled });
 });
 
 // Vérifie le mot de passe du gérant (écran « دخول المدير » de l'application).
 app.post('/api/manager/check', async (req, res) => {
-  if (!managerKeyEnabled && !adminAuth) {
+  if (!managerKeyEnabled && !(await getAdminAuth())) {
     res.status(503).json({ error: 'MANAGER_KEY non configuré' });
     return;
   }
