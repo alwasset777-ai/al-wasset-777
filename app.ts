@@ -11,12 +11,28 @@ import { extractMessages, isOwner, sendText, validSignature, verifyChallenge, wh
 import { STUDIO_LANGUAGES, STUDIO_NETWORK_IDS, studioSpec, type StudioNetwork } from './src/services/studioPlatforms.js';
 import { toolsForMode, type AgentMode } from './src/agent/toolDefs.js';
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+// gemini-2.5-flash n'est plus ouvert aux nouveaux comptes : modèle actuel + modèle de secours rapide.
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.5-flash-lite';
 const apiKey = process.env.GEMINI_API_KEY;
 const ai =
   apiKey && apiKey !== 'MY_GEMINI_API_KEY'
     ? new GoogleGenAI({ apiKey, ...(process.env.GEMINI_BASE_URL ? { httpOptions: { baseUrl: process.env.GEMINI_BASE_URL } } : {}) })
     : null;
+
+type GenerateParams = Omit<Parameters<NonNullable<typeof ai>['models']['generateContent']>[0], 'model'>;
+// Appel Gemini avec repli : si le modèle principal est saturé (503), limité (429) ou retiré (404),
+// on réessaie une fois avec le modèle de secours.
+async function generate(params: GenerateParams) {
+  try {
+    return await ai!.models.generateContent({ model: MODEL, ...params });
+  } catch (err) {
+    const status = Number((err as { status?: number })?.status || 0);
+    if (FALLBACK_MODEL === MODEL || ![404, 429, 500, 503].includes(status)) throw err;
+    console.warn(`Gemini ${MODEL} indisponible (${status}), repli sur ${FALLBACK_MODEL}`);
+    return ai!.models.generateContent({ model: FALLBACK_MODEL, ...params });
+  }
+}
 
 // Vérification de l'identité du gérant (jeton Firebase envoyé par l'application).
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
@@ -144,8 +160,7 @@ Langue : ${language}.
 Données du bien (JSON) :
 ${JSON.stringify(property)}`;
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL,
+    const response = await generate({
       contents: prompt,
       config: { systemInstruction: SYSTEM, responseMimeType: 'application/json', temperature: 0.8 },
     });
@@ -256,8 +271,7 @@ app.post('/api/agent/chat', async (req, res) => {
   const today = new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Casablanca', dateStyle: 'full', timeStyle: 'short' });
   const memory = mode === 'manager' ? memoryBlock(req.body?.memory) : '';
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL,
+    const response = await generate({
       contents: contents as never,
       config: {
         systemInstruction: `${mode === 'manager' ? MANAGER_SYSTEM : CUSTOMER_SYSTEM}${memory}\n\nDate et heure actuelles (Maroc) : ${today}.`,
@@ -318,8 +332,7 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
       const history = (waHistory.get(m.from) || []).slice(-10);
       const contents = [...history, { role: 'user' as const, parts: [{ text: m.text }] }];
       const today = new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Casablanca', dateStyle: 'full', timeStyle: 'short' });
-      const response = await ai.models.generateContent({
-        model: MODEL,
+      const response = await generate({
         contents,
         config: { systemInstruction: `${MANAGER_SYSTEM}\n${WA_EXTRA}\n\nDate et heure actuelles (Maroc) : ${today}.`, temperature: 0.6 },
       });
@@ -418,8 +431,7 @@ ${JSON.stringify(info).slice(0, 4000)}
 L'image publicitaire (photos, prix, téléphones) est déjà jointe à chaque publication : le texte la complète sans la répéter mot pour mot.
 Réponds en JSON : {"posts": [{"platform": string, "text": string, "hashtags": string[], "title": string}]}`;
   try {
-    const response = await ai!.models.generateContent({
-      model: MODEL,
+    const response = await generate({
       contents: [{ role: 'user', parts: [...sanitizeFiles(req.body?.files), { text: prompt }] }],
       config: { systemInstruction: SYSTEM, responseMimeType: 'application/json', temperature: 0.8 },
     });
