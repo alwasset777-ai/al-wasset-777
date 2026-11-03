@@ -1,6 +1,6 @@
 // GET /api/search?q=…  → résultats de recherche web gratuits (DuckDuckGo HTML, sans clé).
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { cors, decode } from './_lib/guard';
+import { cors, decode } from './_lib/guard.js';
 
 export function parseDuckDuckGo(html: string) {
   const results: { title: string; url: string; snippet: string }[] = [];

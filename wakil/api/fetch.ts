@@ -1,6 +1,6 @@
 // GET /api/fetch?url=…  → texte lisible d'une page web publique (outil « Lire une page web »).
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { cors, htmlToText, safeFetch } from './_lib/guard';
+import { cors, htmlToText, safeFetch } from './_lib/guard.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   cors(res);
