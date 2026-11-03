@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Wakil</string>
+    <string name="title_activity_main">Wakil</string>
+    <string name="package_name">ma.alwasset.wakil</string>
+    <string name="custom_url_scheme">ma.alwasset.wakil</string>
+</resources>

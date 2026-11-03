@@ -1,0 +1,7 @@
+{
+  "appId": "ma.alwasset.wakil",
+  "appName": "Wakil",
+  "webDir": "dist",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false, "backgroundColor": "#0d121c" }
+}

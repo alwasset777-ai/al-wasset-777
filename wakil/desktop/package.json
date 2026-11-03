@@ -1,0 +1,31 @@
+{
+  "name": "wakil-desktop",
+  "productName": "Wakil",
+  "version": "0.1.0",
+  "description": "Wakil — agent IA autonome (application Mac)",
+  "author": "Al Wasset 777",
+  "license": "UNLICENSED",
+  "main": "main.cjs",
+  "scripts": {
+    "copy-web": "rm -rf app && cp -R ../dist app",
+    "start": "npm run copy-web && electron .",
+    "dist:mac": "npm run copy-web && electron-builder --mac dir --arm64 --x64"
+  },
+  "devDependencies": {
+    "electron": "38.8.6",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "ma.alwasset.wakil",
+    "productName": "Wakil",
+    "directories": { "output": "release", "buildResources": "build" },
+    "files": ["main.cjs", "preload.cjs", "app/**/*"],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png",
+      "identity": null,
+      "hardenedRuntime": false,
+      "extendInfo": { "NSMicrophoneUsageDescription": "Wakil utilise le micro uniquement pour la dictée vocale." }
+    }
+  }
+}

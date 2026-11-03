@@ -1,0 +1,121 @@
+# Wakil : vérifie le code puis fabrique gratuitement les applications
+# (APK Android/Huawei + DMG Mac Apple Silicon et Intel) et les publie
+# dans GitHub Releases sous l'étiquette « wakil-latest ».
+name: Wakil apps
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths: ['wakil/**', '.github/workflows/wakil-apps.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: wakil-apps-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: wakil
+
+jobs:
+  check:
+    name: Vérifications (types, tests, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: wakil/package-lock.json }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  android:
+    name: APK Android / Huawei
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: wakil/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - name: SDK Android 36 (préinstallé sur le runner + compléments)
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKM" ] || SDKM=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | tail -1)
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+      - run: npm ci
+      - run: npm run build:native && npx cap sync android
+      - name: Clé privée (si configurée dans les secrets)
+        env: { KS: '${{ secrets.WAKIL_KEYSTORE_B64 }}' }
+        run: |
+          if [ -n "$KS" ]; then echo "$KS" | base64 -d > "$RUNNER_TEMP/wakil.keystore"; echo "WAKIL_KEYSTORE_FILE=$RUNNER_TEMP/wakil.keystore" >> "$GITHUB_ENV"; fi
+      - name: Compilation
+        working-directory: wakil/android
+        env:
+          WAKIL_VERSION_CODE: ${{ github.run_number }}
+          WAKIL_VERSION_NAME: 0.1.${{ github.run_number }}
+          WAKIL_KEYSTORE_PASSWORD: ${{ secrets.WAKIL_KEYSTORE_PASSWORD }}
+          WAKIL_KEY_ALIAS: ${{ secrets.WAKIL_KEY_ALIAS }}
+          WAKIL_KEY_PASSWORD: ${{ secrets.WAKIL_KEY_PASSWORD }}
+        run: |
+          [ -z "$WAKIL_KEYSTORE_PASSWORD" ] && unset WAKIL_KEYSTORE_PASSWORD WAKIL_KEY_ALIAS WAKIL_KEY_PASSWORD
+          chmod +x gradlew && ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../Wakil-android.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: android, path: wakil/Wakil-android.apk }
+
+  mac:
+    name: DMG Mac (Apple Silicon + Intel)
+    needs: check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: wakil/package-lock.json }
+      - run: npm ci && npm run build:native
+      - name: Application Electron
+        working-directory: wakil/desktop
+        run: |
+          npm install --no-audit --no-fund
+          sed -i '' "s/\"version\": \"0.1.0\"/\"version\": \"0.1.${{ github.run_number }}\"/" package.json
+          npm run dist:mac
+      - name: Signature ad-hoc + DMG
+        working-directory: wakil/desktop/release
+        run: |
+          set -e
+          make_dmg () {
+            app="$1"; out="$2"
+            codesign --force --deep --sign - "$app"
+            stage=$(mktemp -d); cp -R "$app" "$stage/"; ln -s /Applications "$stage/Applications"
+            hdiutil create -volname Wakil -srcfolder "$stage" -ov -format UDZO "$out"
+          }
+          make_dmg "mac-arm64/Wakil.app" "../../Wakil-mac-apple-silicon.dmg"
+          make_dmg "mac/Wakil.app" "../../Wakil-mac-intel.dmg"
+      - uses: actions/upload-artifact@v4
+        with: { name: mac, path: 'wakil/Wakil-mac-*.dmg' }
+
+  release:
+    name: Publication (GitHub Releases)
+    needs: [android, mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: wakil/out, merge-multiple: true }
+      - name: Publier « wakil-latest »
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          gh release delete wakil-latest --cleanup-tag -y || true
+          gh release create wakil-latest out/* --target "$GITHUB_SHA" --title "Wakil — dernière version (build ${{ github.run_number }})" --latest --notes "Applications Wakil fabriquées automatiquement.
+
+          • Wakil-android.apk — Android et Huawei (EMUI / HarmonyOS 2–4)
+          • Wakil-mac-apple-silicon.dmg — Mac M1/M2/M3/M4
+          • Wakil-mac-intel.dmg — Mac Intel
+
+          iPhone et HarmonyOS NEXT : version web installable https://wakil-ia.vercel.app (Partager → Sur l’écran d’accueil)."
