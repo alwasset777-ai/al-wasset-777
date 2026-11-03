@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bureau Virtuel</title>
+<script src="/static/phaser.min.js"></script>
+<style>
+  :root {
+    --bg: #12141a; --panel: #1b1e27; --card: #232734; --line: #343a4a; --text: #e9ebf2; --muted: #9aa1b5;
+    --ok: #30a46c; --no: #e5484d; --warn: #f5a524; --accent: #3e63dd;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 400px; min-height: 100vh; }
+  #game { min-width: 0; align-self: start; position: sticky; top: 0; }
+  #game canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+  aside { background: var(--panel); border-left: 1px solid var(--line); padding: 14px 16px; overflow-y: auto; max-height: 100vh; }
+  h1 { font-size: 17px; margin: 0 0 6px; }
+  h2 { font-size: 14px; margin: 18px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--card); border: 1px solid var(--line); }
+  .chip.on { border-color: var(--ok); } .chip.off { color: var(--muted); }
+  textarea { width: 100%; min-height: 64px; resize: vertical; background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; }
+  .row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  button { font: inherit; border: 0; border-radius: 8px; padding: 8px 12px; cursor: pointer; background: var(--accent); color: #fff; }
+  button.ghost { background: var(--card); border: 1px solid var(--line); color: var(--text); }
+  button.ok { background: var(--ok); } button.no { background: var(--no); }
+  button:disabled { opacity: .5; cursor: default; }
+  #msg { color: var(--warn); min-height: 1.2em; margin-top: 6px; font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+  .card .t { font-weight: 600; } .card .a { color: var(--muted); font-size: 12px; }
+  .card pre, #report { white-space: pre-wrap; word-break: break-word; font: 12.5px/1.45 ui-monospace, Menlo, Consolas, monospace; margin: 6px 0 0; }
+  .card.pending { border-color: var(--warn); }
+  .badge { font-size: 11px; padding: 1px 6px; border-radius: 6px; margin-left: 6px; background: var(--line); }
+  .badge.done { background: var(--ok); } .badge.failed, .badge.rejected { background: var(--no); }
+  a { color: #8fb3ff; }
+  #log div { font-size: 12.5px; padding: 4px 8px; border-left: 3px solid var(--line); margin-bottom: 4px; background: var(--card); }
+  #log .waiting { border-color: var(--warn); } #log .done { border-color: var(--ok); } #log .error { border-color: var(--no); }
+  #report { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px; max-height: 420px; overflow-y: auto; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    #game { position: static; }
+    aside { border-left: 0; border-top: 1px solid var(--line); max-height: none; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div id="game"></div>
+  <aside>
+    <h1>🏢 Bureau Virtuel</h1>
+    <div class="chips" id="chips"></div>
+
+    <h2>Donner un ordre</h2>
+    <textarea id="order" placeholder="Ex. : Prépare la promo de l'appartement 3 chambres à Hamria (vidéo + pub + réponses)"></textarea>
+    <div class="row">
+      <button id="send">Envoyer l'ordre</button>
+      <button id="routine" class="ghost">Lancer la routine du jour</button>
+    </div>
+    <div id="msg"></div>
+
+    <h2>À valider <span id="pcount" class="badge">0</span></h2>
+    <div id="pending"></div>
+
+    <h2>Rapport du Directeur</h2>
+    <div id="report">…</div>
+
+    <h2>Décisions récentes</h2>
+    <div id="history"></div>
+
+    <h2>Journal en direct</h2>
+    <div id="log"></div>
+  </aside>
+</div>
+<script src="/static/office.js"></script>
+</body>
+</html>
