@@ -1,0 +1,2 @@
+# Mac Intel (x86_64) : les versions récentes de ces modules ne fournissent plus de version prête pour Intel.
+cryptography<49
