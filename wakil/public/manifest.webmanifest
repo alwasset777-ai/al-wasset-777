@@ -1,0 +1,25 @@
+{
+  "name": "Wakil — Agent IA autonome",
+  "short_name": "Wakil",
+  "description": "Votre agent IA autonome : il planifie, exécute, vérifie et livre.",
+  "id": "/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "background_color": "#0d121c",
+  "theme_color": "#0d121c",
+  "lang": "fr",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/wakil.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Nouvelle tâche", "url": "./#/tasks", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Fichiers", "url": "./#/files", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+*.log
+.env
+.env.*
+desktop/node_modules
+desktop/app
+desktop/release
+android/app/build
+android/build
+android/.gradle
+android/local.properties
+tests/screens
