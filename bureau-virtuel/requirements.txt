@@ -6,5 +6,6 @@ requests>=2.32
 python-dotenv>=1.0
 apscheduler>=3.10,<4
 firebase-admin>=6.5
+imageio-ffmpeg>=0.5
 pytest>=8
 httpx>=0.27

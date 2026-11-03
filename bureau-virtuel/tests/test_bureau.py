@@ -184,31 +184,122 @@ def test_slideshow_video(tmp_path):
 
 
 # ---------- Serveur : boutons + protections ----------
+H = {"X-Bureau": "1"}
+
+
 def test_server_api_and_protections():
     from fastapi.testclient import TestClient
     import server
     with TestClient(server.app) as client:
         assert client.get("/").status_code == 200
         assert client.get("/static/office.js").status_code == 200
+        assert client.get("/reglages").status_code == 200
         agents.community({"order": None, "mode": "routine"})
         aid = store.list_approvals("pending")[0]["id"]
-        r = client.post(f"/api/approbations/{aid}", json={"decision": True})
+        # sans l'en-tête du bureau, ou depuis un autre site : refusé, et rien n'est exécuté
+        assert client.post(f"/api/approbations/{aid}", json={"decision": True}).status_code == 403
+        assert client.post(f"/api/approbations/{aid}", json={"decision": True},
+                           headers={**H, "origin": "https://evil.example"}).status_code == 403
+        assert store.get_approval(aid)["status"] == "pending"
+        r = client.post(f"/api/approbations/{aid}", json={"decision": True}, headers=H)
         assert r.status_code == 200 and "wa.me" in r.json()["message"]
-        assert client.post("/api/approbations/99999", json={"decision": True}).status_code == 404
-        assert client.post("/api/routine").status_code == 422  # formulaire piégé sans JSON : refusé
-        assert client.get("/", headers={"host": "evil.example"}).status_code == 400  # autre adresse : refusé
+        assert client.post("/api/approbations/99999", json={"decision": True}, headers=H).status_code == 404
+        assert client.post("/api/routine", headers=H).status_code == 422
+        assert client.get("/", headers={"host": "evil.example"}).status_code == 400
         assert client.get("/api/statut").json()["ia"] == "démo (sans IA)"
 
 
-def test_telegram_setup_mode_only_gives_chat_id(monkeypatch):
+def test_telegram_binding_needs_the_secret_link(monkeypatch):
+    import reglages
     monkeypatch.setattr(config, "TELEGRAM_CHAT_ID", "")
     sent = []
     monkeypatch.setattr(tools_telegram, "call", lambda method, **p: sent.append((method, p)) or {})
-    called = []
-    tools_telegram.handle_update({"message": {"chat": {"id": 555}, "text": "/ordre lance une pub"}},
-                                 lambda *a: called.append(a), lambda o: called.append(o), lambda c: called.append(c))
-    assert called == []  # aucune action
-    assert sent and "555" in sent[0][1]["text"]
+    bound = []
+    code = reglages.telegram_link_code()
+    noop = lambda *a: None  # noqa: E731
+    # un inconnu sans le bon code : rien n'est relié
+    tools_telegram.handle_update({"message": {"chat": {"id": 555}, "text": "/start mauvais"}}, noop, noop, noop, bound.append)
+    tools_telegram.handle_update({"message": {"chat": {"id": 555}, "text": "/ordre pub"}}, noop, noop, noop, bound.append)
+    assert bound == []
+    # le patron clique le bouton de la page Réglages
+    tools_telegram.handle_update({"message": {"chat": {"id": 42}, "text": f"/start {code}"}}, noop, noop, noop, bound.append)
+    assert bound == [42]
+
+
+def test_bind_writes_env_and_code_is_single_use():
+    import reglages
+    code = reglages.telegram_link_code()
+    reglages.bind_telegram(4242)
+    try:
+        assert config.TELEGRAM_CHAT_ID == "4242"
+        assert "TELEGRAM_CHAT_ID=4242" in config.ENV_FILE.read_text()
+        assert store.kv_get("telegram_code") is None and reglages.telegram_link_code() != code
+    finally:
+        reglages.save_env({"TELEGRAM_CHAT_ID": ""})
+
+
+def test_save_env_whitelist_and_no_injection():
+    import reglages
+    reglages.save_env({"GITHUB_TOKEN": "abc\nGEMINI_API_KEY=pirate", "HOST": "0.0.0.0"})
+    try:
+        txt = config.ENV_FILE.read_text()
+        assert "GITHUB_TOKEN=abcGEMINI_API_KEY=pirate" in txt  # le retour à la ligne est supprimé
+        assert "\nGEMINI_API_KEY=pirate" not in txt and "HOST=0.0.0.0" not in txt  # clé non autorisée ignorée
+        assert config.GITHUB_TOKEN.startswith("abc") and config.GEMINI_API_KEY == ""
+    finally:
+        reglages.save_env({"GITHUB_TOKEN": ""})
+
+
+def test_settings_api(monkeypatch):
+    from fastapi.testclient import TestClient
+    import reglages
+    import server
+    monkeypatch.setattr(reglages, "check_gemini", lambda k: (k == "bonne", "✅" if k == "bonne" else "❌ invalide"))
+    with TestClient(server.app) as client:
+        r = client.post("/api/reglages/cle", json={"cle": "GEMINI_API_KEY", "valeur": "fausse"}, headers=H)
+        assert r.status_code == 400 and config.GEMINI_API_KEY == ""
+        r = client.post("/api/reglages/cle", json={"cle": "GEMINI_API_KEY", "valeur": "bonne"}, headers=H)
+        assert r.status_code == 200 and config.GEMINI_API_KEY == "bonne" and r.json()["statut"]["gemini"] is True
+        assert client.post("/api/reglages/cle", json={"cle": "HOST", "valeur": "0.0.0.0"}, headers=H).status_code == 400
+        assert client.post("/api/reglages/cle", json={"cle": "BUDGET_MAX_JOUR", "valeur": "abc"}, headers=H).status_code == 400
+        r = client.post("/api/reglages/cle", json={"cle": "AGENTS_ACTIFS", "valeur": ["community", "pirate", "rnd"]}, headers=H)
+        assert r.status_code == 200 and config.AGENTS_ACTIFS == ["community", "rnd"]
+        r = client.post("/api/reglages/cle", json={"cle": "HEURE_ROUTINE", "valeur": "07:30"}, headers=H)
+        assert r.status_code == 200 and server._sched.get_job("routine") is not None
+        assert client.post("/api/reglages/firebase", json={"contenu": '{"type": "user"}'}, headers=H).status_code == 400
+        assert client.post("/api/reglages/cle", json={"cle": "GEMINI_API_KEY", "valeur": "x"}).status_code == 403
+    reglages.save_env({"GEMINI_API_KEY": "", "AGENTS_ACTIFS": "creatif,community,media_buyer,db_manager,auditor,rnd",
+                       "HEURE_ROUTINE": "08:00"})
+
+
+def test_meta_single_token_discovers_everything(monkeypatch):
+    import reglages
+
+    class R:
+        status_code = 200
+        content = b"x"
+
+        def __init__(self, d):
+            self.d = d
+
+        def json(self):
+            return self.d
+
+    def fake_get(url, params=None, timeout=None):
+        if url.endswith("me/accounts"):
+            return R({"data": [{"id": "1", "name": "Autre page", "access_token": "p1"},
+                               {"id": "2", "name": "Al Wasset 777", "access_token": "p2",
+                                "instagram_business_account": {"id": "ig2", "username": "alwasset777"}}]})
+        return R({"data": [{"id": "act_9", "name": "Pub Wasset", "currency": "MAD"}]})
+    monkeypatch.setattr(reglages.requests, "get", fake_get)
+    info = reglages.save_meta("EAA-token-systeme")
+    try:
+        assert info["page"] == "Al Wasset 777" and info["instagram"] == "alwasset777" and info["pub"] == "Pub Wasset"
+        assert (config.META_PAGE_ID, config.META_PAGE_TOKEN, config.META_IG_USER_ID, config.META_AD_ACCOUNT_ID) == \
+            ("2", "p2", "ig2", "act_9")
+    finally:
+        reglages.save_env({k: "" for k in ["META_PAGE_ID", "META_PAGE_TOKEN", "META_IG_USER_ID",
+                                          "META_AD_ACCOUNT_ID", "META_ADS_TOKEN"]})
 
 
 def test_firebase_path_relative_to_folder(monkeypatch):

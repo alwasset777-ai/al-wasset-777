@@ -36,14 +36,23 @@ def send_approval(approval: dict) -> None:
                  {"text": "❌ Refuser", "callback_data": f"no:{approval['id']}"}]])
 
 
-def handle_update(update: dict, on_decision, on_order, on_command) -> None:
+def handle_update(update: dict, on_decision, on_order, on_command, on_bind=None) -> None:
     """Traite un message reçu. Les fonctions on_* sont fournies par le serveur."""
     owner = str(config.TELEGRAM_CHAT_ID)
-    if not owner:  # mode installation : on donne seulement son numéro de chat, aucune action possible
-        chat_id = ((update.get("message") or {}).get("chat") or {}).get("id")
-        if chat_id:
-            call("sendMessage", chat_id=chat_id,
-                 text=f"Votre TELEGRAM_CHAT_ID est : {chat_id}\nCopiez-le dans le fichier .env puis redémarrez le bureau.")
+    if not owner:  # mode installation : seul le bouton « ربط تيليغرام » de la page Réglages peut relier un compte
+        msg = update.get("message") or {}
+        chat_id = (msg.get("chat") or {}).get("id")
+        if not chat_id:
+            return
+        import store
+        code = store.kv_get("telegram_code")
+        text = (msg.get("text") or "").strip()
+        if code and on_bind and text == f"/start {code}":
+            on_bind(chat_id)
+            call("sendMessage", chat_id=chat_id, text="✅ تم ربط حسابك بالمكتب الافتراضي. ستصلك هنا التقارير وأزرار الموافقة.\n"
+                                                      "اكتب /aide لمعرفة الأوامر.")
+        else:
+            call("sendMessage", chat_id=chat_id, text="افتح صفحة الإعدادات في المكتب الافتراضي واضغط زر «ربط تيليغرام».")
         return
     cq = update.get("callback_query")
     if cq:
@@ -75,7 +84,7 @@ def handle_update(update: dict, on_decision, on_order, on_command) -> None:
         send(on_order(text))  # un message simple = un ordre
 
 
-def start_polling(on_decision, on_order, on_command, stop: threading.Event) -> threading.Thread:
+def start_polling(on_decision, on_order, on_command, stop: threading.Event, on_bind=None) -> threading.Thread:
     """Écoute Telegram en continu (sans serveur public : pas besoin d'adresse internet)."""
     def loop():
         offset = None
@@ -86,7 +95,7 @@ def start_polling(on_decision, on_order, on_command, stop: threading.Event) -> t
                 for u in updates:
                     offset = u["update_id"] + 1
                     try:
-                        handle_update(u, on_decision, on_order, on_command)
+                        handle_update(u, on_decision, on_order, on_command, on_bind)
                     except Exception as e:  # un message raté ne doit pas arrêter l'écoute
                         print("Telegram: erreur de traitement", e)
             except Exception as e:

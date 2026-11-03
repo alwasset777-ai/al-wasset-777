@@ -5,7 +5,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 BASE = Path(__file__).resolve().parent
-load_dotenv(BASE / ".env")
+ENV_FILE = Path(os.getenv("BUREAU_ENV_FILE") or BASE / ".env")
+# Le fichier .env (rempli depuis la page Réglages) est prioritaire, sauf pendant les tests.
+load_dotenv(ENV_FILE, override=os.getenv("BUREAU_TESTS") != "1")
 
 
 def _get(name: str, default: str = "") -> str:

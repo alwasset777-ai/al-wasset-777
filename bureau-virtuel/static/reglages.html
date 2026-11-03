@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>إعدادات المكتب</title>
+<style>
+  :root { --bg: #12141a; --panel: #1b1e27; --card: #232734; --line: #343a4a; --text: #e9ebf2; --muted: #a3aabd;
+    --ok: #30a46c; --no: #e5484d; --warn: #f5a524; --accent: #3e63dd; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 22px; margin: 8px 0; }
+  a { color: #8fb3ff; }
+  .progress { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin: 10px 0 18px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .card.done { border-color: var(--ok); }
+  .card h2 { font-size: 18px; margin: 0 0 4px; display: flex; justify-content: space-between; gap: 8px; }
+  [hidden] { display: none !important; }
+  .tag { align-self: flex-start; flex-shrink: 0; font-size: 13px; padding: 2px 10px; border-radius: 99px; background: var(--card); border: 1px solid var(--line); white-space: nowrap; }
+  .tag.on { border-color: var(--ok); color: #8be0b4; } .tag.off { color: var(--muted); }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 10px; }
+  ol { margin: 0; padding-inline-start: 22px; } li { margin: 8px 0; }
+  .btn { display: inline-block; font: inherit; font-size: 15px; border: 0; border-radius: 10px; padding: 9px 14px; cursor: pointer;
+    background: var(--accent); color: #fff; text-decoration: none; margin: 4px 0; }
+  .btn.green { background: var(--ok); } .btn.ghost { background: var(--card); border: 1px solid var(--line); color: var(--text); }
+  .btn.big { font-size: 17px; padding: 12px 18px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input[type=text], input[type=password], input[type=number], input[type=time], select {
+    flex: 1 1 220px; min-width: 0; font: inherit; font-size: 15px; background: var(--card); color: var(--text);
+    border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; direction: ltr; }
+  .msg { min-height: 1.4em; font-size: 14px; margin-top: 6px; }
+  .msg.ok { color: #8be0b4; } .msg.err { color: #ff9b9e; }
+  code { background: var(--card); padding: 1px 6px; border-radius: 6px; direction: ltr; display: inline-block; font-size: 13px; }
+  .perms { direction: ltr; text-align: left; font: 12.5px/1.5 ui-monospace, Menlo, monospace; background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px; word-break: break-all; }
+  .agents label { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+  .agents input { width: 20px; height: 20px; }
+  .note { font-size: 14px; color: var(--warn); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>⚙️ إعدادات المكتب الافتراضي</h1>
+    <a class="btn ghost" href="/">🏢 الرجوع إلى المكتب</a>
+  </header>
+  <div class="progress" id="progress">…</div>
+  <p class="sub">في كل خانة: اضغط الزر الأزرق، انسخ ما يظهر لك، ثم الصقه هنا واضغط «حفظ». المكتب يتحقق من كل شيء ويحفظه تلقائياً على حاسوبك فقط.</p>
+
+  <!-- 1. Gemini -->
+  <section class="card" id="c-gemini">
+    <h2>🧠 1. عقل الوكلاء (Gemini) — مجاني <span class="tag" id="t-gemini"></span></h2>
+    <ol>
+      <li><a class="btn" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">افتح صفحة المفتاح</a> ثم اضغط <b>Create API key</b> وانسخه.</li>
+      <li><div class="row"><input type="password" id="gemini" placeholder="الصق المفتاح هنا (يبدأ بـ AIza…)"><button class="btn green" data-save="GEMINI_API_KEY" data-input="gemini">حفظ</button></div>
+        <div class="msg" id="m-GEMINI_API_KEY"></div></li>
+    </ol>
+  </section>
+
+  <!-- 2. Telegram -->
+  <section class="card" id="c-telegram">
+    <h2>📱 2. تيليغرام: التقرير وأزرار الموافقة على هاتفك <span class="tag" id="t-telegram"></span></h2>
+    <ol>
+      <li><a class="btn" href="https://t.me/BotFather" target="_blank" rel="noopener">افتح BotFather</a> ثم اكتب <code>/newbot</code>، واختر اسماً، ثم اسم مستخدم ينتهي بـ <code>bot</code> (مثال: <code>alwasset777_bureau_bot</code>). سيعطيك <b>رمزاً</b>، انسخه.</li>
+      <li><div class="row"><input type="password" id="tgtoken" placeholder="الصق رمز البوت هنا (أرقام:حروف)"><button class="btn green" data-save="TELEGRAM_BOT_TOKEN" data-input="tgtoken">حفظ</button></div>
+        <div class="msg" id="m-TELEGRAM_BOT_TOKEN"></div></li>
+      <li id="tg-bind-step">اضغط <span id="tg-bind"><i>(يظهر الزر بعد حفظ الرمز)</i></span> ثم اضغط <b>Start / ابدأ</b> داخل تيليغرام.</li>
+      <li><button class="btn ghost" id="tg-test">أرسل رسالة تجربة</button> <div class="msg" id="m-tgtest"></div></li>
+    </ol>
+  </section>
+
+  <!-- 3. Firebase -->
+  <section class="card" id="c-firebase">
+    <h2>🗂️ 3. قاعدة الموقع (العقارات وطلبات الزبائن) <span class="tag" id="t-firebase"></span></h2>
+    <ol>
+      <li><a class="btn" href="https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk" target="_blank" rel="noopener">افتح صفحة «حساب الخدمة» في Firebase</a> واختر مشروع الموقع.</li>
+      <li>اضغط <b>Generate new private key</b> ثم <b>Generate key</b>، وسيُحمَّل ملف.</li>
+      <li><label class="btn green">📂 اختر الملف المحمَّل<input type="file" id="fbfile" accept=".json,application/json" hidden></label>
+        <div class="msg" id="m-firebase"></div></li>
+    </ol>
+    <p class="note">⚠️ هذا الملف يفتح قاعدتك بالكامل: لا ترسله لأي أحد. المكتب يحفظه على حاسوبك فقط.</p>
+  </section>
+
+  <!-- 4. Meta -->
+  <section class="card" id="c-meta">
+    <h2>📣 4. فيسبوك وإنستغرام والإشهار (Meta) <span class="tag" id="t-meta"></span></h2>
+    <p class="sub">هذه أطول خطوة (حوالي 10 دقائق). اتركها للأخير إن أردت؛ باقي المكتب يعمل بدونها.</p>
+    <ol>
+      <li><a class="btn" href="https://developers.facebook.com/apps/creation/" target="_blank" rel="noopener">أنشئ تطبيق Meta</a> واختر <b>Other / أخرى</b> ثم <b>Business</b>، وسمّه «Bureau Al Wasset».</li>
+      <li><a class="btn" href="https://business.facebook.com/settings/system-users" target="_blank" rel="noopener">افتح «المستخدمون النظاميون»</a> ثم: <b>Add / إضافة</b> ← الدور <b>Admin</b> ← <b>Assign assets / تعيين أصول</b>: صفحتك، وحساب إنستغرام، وحساب الإشهار، والتطبيق (تحكم كامل).</li>
+      <li>اضغط <b>Generate new token / إنشاء رمز</b>، واختر التطبيق، وفعّل هذه الصلاحيات (انسخها من هنا للبحث عنها):
+        <div class="perms" id="perms">pages_show_list, pages_read_engagement, pages_read_user_content, pages_manage_engagement, pages_messaging, instagram_basic, instagram_manage_comments, ads_management, ads_read, business_management</div>
+        <button class="btn ghost" id="copy-perms">📋 نسخ القائمة</button></li>
+      <li><div class="row"><input type="password" id="metatoken" placeholder="الصق الرمز هنا (يبدأ بـ EAA…)"><button class="btn green" id="meta-save">ربط</button></div>
+        <div class="msg" id="m-meta"></div>
+        <div class="row" id="meta-choose" hidden>
+          <select id="meta-page"></select><select id="meta-ad"></select><button class="btn ghost" id="meta-resave">تغيير الاختيار</button>
+        </div></li>
+      <li>سقف ميزانية الإشهار في اليوم (لا يمكن للوكيل تجاوزه أبداً):
+        <div class="row"><input type="number" id="budget" min="1" max="100000"><button class="btn green" data-save="BUDGET_MAX_JOUR" data-input="budget">حفظ</button></div>
+        <div class="msg" id="m-BUDGET_MAX_JOUR"></div></li>
+    </ol>
+    <p class="sub">للرد على الزبائن الحقيقيين في ماسنجر وإنستغرام قد تطلب Meta «توثيق النشاط التجاري» (مجاني، يأخذ بضعة أيام):
+      <a href="https://business.facebook.com/settings/security" target="_blank" rel="noopener">صفحة التوثيق</a></p>
+  </section>
+
+  <!-- 5. Agents -->
+  <section class="card" id="c-agents">
+    <h2>🤖 5. الوكلاء المفعّلون وساعة التقرير</h2>
+    <p class="sub">نصيحة: ابدأ بالأربعة الأولى، ثم أضف «المبدع»، و«مشتري الإشهار» في الأخير.</p>
+    <div class="agents" id="agents"></div>
+    <button class="btn green" id="agents-save">حفظ الوكلاء</button>
+    <div class="msg" id="m-AGENTS_ACTIFS"></div>
+    <div class="row" style="margin-top:10px">ساعة التقرير اليومي: <input type="time" id="heure"><button class="btn green" data-save="HEURE_ROUTINE" data-input="heure">حفظ</button></div>
+    <div class="msg" id="m-HEURE_ROUTINE"></div>
+    <p class="sub">🎬 المونتاج (FFmpeg): <span id="ffmpeg"></span></p>
+  </section>
+
+  <!-- 6. GitHub -->
+  <section class="card" id="c-github">
+    <h2>🔬 6. البحث في GitHub (اختياري) <span class="tag" id="t-github"></span></h2>
+    <p class="sub">بدون رمز يعمل الباحث أيضاً، فقط أبطأ قليلاً.</p>
+    <ol>
+      <li><a class="btn" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">أنشئ رمزاً مجانياً</a> (اترك كل الخيارات كما هي، فقط اختر مدة الصلاحية واضغط Generate).</li>
+      <li><div class="row"><input type="password" id="ghtoken" placeholder="الصق الرمز هنا (github_pat_…)"><button class="btn green" data-save="GITHUB_TOKEN" data-input="ghtoken">حفظ</button></div>
+        <div class="msg" id="m-GITHUB_TOKEN"></div></li>
+    </ol>
+  </section>
+</main>
+<script src="/static/reglages.js"></script>
+</body>
+</html>

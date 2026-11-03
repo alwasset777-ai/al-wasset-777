@@ -13,7 +13,8 @@ def emit(agent: str, status: str, text: str = "", **extra) -> None:
     """status : walk (target=desk|meeting) | working | done | waiting | error"""
     global _bureau_ouvert
     try:
-        requests.post(config.BUS_URL, json={"agent": agent, "status": status, "text": text[:300], **extra}, timeout=2)
+        requests.post(config.BUS_URL, json={"agent": agent, "status": status, "text": text[:300], **extra},
+                      headers={"X-Bureau": "1"}, timeout=2)
         _bureau_ouvert = True
     except requests.RequestException:
         _bureau_ouvert = False  # le bureau est fermé : les agents continuent leur travail

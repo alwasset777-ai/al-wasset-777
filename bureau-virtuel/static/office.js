@@ -214,7 +214,7 @@ function linkify(text) {  // transforme les liens https en liens cliquables (san
 }
 
 async function api(path, body) {
-  const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Bureau': '1' }, body: JSON.stringify(body) } : {});
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
   return r.json();
 }
