@@ -18,4 +18,5 @@ Seules les idées **≥ 22/30** sont prioritaires. Légende fiabilité : [F] fai
 - **IDEA-003 (23)** : très scalable et quasi 100 % automatisable, mais il faut adapter l'application pour plusieurs agences → 1er paiement lent [H].
 - **IDEA-004 (21)** : beaucoup de modèles gratuits existent déjà (concurrence forte) [E] ; moyen d'encaissement en ligne depuis le Maroc à vérifier.
 - **IDEA-005 (21)** : demande réelle mais chaque dossier prend du temps humain ; risque de confusion avec un service public gratuit.
-- **IDEA-006 (19)** : [F] le Programme Partenaire YouTube exige 1 000 abonnés + 4 000 h de visionnage sur 12 mois, ou 1 000 abonnés + 10 M de vues Shorts sur 90 jours (conditions à revérifier sur la page officielle).
+- **IDEA-006 (19)** : [F] le Programme Partenaire YouTube exige 1 000 abonnés + 4 000 h de visionnage sur 12 mois, ou 1 000 abonnés + 10 M de vues Shorts sur 90 jours. Des seuils réduits (500 abonnés) existent dans certains pays ; disponibilité au Maroc à vérifier sur https://support.google.com/youtube/answer/72851 (vérifié par recherche le 2026-11-03).
+- **Note IDEA-002** : plateforme officielle de l'aide = daamsakane.ma ; de nouvelles règles sont annoncées pour 2026 → chaque vidéo doit citer la règle en vigueur (voir `assets/script-short-logement-aide.md`).

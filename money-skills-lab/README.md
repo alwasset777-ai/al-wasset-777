@@ -17,7 +17,7 @@
 | Compétences enregistrées | 5 |
 | Compétences « Rentabilisée » | 1 |
 | Idées notées ≥ 22/30 | 3 |
-| Dernière mise à jour | 2026-11-02 |
+| Dernière mise à jour | 2026-11-03 |
 <!-- DASHBOARD:END -->
 
 ## 🚀 Projets actifs
