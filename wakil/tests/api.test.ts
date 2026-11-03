@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { assertPublicUrl, htmlToText, isPrivateIp } from '../api/_lib/guard';
-import { parseDuckDuckGo } from '../api/search';
+import { parseDuckDuckGo, parseDuckDuckGoLite, parseMojeek } from '../api/search';
 
 describe('sécurité du proxy web (SSRF)', () => {
   it('reconnaît les adresses privées', () => {
@@ -30,5 +30,11 @@ describe('extraction de texte', () => {
   it('lit les résultats DuckDuckGo', () => {
     const html = `<div class="result results_links results_links_deep web-result"><a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fpage&amp;rut=1">Exemple <b>page</b></a><a class="result__snippet" href="#">Un extrait &amp; plus</a></div>`;
     expect(parseDuckDuckGo(html)).toEqual([{ title: 'Exemple page', url: 'https://example.com/page', snippet: 'Un extrait & plus' }]);
+  });
+  it('lit DuckDuckGo Lite et Mojeek', () => {
+    const lite = `<tr><td><a rel="nofollow" href="https://ex.com/a" class='result-link'>Titre A</a></td></tr><tr><td class='result-snippet'>Extrait <b>A</b></td></tr>`;
+    expect(parseDuckDuckGoLite(lite)).toEqual([{ title: 'Titre A', url: 'https://ex.com/a', snippet: 'Extrait A' }]);
+    const moj = `<ul class="results-standard"><li class="r1"><a class="ob" href="https://ex.com/b">x</a><h2><a class="title" href="https://ex.com/b">Titre B</a></h2><p class="s">Extrait B</p></li></ul>`;
+    expect(parseMojeek(moj)).toEqual([{ title: 'Titre B', url: 'https://ex.com/b', snippet: 'Extrait B' }]);
   });
 });
