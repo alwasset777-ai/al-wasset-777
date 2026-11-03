@@ -5,6 +5,7 @@ export const agencyProfile = {
   fullNameAr: 'مكتب الوسيط 777 للخدمات العقارية و الإستشارات الإستثمارية',
   managerAr: 'السيد منير رادوي',
   managerFr: 'M. Mounir Radoui',
+  agentNameAr: 'منير', // nom de l'agent IA personnel du gérant
   roleAr: 'مدير مكتب الوسيط 777 للخدمات العقارية و الإستشارات الإستثمارية',
   cityAr: 'مكناس',
   cityFr: 'Meknès',

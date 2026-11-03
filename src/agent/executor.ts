@@ -6,6 +6,7 @@ import { generateDrafts, getDrafts } from '../services/adsStore';
 import { appointmentsStore, clientsStore, newAppointmentId } from '../services/officeStores';
 import { registryStore } from '../services/registryStore';
 import { listInbox, sendToAgency } from '../services/inbox';
+import { forget, getMemory, remember, type MemoryKind } from '../services/muneerMemory';
 
 export type AgentEffect =
   | { type: 'link'; label: string; url: string; kind: 'whatsapp' | 'ads' | 'other' }
@@ -261,6 +262,22 @@ export async function runTool(name: string, args: any, ctx: ToolContext): Promis
       if (phone.length < 9) return ok({ error: 'Numéro invalide' });
       effects.push({ type: 'link', label: `أرسل عبر واتساب إلى ${args.phone}`, url: `https://wa.me/${phone}?text=${encodeURIComponent(String(args.text || ''))}`, kind: 'whatsapp' });
       return ok({ prepared: true, note: 'Bouton WhatsApp affiché au gérant' });
+    }
+
+    case 'remember': {
+      const kind: MemoryKind = ['fact', 'style', 'skill'].includes(args.kind) ? args.kind : 'fact';
+      const item = remember(kind, String(args.text || ''));
+      return ok(item ? { saved: true, id: item.id, total: getMemory().length } : { error: 'Texte trop court' });
+    }
+
+    case 'forget': {
+      const removed = forget(String(args.query || ''));
+      return ok({ removed: removed.map((m) => m.text), count: removed.length });
+    }
+
+    case 'list_memory': {
+      const items = getMemory();
+      return ok({ count: items.length, items: items.map((m) => ({ id: m.id, kind: m.kind, text: m.text })) });
     }
 
     case 'open_page': {

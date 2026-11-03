@@ -155,6 +155,25 @@ export const TOOL_DEFS: ToolDef[] = [
     modes: ['manager'],
   },
   {
+    name: 'remember',
+    description:
+      "Mémoriser ce que M. Mounir t'apprend pour toujours l'appliquer : une information durable (fact), une préférence d'écriture (style), ou une façon de faire / une commande raccourcie (skill, ex. « كي نقول ليك تقرير، عطيني المواعيد والزبناء الجداد »). Une phrase claire par souvenir.",
+    parameters: obj({ kind: { type: 'string', enum: ['fact', 'style', 'skill'] }, text: str('Ce qu’il faut retenir, en une phrase claire') }, ['kind', 'text']),
+    modes: ['manager'],
+  },
+  {
+    name: 'forget',
+    description: "Oublier un souvenir (quand M. Mounir le demande) : par identifiant ou par mots du souvenir.",
+    parameters: obj({ query: str('Identifiant ou mots du souvenir à oublier') }, ['query']),
+    modes: ['manager'],
+  },
+  {
+    name: 'list_memory',
+    description: "Lister tout ce que M. Mounir t'a appris (souvenirs, style, مهارات), avec leurs identifiants.",
+    parameters: obj({}),
+    modes: ['manager'],
+  },
+  {
     name: 'open_page',
     description: "Ouvrir une page de l'application.",
     parameters: obj({ page: { type: 'string', enum: ['home', 'vendre', 'louer', 'neuf', 'ads', 'crm', 'legal'] } }, ['page']),
