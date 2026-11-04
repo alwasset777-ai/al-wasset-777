@@ -141,7 +141,7 @@ export interface Memory extends BaseRecord {
   source: 'user' | 'agent';
 }
 
-export type ProviderId = 'gemini' | 'openai' | 'anthropic' | 'groq' | 'openrouter' | 'mistral' | 'ollama' | 'custom';
+export type ProviderId = 'gemini' | 'openai' | 'anthropic' | 'groq' | 'openrouter' | 'mistral' | 'ollama' | 'custom' | 'demo';
 
 export interface ModelRef {
   provider: ProviderId;

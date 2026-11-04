@@ -84,6 +84,15 @@ export const PROVIDERS: ProviderInfo[] = [
     note: 'Payant à l’usage. Utilisez-le seulement si vous avez déjà une clé.',
   },
   {
+    id: 'demo',
+    label: 'Mode démonstration (sans clé)',
+    free: true,
+    needsKey: false,
+    baseUrl: '',
+    defaultModels: ['wakil-demo'],
+    note: 'Pour découvrir Wakil sans clé : recherche et fichiers réels, mais pas d’intelligence artificielle. Ajoutez ensuite une clé gratuite.',
+  },
+  {
     id: 'custom',
     label: 'Compatible OpenAI (personnalisé)',
     free: true,

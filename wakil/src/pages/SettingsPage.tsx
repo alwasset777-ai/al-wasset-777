@@ -313,6 +313,9 @@ function DataCard() {
   return (
     <div className="card p-4 space-y-4 max-w-2xl">
       <h2 className="font-semibold">Sauvegarde et données</h2>
+      <a className="text-sm text-mint hover:underline" href="privacy.html" target="_blank" rel="noreferrer">
+        Politique de confidentialité →
+      </a>
       <p className="text-sm text-muted">Tout est stocké sur cet appareil. Exportez une sauvegarde pour la garder ou la transférer (les clés API ne sont pas incluses).</p>
       <div className="flex flex-wrap gap-2">
         <Button

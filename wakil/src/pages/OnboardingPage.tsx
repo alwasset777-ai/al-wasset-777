@@ -97,6 +97,17 @@ export function OnboardingPage({ onDone }: { onDone: () => void }) {
                 {ready ? 'Continuer' : 'Plus tard'} <ArrowRight size={16} />
               </Button>
             </div>
+            {!ready && (
+              <button
+                className="w-full text-sm text-mint hover:underline"
+                onClick={async () => {
+                  await saveSettings({ providers: { ...s.providers, demo: { enabled: true } }, defaultModel: { provider: 'demo', model: 'wakil-demo' } });
+                  setStep(2);
+                }}
+              >
+                Pas de clé pour l’instant ? Essayer en mode démonstration →
+              </button>
+            )}
           </div>
         )}
 
