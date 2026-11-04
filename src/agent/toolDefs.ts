@@ -173,6 +173,82 @@ export const TOOL_DEFS: ToolDef[] = [
     parameters: obj({}),
     modes: ['manager'],
   },
+  // ---- Service « النمو · Croissance » (vente de visuels aux autres agences, encaissements, opportunités) ----
+  {
+    name: 'growth_summary',
+    description:
+      "Tableau de bord « النمو » : total encaissé (MAD), palier atteint et suivant (1er encaissement → 5 000 → 10 000 → 20 000 MAD/mois), projets avec jours écoulés et signaux (règle : 30 jours sans signal → proposer d'arrêter), agences prospectées par statut, relances en retard, opportunités notées /30.",
+    parameters: obj({}),
+    modes: ['manager'],
+  },
+  {
+    name: 'list_agency_prospects',
+    description: "Lister les agences immobilières prospectées (clients potentiels des visuels) : id, nom, ville, téléphone, statut, notes, dates de contact et de relance.",
+    parameters: obj({
+      text: str('Recherche libre (nom, ville, notes)'),
+      status: { type: 'string', enum: ['à vérifier', 'contacté', 'a répondu', 'démo faite', 'proposition envoyée', 'client', 'refus'] },
+    }),
+    modes: ['manager'],
+  },
+  {
+    name: 'save_agency_prospect',
+    description:
+      "Ajouter une agence prospectée (sans id) ou mettre à jour une agence existante (avec id) : statut, téléphone, note, date de relance. Une note est ajoutée datée, sans effacer les anciennes.",
+    parameters: obj({
+      id: str('Identifiant AG-xxx pour une mise à jour'),
+      name: str('Nom de l’agence (obligatoire pour un ajout)'),
+      city: str('Ville'),
+      phone: str('Téléphone'),
+      status: { type: 'string', enum: ['à vérifier', 'contacté', 'a répondu', 'démo faite', 'proposition envoyée', 'client', 'refus'] },
+      addNote: str('Note à ajouter (ex. réponse de l’agence, objection entendue)'),
+      nextFollowUp: str('Date de relance AAAA-MM-JJ'),
+    }),
+    modes: ['manager'],
+  },
+  {
+    name: 'add_revenue',
+    description:
+      "Enregistrer un encaissement RÉEL (argent reçu, pas une promesse) : date, source, projet, montant en MAD, preuve (facture, reçu, capture). Refuser si le gérant parle d'une promesse ou d'une estimation.",
+    parameters: obj(
+      {
+        date: str('Date AAAA-MM-JJ (aujourd’hui par défaut)'),
+        source: str('Qui a payé et pourquoi, ex. « Agence X — visuels du mois »'),
+        project: { type: 'string', enum: ['P-001', 'P-002', 'P-003', 'autre'] },
+        amountMad: num('Montant encaissé en MAD'),
+        proof: str('Preuve : nom du fichier ou description'),
+      },
+      ['source', 'amountMad']
+    ),
+    modes: ['manager'],
+  },
+  {
+    name: 'log_growth_signal',
+    description: "Ajouter des signaux à un projet « النمو » (vues d'une vidéo, clics, contacts entrants), pour la règle des 30 jours.",
+    parameters: obj(
+      {
+        project: { type: 'string', enum: ['P-001', 'P-002', 'P-003'] },
+        views: num('Vues à ajouter'),
+        clicks: num('Clics à ajouter'),
+        contacts: num('Contacts entrants à ajouter'),
+      },
+      ['project']
+    ),
+    modes: ['manager'],
+  },
+  {
+    name: 'growth_script',
+    description:
+      "Textes validés pour prospecter les agences : premier message (darija ou français), relance, présentation de l'offre, ou réponse à une objection. Pour l'envoyer, enchaîner avec prepare_whatsapp.",
+    parameters: obj(
+      {
+        kind: { type: 'string', enum: ['first_message_darija', 'first_message_fr', 'followup', 'offer', 'objection'] },
+        agencyName: str('Nom à mettre dans le message'),
+        objection: str('Ce que l’agence a répondu (pour kind = objection)'),
+      },
+      ['kind']
+    ),
+    modes: ['manager'],
+  },
   {
     name: 'open_page',
     description: "Ouvrir une page de l'application.",
