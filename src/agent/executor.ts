@@ -7,6 +7,10 @@ import { appointmentsStore, clientsStore, newAppointmentId } from '../services/o
 import { registryStore } from '../services/registryStore';
 import { listInbox, sendToAgency } from '../services/inbox';
 import { forget, getMemory, remember, type MemoryKind } from '../services/muneerMemory';
+import {
+  AgencyProspect, GROWTH_SCRIPTS, KILL_AFTER_DAYS, MILESTONES_MAD, OBJECTION_REPLIES, PROSPECT_STATUSES, ProspectStatus, RevenueEntry,
+  newGrowthId, opportunitiesStore, opportunityScore, projectsStore, prospectsStore, revenuesStore,
+} from '../services/growthStore';
 
 export type AgentEffect =
   | { type: 'link'; label: string; url: string; kind: 'whatsapp' | 'ads' | 'other' }
@@ -92,6 +96,43 @@ const clientMatchesProperty = (c: ClientLead, p: Property) => {
   if (c.area && norm(c.area).split(/[\s/،,]+/).some((w) => w.length > 2 && norm(`${p.district} ${p.city}`).includes(w))) score += 10;
   return score;
 };
+
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Casablanca' }); // AAAA-MM-JJ
+const isDate = (v: unknown) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+// Tableau de bord « النمو » : uniquement des chiffres réellement enregistrés.
+function growthSummary() {
+  const now = today();
+  const revenues = revenuesStore.get();
+  const totalMad = revenues.reduce((a, r) => a + r.amountMad, 0);
+  const month = now.slice(0, 7);
+  const thisMonthMad = revenues.filter((r) => r.date.startsWith(month)).reduce((a, r) => a + r.amountMad, 0);
+  const reached = MILESTONES_MAD.filter((m, i) => (i === 0 ? totalMad >= m : thisMonthMad >= m));
+  const next = MILESTONES_MAD.find((m, i) => (i === 0 ? totalMad < m : thisMonthMad < m));
+  const prospects = prospectsStore.get();
+  const byStatus: Record<string, number> = {};
+  prospects.forEach((p) => (byStatus[p.status] = (byStatus[p.status] || 0) + 1));
+  const followUpsDue = prospects
+    .filter((p) => p.nextFollowUp && p.nextFollowUp <= now && p.status !== 'client' && p.status !== 'refus')
+    .map((p) => ({ id: p.id, name: p.name, phone: p.phone, due: p.nextFollowUp }));
+  const days = (from: string) => Math.floor((Date.parse(now) - Date.parse(from)) / 86400_000);
+  const projects = projectsStore.get().map((p) => {
+    const revenue = revenues.filter((r) => r.project === p.id).reduce((a, r) => a + r.amountMad, 0);
+    const contacts = p.signals.contacts + (p.id === 'P-001' ? prospects.filter((x) => ['a répondu', 'démo faite', 'proposition envoyée', 'client'].includes(x.status)).length : 0);
+    const hasSignal = p.signals.views + p.signals.clicks + contacts + revenue > 0;
+    const elapsed = days(p.start);
+    return { ...p, revenueMad: revenue, contacts, daysElapsed: elapsed, alert: !hasSignal && elapsed >= KILL_AFTER_DAYS ? 'Aucun signal après 30 jours : proposer d’arrêter et réallouer le temps' : undefined };
+  });
+  const opportunities = opportunitiesStore
+    .get()
+    .map((o) => ({ id: o.id, title: o.title, score: opportunityScore(o), priority: opportunityScore(o) >= 22 }))
+    .sort((a, b) => b.score - a.score);
+  return {
+    totalMad, thisMonthMad, payments: revenues.length,
+    milestonesReached: reached, nextMilestoneMad: next ?? null,
+    prospects: { total: prospects.length, byStatus }, followUpsDue, projects, opportunities,
+  };
+}
 
 export async function runTool(name: string, args: any, ctx: ToolContext): Promise<ToolOutcome> {
   if (!toolsForMode(ctx.mode).some((t) => t.name === name)) {
@@ -283,6 +324,90 @@ export async function runTool(name: string, args: any, ctx: ToolContext): Promis
     case 'open_page': {
       effects.push({ type: 'navigate', page: String(args.page) });
       return ok({ opened: args.page });
+    }
+
+    // ---- Service « النمو · Croissance » ----
+    case 'growth_summary':
+      return ok(growthSummary());
+
+    case 'list_agency_prospects': {
+      const text = norm(args.text);
+      const list = prospectsStore
+        .get()
+        .filter((p) => (!args.status || p.status === args.status) && (!text || norm([p.name, p.city, p.notes].join(' ')).includes(text)));
+      return ok({ count: list.length, prospects: list.slice(0, 40) });
+    }
+
+    case 'save_agency_prospect': {
+      const status = PROSPECT_STATUSES.includes(args.status) ? (args.status as ProspectStatus) : undefined;
+      const stamp = today();
+      const withNote = (notes: string) => (args.addNote ? `${notes ? `${notes}\n` : ''}[${stamp}] ${String(args.addNote)}` : notes);
+      if (args.id) {
+        let found = false;
+        prospectsStore.set((prev) =>
+          prev.map((p) => {
+            if (p.id !== String(args.id)) return p;
+            found = true;
+            return {
+              ...p,
+              ...(args.name ? { name: String(args.name) } : {}),
+              ...(args.city ? { city: String(args.city) } : {}),
+              ...(args.phone ? { phone: String(args.phone) } : {}),
+              ...(status ? { status, ...(status !== 'à vérifier' ? { lastContact: stamp } : {}) } : {}),
+              ...(isDate(args.nextFollowUp) ? { nextFollowUp: String(args.nextFollowUp) } : {}),
+              notes: withNote(p.notes),
+            };
+          })
+        );
+        return ok(found ? { updated: true, id: args.id } : { error: 'Agence introuvable' });
+      }
+      if (!args.name) return ok({ error: 'Nom de l’agence obligatoire pour un ajout' });
+      const prospect: AgencyProspect = {
+        id: newGrowthId('AG'), name: String(args.name), city: String(args.city || ''), phone: String(args.phone || ''),
+        status: status || 'à vérifier', notes: withNote(''),
+        ...(status && status !== 'à vérifier' ? { lastContact: stamp } : {}),
+        ...(isDate(args.nextFollowUp) ? { nextFollowUp: String(args.nextFollowUp) } : {}),
+      };
+      prospectsStore.set((prev) => [...prev, prospect]);
+      return ok({ added: true, id: prospect.id });
+    }
+
+    case 'add_revenue': {
+      const amount = Number(args.amountMad);
+      if (!Number.isFinite(amount) || amount <= 0) return ok({ error: 'Montant invalide' });
+      if (!args.source) return ok({ error: 'Source obligatoire' });
+      const entry: RevenueEntry = {
+        id: newGrowthId('REV'), date: isDate(args.date) ? String(args.date) : today(), source: String(args.source),
+        project: ['P-001', 'P-002', 'P-003'].includes(args.project) ? args.project : 'autre', amountMad: Math.round(amount), proof: String(args.proof || ''),
+      };
+      revenuesStore.set((prev) => [...prev, entry]);
+      const s = growthSummary();
+      return ok({ saved: true, id: entry.id, totalMad: s.totalMad, reminder: entry.proof ? undefined : 'Ajouter une preuve (facture, reçu, capture).' });
+    }
+
+    case 'log_growth_signal': {
+      let found = false;
+      const add = (v: unknown) => Math.max(0, Math.round(Number(v) || 0));
+      projectsStore.set((prev) =>
+        prev.map((p) => {
+          if (p.id !== args.project) return p;
+          found = true;
+          return { ...p, signals: { views: p.signals.views + add(args.views), clicks: p.signals.clicks + add(args.clicks), contacts: p.signals.contacts + add(args.contacts) } };
+        })
+      );
+      return ok(found ? { saved: true, project: args.project } : { error: 'Projet introuvable' });
+    }
+
+    case 'growth_script': {
+      const name = String(args.agencyName || '').trim() || '…';
+      if (args.kind === 'objection') {
+        const said = norm(args.objection);
+        const match = OBJECTION_REPLIES.find((o) => o.keys.some((k) => said.includes(norm(k))));
+        return ok(match ? { objection: match.objection, darija: match.darija, fr: match.fr } : { note: 'Objection non répertoriée : répondre en 1 phrase puis proposer les 3 visuels gratuits.', all: OBJECTION_REPLIES.map((o) => o.objection) });
+      }
+      const key = args.kind as keyof typeof GROWTH_SCRIPTS;
+      if (!GROWTH_SCRIPTS[key]) return ok({ error: 'Type de texte inconnu' });
+      return ok({ text: GROWTH_SCRIPTS[key].replace('{name}', name) });
     }
   }
   return ok({ error: 'Outil inconnu' });
