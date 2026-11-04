@@ -42,6 +42,14 @@ export function HomePage() {
           {profile?.name ? `, ${profile.name}` : ''}.
         </h1>
         <p className="text-muted mt-1.5">Que dois-je accomplir pour vous aujourd’hui ?</p>
+        {s.defaultModel.provider === 'demo' && (
+          <a href="#/settings/models" className="mt-4 flex items-center gap-2 rounded-xl border border-mint/40 bg-mint-soft px-3 py-2.5 text-sm">
+            <AlertTriangle size={16} className="text-mint shrink-0" />
+            <span>
+              <b>Mode démonstration</b> : recherche et fichiers réels, sans intelligence artificielle. Ajoutez une clé gratuite pour tout débloquer →
+            </span>
+          </a>
+        )}
         {missingKey && (
           <a href="#/settings/models" className="mt-4 flex items-center gap-2 rounded-xl border border-accent/40 bg-accent-soft px-3 py-2.5 text-sm">
             <AlertTriangle size={16} className="text-accent shrink-0" />

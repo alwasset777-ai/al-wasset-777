@@ -3,6 +3,7 @@
 // Les appels partent directement de l'appareil vers le fournisseur : la clé
 // ne transite jamais par un serveur Wakil.
 import { providerInfo } from './defaults';
+import { demoComplete } from './demo';
 import type { ModelRef, ProviderConfig, ProviderId, ToolCall } from './types';
 
 export interface ToolSchema {
@@ -312,6 +313,8 @@ async function callAnthropic(req: LLMRequest): Promise<LLMResponse> {
 // ------------------------------------------------------------------ public
 export async function complete(req: LLMRequest): Promise<LLMResponse> {
   switch (req.model.provider) {
+    case 'demo':
+      return demoComplete(req);
     case 'gemini':
       return callGemini(req);
     case 'anthropic':
@@ -323,6 +326,7 @@ export async function complete(req: LLMRequest): Promise<LLMResponse> {
 
 /** Récupère la liste réelle des modèles disponibles pour une clé. */
 export async function listModels(provider: ProviderId): Promise<string[]> {
+  if (provider === 'demo') return ['wakil-demo'];
   const c = cfg(provider);
   const get = async (url: string, headers: Record<string, string>) => {
     const res = await fetchImpl(url, { headers });

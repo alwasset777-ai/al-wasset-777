@@ -145,4 +145,25 @@ describe('moteur d’agent (fournisseur simulé)', () => {
     const done = await new AgentRunner(task, { model: { provider: 'gemini', model: 'm' } }, { approve: async () => true, signal: ctrl.signal }).run();
     expect(done.status).toBe('cancelled');
   });
+
+  it('mode démonstration : plan, recherche réelle, fichier, vérification sans clé', async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string) => {
+      if (String(url).includes('/api/search'))
+        return new Response(JSON.stringify({ results: [{ title: 'Meknès', url: 'https://fr.wikipedia.org/wiki/Mekn%C3%A8s', snippet: 'Ville impériale du Maroc' }] }), { status: 200 });
+      return new Response('{}', { status: 404 });
+    }) as typeof fetch;
+    try {
+      const task = await createTask({ goal: 'Rédige un rapport sur Meknès' });
+      const done = await new AgentRunner(task, { model: { provider: 'demo', model: 'wakil-demo' } }, { approve: async () => true }).run();
+      expect(done.status).toBe('done');
+      expect(done.steps.map((st) => st.status)).toEqual(['done', 'done']);
+      const f = (await listFiles('')).find((x) => x.path === 'demo/rapport.md');
+      expect(f?.content).toContain('Meknès');
+      expect(f?.content).toContain('mode démonstration');
+      expect(done.result).toContain('demo/rapport.md');
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
 });
