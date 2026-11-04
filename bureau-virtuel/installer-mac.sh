@@ -64,7 +64,14 @@ chmod 600 "$DEST/.env"
 say "3/6 Installation des modules (2 à 5 minutes la première fois)…"
 [ -x "$DEST/.venv/bin/python" ] || "$PY" -m venv "$DEST/.venv"
 "$DEST/.venv/bin/python" -m pip install -q --upgrade pip
-"$DEST/.venv/bin/python" -m pip install -q -r "$DEST/requirements.txt"
+# --prefer-binary : toujours prendre une version déjà prête (jamais de compilation sur le Mac)
+PIP_ARGS=(-q --prefer-binary -r "$DEST/requirements.txt")
+if [ "$(uname -m)" = "x86_64" ]; then
+  echo "   Mac Intel détecté : versions compatibles Intel."
+  PIP_ARGS+=(-c "$DEST/constraints-mac-intel.txt")
+fi
+"$DEST/.venv/bin/python" -m pip install "${PIP_ARGS[@]}" || \
+  fail "L'installation des modules a échoué. Envoyez une photo de cet écran à Claude."
 
 # 4) Démarrage automatique (le bureau tourne en arrière-plan, même après redémarrage du Mac)
 say "4/6 Démarrage automatique…"
