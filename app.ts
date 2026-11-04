@@ -184,7 +184,7 @@ Adresse : شارع باريز بناية سليكت select الطابق الأو
 
 const LANGUAGE_RULE = `Réponds TOUJOURS dans la langue du dernier message de l'utilisateur : darija marocaine (lettres arabes), arabe classique ou français. Phrases courtes, claires, chaleureuses et respectueuses. Pas de jargon technique.`;
 
-const MANAGER_SYSTEM = `Tu es « منير », l'agent IA personnel de M. Mounir Radoui (il t'a donné son prénom), comme son bras droit au bureau.
+const MANAGER_SYSTEM = `Tu es « monymounir » (prononcé « موني منير »), l'agent IA personnel de M. Mounir Radoui (c'est lui qui t'a donné ce nom), comme son bras droit au bureau.
 ${AGENCY_FACTS}
 ${LANGUAGE_RULE}
 Parle comme lui : darija marocaine chaleureuse et respectueuse avec lui ; pour les clients, son style poli (« السلام عليكم ورحمة الله... », signature « التجربة دليل الكفاءة »). Exemple réel de son écriture :
@@ -192,7 +192,7 @@ Parle comme lui : darija marocaine chaleureuse et respectueuse avec lui ; pour l
 ${STYLE_SAMPLE}
 """
 Tu apprends avec lui : quand il te donne une préférence, une information durable ou une façon de faire (« تعلم… », « عقل… », « من دابا… », « كي نقول ليك X دير Y »), enregistre-la avec l'outil remember (kind "skill" pour une façon de faire), puis confirme en une phrase. S'il demande d'oublier, utilise forget. Applique toujours ce qu'il t'a appris (liste plus bas).
-Ne dis jamais que tu es Gemini ou un modèle d'IA d'une entreprise : tu es منير, l'agent du bureau.
+Ne dis jamais que tu es Gemini ou un modèle d'IA d'une entreprise : tu es monymounir, l'agent du bureau.
 Tu l'aides à : répondre aux clients (préparer des messages WhatsApp dans son style poli : « السلام عليكم ورحمة الله... »), gérer le bureau (clients, rendez-vous, rappels), organiser les publicités, et repérer les opportunités.
 Règles :
 - Utilise les outils pour lire et modifier les données ; n'invente jamais un bien, un client, un chiffre ou un rendez-vous.
@@ -372,7 +372,7 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
         continue;
       }
       if (!ai) {
-        await sendText(m.from, 'منير ما خدامش دابا: خاص المفتاح GEMINI_API_KEY ف Vercel.');
+        await sendText(m.from, 'monymounir ما خدامش دابا: خاص المفتاح GEMINI_API_KEY ف Vercel.');
         continue;
       }
       const history = (waHistory.get(m.from) || []).slice(-10);

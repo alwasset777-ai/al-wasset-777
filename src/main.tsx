@@ -19,6 +19,15 @@ if (isStudio) {
   document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', 'إعلانات عقارية');
 }
 
+// /monymounir : application du gérant (installable à part), qui s'ouvre directement sur son agent IA.
+if (window.location.pathname.startsWith('/monymounir')) {
+  document.title = 'monymounir – وكيلك الشخصي';
+  document.querySelector('link[rel="manifest"]')?.setAttribute('href', '/manifest-monymounir.webmanifest');
+  document.querySelector('link[rel="apple-touch-icon"]')?.setAttribute('href', '/icons/monymounir-apple-touch.png');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#1f3a2e');
+  document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', 'monymounir');
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     {isStudio ? <StudioApp /> : <App />}

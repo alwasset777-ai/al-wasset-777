@@ -56,7 +56,7 @@ export async function readDocument(file: File): Promise<ReadDocumentResult> {
     headers: { 'Content-Type': 'application/json', ...(await managerHeaders()) },
     body: JSON.stringify({ mimeType: blob.type || file.type, data: await toBase64(blob) }),
   });
-  if (res.status === 401) throw new Error('خاصك تدخل بكلمة السر ديال المدير (MANAGER_KEY) باش منير يقرا الوثائق.');
+  if (res.status === 401) throw new Error('خاصك تدخل بكلمة السر ديال المدير (MANAGER_KEY) باش monymounir يقرا الوثائق.');
   if (res.status === 503) throw new Error('الذكاء الاصطناعي ما مفعّلش فالخادم (GEMINI_API_KEY).');
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || 'ما قدرتش نقرا الوثيقة');

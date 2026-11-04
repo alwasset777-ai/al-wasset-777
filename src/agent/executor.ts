@@ -7,6 +7,7 @@ import { appointmentsStore, clientsStore, newAppointmentId } from '../services/o
 import { registryStore } from '../services/registryStore';
 import { listInbox, sendToAgency } from '../services/inbox';
 import { forget, getMemory, remember, type MemoryKind } from '../services/muneerMemory';
+import { logAchievement } from '../services/agentLog';
 import {
   AgencyProspect, GROWTH_SCRIPTS, KILL_AFTER_DAYS, MILESTONES_MAD, OBJECTION_REPLIES, PROSPECT_STATUSES, ProspectStatus, RevenueEntry,
   newGrowthId, opportunitiesStore, opportunityScore, projectsStore, prospectsStore, revenuesStore,
@@ -101,7 +102,7 @@ const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/C
 const isDate = (v: unknown) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
 // Tableau de bord « النمو » : uniquement des chiffres réellement enregistrés.
-function growthSummary() {
+export function growthSummary() {
   const now = today();
   const revenues = revenuesStore.get();
   const totalMad = revenues.reduce((a, r) => a + r.amountMad, 0);
@@ -134,7 +135,17 @@ function growthSummary() {
   };
 }
 
+// Exécute l'outil puis note la réalisation (panneau « 🏆 إنجازاتي ») quand l'action a réussi.
 export async function runTool(name: string, args: any, ctx: ToolContext): Promise<ToolOutcome> {
+  const outcome = await runToolInner(name, args, ctx);
+  if (ctx.mode === 'manager' && !('error' in outcome.result)) {
+    const detail = String(args?.name || args?.title || args?.source || args?.agencyName || '').slice(0, 40);
+    logAchievement(name, detail);
+  }
+  return outcome;
+}
+
+async function runToolInner(name: string, args: any, ctx: ToolContext): Promise<ToolOutcome> {
   if (!toolsForMode(ctx.mode).some((t) => t.name === name)) {
     return { result: { error: `Outil non autorisé : ${name}` }, effects: [] };
   }

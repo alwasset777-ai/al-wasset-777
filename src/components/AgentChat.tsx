@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Send, X, Volume2, VolumeX, Trash2, Loader2, Download, Lock, Unlock, MessageCircle, ExternalLink, Wrench, Brain, Paperclip } from 'lucide-react';
+import { Mic, MicOff, Send, X, Volume2, VolumeX, Trash2, Loader2, Download, Lock, Unlock, MessageCircle, ExternalLink, Wrench, Brain, Paperclip, Trophy } from 'lucide-react';
 import { Language, Property } from '../types';
 import { ChatMessage, GeminiContent, runAgentTurn } from '../services/agentChat';
 import { AgentEffect } from '../agent/executor';
@@ -14,6 +14,11 @@ import { getAvatar, onMemoryChange } from '../services/muneerMemory';
 import { readDocument, toRegistryFields, ReadDocumentResult, DOC_TYPE_LABELS } from '../services/documentReader';
 import { registryStore, RegistryFields } from '../services/registryStore';
 import { DocumentReviewCard } from './DocumentReviewCard';
+import { AchievementsPanel } from './AchievementsPanel';
+import { logAchievement } from '../services/agentLog';
+import { agencyProfile } from '../data/agencyProfile';
+
+const AGENT_NAME = agencyProfile.agentNameAr;
 
 interface AgentChatProps {
   properties: Property[];
@@ -81,10 +86,11 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
   const mode: AgentMode = wantManager && access.isManager ? 'manager' : 'customer';
 
   // Lien direct vers منير (raccourci de l'application installée) : /?muneer=1
-  const fromShortcut = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('muneer');
+  const fromShortcut = typeof window !== 'undefined' && (new URLSearchParams(window.location.search).has('muneer') || window.location.pathname.startsWith('/monymounir'));
   const [open, setOpen] = useState(fromShortcut);
   const [speaking, setSpeaking] = useState(false);
   const [showMemory, setShowMemory] = useState(false);
+  const [showWins, setShowWins] = useState(false);
   const [photo, setPhoto] = useState<string | null>(getAvatar());
   const [unlockNote, setUnlockNote] = useState('');
   const [messages, setMessages] = useState<UiMessage[]>([]);
@@ -195,6 +201,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
     setSavingDoc(true);
     try {
       await registryStore.add(fields, { photos: [], videos: [], documents: [docReview.file] });
+      logAchievement('read_document', fields.owner);
       setDocReview(null);
       setMessages((prev) => [...prev, newMsg('assistant', `✅ تسجلات الفيشة ديال **${fields.owner}** فـ«سجل العقارات» مع الوثيقة.`)]);
     } catch (err) {
@@ -276,10 +283,10 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
         <button
           onClick={() => setOpen(true)}
           className="fixed bottom-5 end-5 z-50 flex items-center gap-2 ps-3 pe-4 py-3 rounded-full bg-[#281715] text-white shadow-2xl shadow-[#281715]/30 hover:scale-105 transition-transform cursor-pointer"
-          aria-label={mode === 'manager' ? 'منير' : 'وكيل الوسيط 777'}
+          aria-label={mode === 'manager' ? AGENT_NAME : 'وكيل الوسيط 777'}
         >
           <MuneerAvatar photo={mode === 'manager' ? photo : null} size={32} />
-          <span className="text-sm font-extrabold">{mode === 'manager' ? 'منير' : t('Parler à l’agent', 'كلّم الوكيل', 'Talk to agent')}</span>
+          <span className="text-sm font-extrabold">{mode === 'manager' ? AGENT_NAME : t('Parler à l’agent', 'كلّم الوكيل', 'Talk to agent')}</span>
         </button>
       )}
 
@@ -289,15 +296,20 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
           <div className={`text-white px-4 py-3 flex items-center gap-2 ${mode === 'manager' ? 'bg-gradient-to-br from-[#1f3a2e] to-[#281715]' : 'bg-gradient-to-br from-[#281715] to-[#4a2a26]'}`}>
             <MuneerAvatar photo={mode === 'manager' ? photo : null} speaking={speaking} listening={listening} size={44} />
             <div className="flex-1 min-w-0" dir="rtl">
-              <div className="text-sm font-black">{mode === 'manager' ? 'منير' : 'وكيل الوسيط 777'}</div>
+              <div className="text-sm font-black"><bdi>{mode === 'manager' ? AGENT_NAME : 'وكيل الوسيط 777'}</bdi></div>
               <div className="text-[11px] text-white/75">
                 {mode === 'manager' ? (speaking ? 'كيهضر…' : listening ? 'كيسمع ليك…' : 'وكيلك الشخصي · كيتعلم معاك') : 'مساعد الزبائن · مكتب الوسيط 777'}
               </div>
             </div>
             {mode === 'manager' && (
-              <button onClick={() => setShowMemory(!showMemory)} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${showMemory ? 'bg-white/15' : ''}`} title="شنو تعلم منير">
-                <Brain className="w-4 h-4" />
-              </button>
+              <>
+                <button onClick={() => { setShowWins(!showWins); setShowMemory(false); }} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${showWins ? 'bg-white/15' : ''}`} title="إنجازاتي" aria-label="إنجازاتي">
+                  <Trophy className="w-4 h-4" />
+                </button>
+                <button onClick={() => { setShowMemory(!showMemory); setShowWins(false); }} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${showMemory ? 'bg-white/15' : ''}`} title={`شنو تعلم ${AGENT_NAME}`}>
+                  <Brain className="w-4 h-4" />
+                </button>
+              </>
             )}
             <button onClick={toggleManager} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${mode === 'manager' ? 'text-green-300' : ''}`} title={mode === 'manager' ? 'الخروج من وضع المدير' : 'وضع المدير'}>
               {mode === 'manager' ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
@@ -330,6 +342,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
           )}
 
           {mode === 'manager' && showMemory && <MuneerPanel />}
+          {mode === 'manager' && showWins && <AchievementsPanel onAsk={(q) => { setShowWins(false); send(q); }} />}
           {mode === 'manager' && unlockNote && (
             <div className="mx-3 mt-2 p-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900" dir="rtl">{unlockNote}</div>
           )}
@@ -369,7 +382,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                 {mode === 'manager' && (
                   <div className="flex justify-center"><MuneerAvatar photo={photo} speaking={speaking} size={72} /></div>
                 )}
-                <div className="text-sm font-extrabold">{mode === 'manager' ? 'السلام عليكم السي منير 👋 أنا منير، رهن إشارتك' : 'مرحباً بك في الوسيط 777 👋'}</div>
+                <div className="text-sm font-extrabold">{mode === 'manager' ? `السلام عليكم السي منير 👋 أنا ${AGENT_NAME}، رهن إشارتك` : 'مرحباً بك في الوسيط 777 👋'}</div>
                 <p className="text-xs text-[#7a5c58]">
                   {mode === 'manager'
                     ? 'كنسيّر الزبناء والمواعيد، كنوجد الإعلانات، كنقلب على الفرص، وكنكتب ميساجات واتساب. 📎 صيفط ليا البطاقة ولا شهادة الملكية ولا العقد ونعمّر ليك الفيشة. وكلما علّمتيني شي حاجة كنعقل عليها 🧠'
