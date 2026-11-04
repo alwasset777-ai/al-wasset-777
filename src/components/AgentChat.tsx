@@ -54,6 +54,10 @@ const newMsg = (role: ChatMessage['role'], text: string, extra: Partial<UiMessag
   ...extra,
 });
 
+// Affiche le **gras** des réponses de l'IA sans montrer les étoiles.
+const richText = (text: string) =>
+  text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : part));
+
 const SpeechRecognitionImpl: any =
   typeof window !== 'undefined' ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition : undefined;
 
@@ -352,7 +356,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                       ))}
                     </div>
                   )}
-                  {m.text}
+                  {richText(m.text)}
                   {m.effects?.map((e, i) =>
                     e.type === 'link' ? (
                       e.kind === 'ads' ? (
