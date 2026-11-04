@@ -1,4 +1,5 @@
 import React from 'react';
+import { agencyProfile } from '../data/agencyProfile';
 
 // Avatar de « منير » : photo choisie par le gérant (ou logo PUB du bureau), qui « parle »
 // (halo animé + petites barres sonores) pendant la lecture vocale des réponses.
@@ -19,7 +20,7 @@ export const MuneerAvatar: React.FC<{ photo?: string | null; speaking?: boolean;
     >
       <img
         src={photo || '/brand/logo-pub-alwasset777.webp'}
-        alt="منير"
+        alt={agencyProfile.agentNameAr}
         className={photo ? 'w-full h-full object-cover' : 'w-[85%] h-[85%] object-contain'}
         draggable={false}
       />
