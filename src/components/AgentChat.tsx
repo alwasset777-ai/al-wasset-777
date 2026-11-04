@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Send, X, Volume2, VolumeX, Trash2, Loader2, Download, Lock, Unlock, MessageCircle, ExternalLink, Wrench, Brain } from 'lucide-react';
+import { Mic, MicOff, Send, X, Volume2, VolumeX, Trash2, Loader2, Download, Lock, Unlock, MessageCircle, ExternalLink, Wrench, Brain, Paperclip } from 'lucide-react';
 import { Language, Property } from '../types';
 import { ChatMessage, GeminiContent, runAgentTurn } from '../services/agentChat';
 import { AgentEffect } from '../agent/executor';
@@ -11,6 +11,9 @@ import { LoginCard } from './AuthGate';
 import { MuneerAvatar } from './MuneerAvatar';
 import { MuneerPanel } from './MuneerPanel';
 import { getAvatar, onMemoryChange } from '../services/muneerMemory';
+import { readDocument, toRegistryFields, ReadDocumentResult, DOC_TYPE_LABELS } from '../services/documentReader';
+import { registryStore, RegistryFields } from '../services/registryStore';
+import { DocumentReviewCard } from './DocumentReviewCard';
 
 interface AgentChatProps {
   properties: Property[];
@@ -44,6 +47,12 @@ const TOOL_LABELS: Record<string, string> = {
   remember: 'تعلّم',
   forget: 'نسى',
   list_memory: 'شنو تعلم',
+  growth_summary: 'لوحة النمو',
+  list_agency_prospects: 'الوكالات',
+  save_agency_prospect: 'تحديث وكالة',
+  add_revenue: 'تسجيل مدخول',
+  log_growth_signal: 'إشارات المشروع',
+  growth_script: 'نص جاهز',
 };
 
 const newMsg = (role: ChatMessage['role'], text: string, extra: Partial<UiMessage> = {}): UiMessage => ({
@@ -88,6 +97,9 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
   const [showUnlock, setShowUnlock] = useState(false);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
+  const [docReview, setDocReview] = useState<{ file: File; read: ReadDocumentResult; fields: RegistryFields } | null>(null);
+  const [savingDoc, setSavingDoc] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const recogRef = useRef<any>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -156,6 +168,39 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
       if (nav) goTo(nav.page);
     } finally {
       setBusy(false);
+    }
+  };
+
+  // منير lit un document (CIN, شهادة الملكية, contrat) et propose une fiche du registre à vérifier.
+  const onPickDocument = async (file?: File) => {
+    if (!file || busy) return;
+    setMessages((prev) => [...prev, newMsg('user', `📄 ${file.name}`)]);
+    setBusy(true);
+    try {
+      const read = await readDocument(file);
+      setDocReview({ file, read, fields: toRegistryFields(read) });
+      const reply = `قريت ${DOC_TYPE_LABELS[read.docType] || 'الوثيقة'} 👇 راجع المعلومات قبل ما نسجلها.`;
+      setMessages((prev) => [...prev, newMsg('assistant', reply)]);
+      speak(reply);
+    } catch (err) {
+      setMessages((prev) => [...prev, newMsg('assistant', `⚠️ ${(err as Error).message}`)]);
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const saveDocument = async (fields: RegistryFields) => {
+    if (!docReview) return;
+    setSavingDoc(true);
+    try {
+      await registryStore.add(fields, { photos: [], videos: [], documents: [docReview.file] });
+      setDocReview(null);
+      setMessages((prev) => [...prev, newMsg('assistant', `✅ تسجلات الفيشة ديال **${fields.owner}** فـ«سجل العقارات» مع الوثيقة.`)]);
+    } catch (err) {
+      setMessages((prev) => [...prev, newMsg('assistant', `⚠️ ما تسجلاتش: ${(err as Error).message}`)]);
+    } finally {
+      setSavingDoc(false);
     }
   };
 
@@ -327,7 +372,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                 <div className="text-sm font-extrabold">{mode === 'manager' ? 'السلام عليكم السي منير 👋 أنا منير، رهن إشارتك' : 'مرحباً بك في الوسيط 777 👋'}</div>
                 <p className="text-xs text-[#7a5c58]">
                   {mode === 'manager'
-                    ? 'كنسيّر الزبناء والمواعيد، كنوجد الإعلانات، كنقلب على الفرص، وكنكتب ميساجات واتساب. وكلما علّمتيني شي حاجة كنعقل عليها 🧠'
+                    ? 'كنسيّر الزبناء والمواعيد، كنوجد الإعلانات، كنقلب على الفرص، وكنكتب ميساجات واتساب. 📎 صيفط ليا البطاقة ولا شهادة الملكية ولا العقد ونعمّر ليك الفيشة. وكلما علّمتيني شي حاجة كنعقل عليها 🧠'
                     : 'أساعدك تلقى العقار المناسب وتطلب زيارة. اكتب أو اضغط على الميكروفون.'}
                 </p>
                 <div className="flex flex-col gap-2 items-center">
@@ -373,6 +418,19 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                 </div>
               </div>
             ))}
+            {docReview && mode === 'manager' && (
+              <DocumentReviewCard
+                fileName={docReview.file.name}
+                read={docReview.read}
+                initial={docReview.fields}
+                saving={savingDoc}
+                onSave={saveDocument}
+                onCancel={() => {
+                  setDocReview(null);
+                  setMessages((prev) => [...prev, newMsg('assistant', 'واخا، ما سجلت والو.')]);
+                }}
+              />
+            )}
             {busy && (
               <div className="flex justify-start">
                 <div className="px-3.5 py-2.5 rounded-2xl bg-white border border-[#f0e4e2] flex items-center gap-2 text-xs text-[#7a5c58]">
@@ -404,6 +462,21 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                   {voice.lang === 'ar-MA' ? 'عربي' : 'FR'}
                 </button>
               </div>
+            )}
+            {mode === 'manager' && (
+              <>
+                <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => onPickDocument(e.target.files?.[0])} />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={busy}
+                  className="w-11 h-11 rounded-full flex items-center justify-center bg-[#fff0ed] text-[#ff6f61] disabled:opacity-40 cursor-pointer"
+                  title="قرا وثيقة (البطاقة، شهادة الملكية، عقد)"
+                  aria-label="قرا وثيقة"
+                >
+                  <Paperclip className="w-5 h-5" />
+                </button>
+              </>
             )}
             <textarea
               value={input}

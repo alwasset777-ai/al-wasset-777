@@ -293,6 +293,51 @@ app.post('/api/agent/chat', async (req, res) => {
   }
 });
 
+// ---------- « منير » lit un document (photo ou PDF) pour préparer une fiche du registre ----------
+// Le gérant vérifie et corrige la fiche avant qu'elle soit enregistrée : rien n'est enregistré ici.
+const DOC_PROMPT = `Tu lis un document immobilier marocain (carte nationale CIN, شهادة الملكية / certificat de propriété du رسم عقاري, contrat de vente ou de location, compromis, autre).
+Réponds UNIQUEMENT en JSON avec ces clés (chaînes) :
+{"docType":"cin|titre_foncier|contrat|autre","owner":"","cinNumber":"","ownerPhone":"","titleNumber":"","propertyType":"","location":"","surface":"","price":"","notes":"","unreadable":""}
+Règles :
+- Recopie seulement ce qui est écrit et lisible. Si une information n'apparaît pas ou est illisible, laisse "" : n'invente JAMAIS.
+- owner : nom complet du propriétaire (ou du titulaire de la CIN), en lettres latines si le document les donne, sinon en arabe.
+- titleNumber : numéro du titre foncier / الرسم العقاري (ex. « 12345/K »). cinNumber : numéro de la CIN.
+- propertyType : un seul mot parmi شقة, فيلا, منزل, أرض, محل تجاري, مكتب, عمارة, رياض, ضيعة, ou "" si inconnu.
+- location : adresse, quartier, ville, ou nom de la propriété. surface : avec l'unité (ex. « 92 م² » ou « 1 هـ 20 آر »). price : montant en dirhams s'il est écrit.
+- notes : 1 à 3 phrases courtes en arabe : nature du document, charges ou hypothèques mentionnées, dates importantes.
+- unreadable : en arabe, ce qui était flou ou coupé (sinon "").`;
+const DOC_FIELDS = ['docType', 'owner', 'cinNumber', 'ownerPhone', 'titleNumber', 'propertyType', 'location', 'surface', 'price', 'notes', 'unreadable'] as const;
+const DOC_TYPES = /^(image\/(jpeg|png|webp|heic|heif)|application\/pdf)$/;
+
+app.post('/api/agent/read-document', async (req, res) => {
+  if (!(await isAdmin(req))) {
+    res.status(401).json({ error: 'Connexion requise' });
+    return;
+  }
+  if (!ai) {
+    res.status(503).json({ error: 'GEMINI_API_KEY non configurée' });
+    return;
+  }
+  const mimeType = String(req.body?.mimeType || '');
+  const data = String(req.body?.data || '');
+  if (!DOC_TYPES.test(mimeType) || !data || data.length > 4_200_000 || !/^[A-Za-z0-9+/=]+$/.test(data.slice(0, 200))) {
+    res.status(400).json({ error: 'Fichier non pris en charge (photo ou PDF, 3 Mo maximum)' });
+    return;
+  }
+  try {
+    const response = await generate({
+      contents: [{ role: 'user', parts: [{ inlineData: { mimeType, data } }, { text: DOC_PROMPT }] }] as never,
+      config: { responseMimeType: 'application/json', temperature: 0.1 },
+    });
+    const raw = JSON.parse(response.text || '{}');
+    const fields = Object.fromEntries(DOC_FIELDS.map((k) => [k, typeof raw?.[k] === 'string' ? raw[k].trim().slice(0, 600) : ''])) as Record<(typeof DOC_FIELDS)[number], string>;
+    res.json(fields);
+  } catch (err) {
+    console.error('Erreur lecture document :', err);
+    res.status(502).json({ error: 'Lecture impossible, réessayez avec une photo plus nette' });
+  }
+});
+
 // ---------- « منير » sur WhatsApp ----------
 // Seul le gérant (WHATSAPP_OWNER) reçoit une réponse. Les données du bureau (clients, rendez-vous)
 // restent dans l'application : منير répond, conseille et rédige ; pour agir sur les données il renvoie vers l'application.
