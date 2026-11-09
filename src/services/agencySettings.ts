@@ -105,6 +105,14 @@ export const inBureau = () => {
     return false;
   }
 };
+// Le bureau marque l'annonce comme faite pour ce bien (badge « POST ✓ » dans « إعلانات فورية »).
+export const notifyBureauMade = () => {
+  try {
+    if (inBureau()) window.parent.postMessage({ type: 'w777-studio-made' }, PARENT);
+  } catch {
+    /* hors bureau */
+  }
+};
 
 function clean(a: Partial<AgencySettings> | null | undefined): AgencySettings {
   const o = { ...EMPTY_AGENCY } as AgencySettings;

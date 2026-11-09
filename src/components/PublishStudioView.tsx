@@ -7,7 +7,7 @@ import { isFirebaseEnabled } from '../services/firebase';
 import { DEAL_LABELS, FEATURES, PosterData, PosterDeal, TYPE_LABELS, ensureFonts, headlineOf } from '../services/posterMaker';
 import { BUILTIN_TEMPLATES, CustomTemplate, DEFAULT_TEMPLATE, PosterTemplate, fitsAspect, templateBlob, templateVideo } from '../services/posterTemplates';
 import { deleteTemplate, listTemplates, saveTemplate } from '../services/templateStore';
-import { agency, loadAgency, onAgencyChange } from '../services/agencySettings';
+import { agency, loadAgency, notifyBureauMade, onAgencyChange } from '../services/agencySettings';
 import { StudioNetwork, studioSpec } from '../services/studioPlatforms';
 import {
   StudioPhoto,
@@ -318,6 +318,7 @@ export const PublishStudioView: React.FC = () => {
       }
       posters?.forEach((p) => URL.revokeObjectURL(p.url));
       setPosters(out);
+      notifyBureauMade();
       setPosts([]);
       topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
