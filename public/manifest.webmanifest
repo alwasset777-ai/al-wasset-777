@@ -32,9 +32,9 @@
   ],
   "shortcuts": [
     {
-      "name": "منير – وكيلك الشخصي",
-      "short_name": "منير",
-      "description": "افتح منير مباشرة",
+      "name": "monymounir – وكيلك الشخصي",
+      "short_name": "monymounir",
+      "description": "افتح monymounir مباشرة",
       "url": "/?muneer=1",
       "icons": [
         {

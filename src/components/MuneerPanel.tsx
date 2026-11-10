@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Brain, Camera, CheckCircle2, Plus, RotateCcw, Trash2, XCircle } from 'lucide-react';
+import { agencyProfile } from '../data/agencyProfile';
 import { forgetById, getAvatar, getMemory, MemoryItem, MemoryKind, onMemoryChange, remember, setAvatar } from '../services/muneerMemory';
 
 const KIND_LABEL: Record<MemoryKind, string> = { fact: 'معلومة', style: 'أسلوب', skill: 'مهارة' };
@@ -73,7 +74,7 @@ export const MuneerPanel: React.FC = () => {
   return (
     <div className="p-3 border-b border-[#f0e4e2] bg-[#fff8f7] space-y-3 max-h-[60vh] overflow-y-auto" dir="rtl">
       <div className="flex items-center gap-2 text-sm font-black">
-        <Brain className="w-4 h-4 text-[#ff6f61]" /> شنو تعلم منير معاك
+        <Brain className="w-4 h-4 text-[#ff6f61]" /> شنو تعلم {agencyProfile.agentNameAr} معاك
       </div>
       <p className="text-[11px] text-[#7a5c58] leading-relaxed">
         قول ليه ف المحادثة: «تعلّم: …» ولا «من دابا كي نقول ليك تقرير، عطيني المواعيد والزبناء الجداد». ولا زيدها هنا.
@@ -114,7 +115,7 @@ export const MuneerPanel: React.FC = () => {
 
       <div className="flex items-center gap-2 pt-1">
         <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-[#f0e4e2] text-xs font-bold cursor-pointer">
-          <Camera className="w-3.5 h-3.5" /> {photo ? 'بدّل صورة منير' : 'حط صورتك لمنير'}
+          <Camera className="w-3.5 h-3.5" /> {photo ? `بدّل صورة ${agencyProfile.agentNameAr}` : `حط صورتك لـ${agencyProfile.agentNameAr}`}
         </button>
         {photo && (
           <button onClick={() => setAvatar(null)} className="flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs text-[#7a5c58] cursor-pointer">
@@ -140,9 +141,9 @@ export const MuneerPanel: React.FC = () => {
           <div className="text-[11px] text-[#c0392b]">الخادم ما كيجاوبش دابا.</div>
         ) : (
           <>
-            <Status ok={health.ai} label="الذكاء ديال منير" hint="خاص المفتاح GEMINI_API_KEY ف Vercel" />
+            <Status ok={health.ai} label={`الذكاء ديال ${agencyProfile.agentNameAr}`} hint="خاص المفتاح GEMINI_API_KEY ف Vercel" />
             <Status ok={health.managerKey} label="كلمة السر ديال المدير" hint="خاص MANAGER_KEY ف Vercel" />
-            <Status ok={health.whatsapp} label="منير ف واتساب" hint="شوف الدليل: الجزء الخامس" />
+            <Status ok={health.whatsapp} label={`${agencyProfile.agentNameAr} ف واتساب`} hint="شوف الدليل: الجزء الخامس" />
           </>
         )}
       </div>
