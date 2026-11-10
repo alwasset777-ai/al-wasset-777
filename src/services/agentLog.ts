@@ -23,6 +23,7 @@ export const ACHIEVEMENT_LABELS: Record<string, string> = {
   add_appointment: 'موعد تحطّ',
   create_ads: 'إعلانات توجدات',
   prepare_whatsapp: 'رسالة واتساب توجدات',
+  prepare_social_share: 'منشور توجد للشبكات',
   remember: 'حاجة جديدة تعلمتها',
   save_agency_prospect: 'وكالة تتبعات',
   add_revenue: 'مدخول تسجل',

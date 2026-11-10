@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Brain, Camera, CheckCircle2, Plus, RotateCcw, Trash2, XCircle } from 'lucide-react';
 import { agencyProfile } from '../data/agencyProfile';
+import { WhatsAppSettings } from './WhatsAppSettings';
 import { forgetById, getAvatar, getMemory, MemoryItem, MemoryKind, onMemoryChange, remember, setAvatar } from '../services/muneerMemory';
 
 const KIND_LABEL: Record<MemoryKind, string> = { fact: 'معلومة', style: 'أسلوب', skill: 'مهارة' };
@@ -135,6 +136,8 @@ export const MuneerPanel: React.FC = () => {
         />
       </div>
 
+      <WhatsAppSettings />
+
       <div className="space-y-1 pt-1 border-t border-[#e5e5e5]">
         <div className="text-[11px] font-black pt-2">الحالة</div>
         {health === null ? (
@@ -143,7 +146,7 @@ export const MuneerPanel: React.FC = () => {
           <>
             <Status ok={health.ai} label={`الذكاء ديال ${agencyProfile.agentNameAr}`} hint="خاص المفتاح GEMINI_API_KEY ف Vercel" />
             <Status ok={health.managerKey} label="كلمة السر ديال المدير" hint="خاص MANAGER_KEY ف Vercel" />
-            <Status ok={health.whatsapp} label={`${agencyProfile.agentNameAr} ف واتساب`} hint="شوف الدليل: الجزء الخامس" />
+            <Status ok={health.whatsapp} label={`${agencyProfile.agentNameAr} ف واتساب`} hint="الرد الأوتوماتيكي داخل واتساب: خاص مفاتيح Meta (الدليل، الجزء الخامس). إرسال الرسائل بزر خدام بلا مفاتيح." />
           </>
         )}
       </div>
