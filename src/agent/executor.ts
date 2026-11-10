@@ -8,6 +8,7 @@ import { registryStore } from '../services/registryStore';
 import { listInbox, sendToAgency } from '../services/inbox';
 import { forget, getMemory, remember, type MemoryKind } from '../services/muneerMemory';
 import { logAchievement } from '../services/agentLog';
+import { formatInternational, isValidWhatsApp, resolveCountry, toWhatsAppNumber } from '../services/phone';
 import {
   AgencyProspect, GROWTH_SCRIPTS, KILL_AFTER_DAYS, MILESTONES_MAD, OBJECTION_REPLIES, PROSPECT_STATUSES, ProspectStatus, RevenueEntry,
   newGrowthId, opportunitiesStore, opportunityScore, projectsStore, prospectsStore, revenuesStore,
@@ -40,12 +41,6 @@ const TYPE_AR: Record<string, string> = {
   مكتب: 'Bureau', عمارة: 'Immeuble', رياض: 'Riad', ضيعة: 'Ferme',
 };
 
-const toPhone = (p: string) => {
-  const digits = p.replace(/[^\d]/g, '');
-  if (digits.startsWith('00')) return digits.slice(2);
-  if (digits.startsWith('0')) return `212${digits.slice(1)}`;
-  return digits;
-};
 
 function summarizeProperty(p: Property) {
   return {
@@ -189,8 +184,11 @@ async function runToolInner(name: string, args: any, ctx: ToolContext): Promise<
 
     case 'add_client': {
       if (!args.name || !args.phone) return ok({ error: 'Nom et téléphone obligatoires' });
+      // Client étranger (MRE…) : on garde le numéro au format international pour WhatsApp.
+      const cc = resolveCountry(args.country);
+      const intl = cc ? toWhatsAppNumber(String(args.phone), cc) : '';
       const client: ClientLead = {
-        id: Date.now(), name: String(args.name), phone: String(args.phone), category: 'فرد',
+        id: Date.now(), name: String(args.name), phone: intl && isValidWhatsApp(intl) ? formatInternational(intl) : String(args.phone), category: 'فرد',
         requestType: args.requestType || 'شراء', propType: args.propType || 'شقة', budget: Number(args.budget) || 0,
         area: args.area || '', status: 'نشط', notes: args.notes || '', linkedPropIds: [], dateAdded: new Date().toISOString().split('T')[0],
       };
@@ -310,10 +308,12 @@ async function runToolInner(name: string, args: any, ctx: ToolContext): Promise<
     }
 
     case 'prepare_whatsapp': {
-      const phone = toPhone(String(args.phone || ''));
-      if (phone.length < 9) return ok({ error: 'Numéro invalide' });
-      effects.push({ type: 'link', label: `أرسل عبر واتساب إلى ${args.phone}`, url: `https://wa.me/${phone}?text=${encodeURIComponent(String(args.text || ''))}`, kind: 'whatsapp' });
-      return ok({ prepared: true, note: 'Bouton WhatsApp affiché au gérant' });
+      if (args.country && !resolveCountry(args.country)) return ok({ error: `Pays inconnu : ${args.country}. Donner l'indicatif (ex. 33) ou écrire le numéro avec +` });
+      const phone = toWhatsAppNumber(String(args.phone || ''), resolveCountry(args.country));
+      if (!isValidWhatsApp(phone)) return ok({ error: 'Numéro invalide' });
+      const shown = formatInternational(phone);
+      effects.push({ type: 'link', label: `أرسل عبر واتساب إلى \u2066${shown}\u2069`, url: `https://wa.me/${phone}?text=${encodeURIComponent(String(args.text || ''))}`, kind: 'whatsapp' });
+      return ok({ prepared: true, number: shown, note: 'Bouton WhatsApp affiché au gérant' });
     }
 
     case 'remember': {
