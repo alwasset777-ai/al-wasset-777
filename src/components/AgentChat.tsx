@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Send, X, Volume2, VolumeX, Trash2, Loader2, Download, Lock, Unlock, MessageCircle, ExternalLink, Wrench, Brain, Paperclip, Trophy } from 'lucide-react';
+import { Mic, MicOff, Send, X, Volume2, VolumeX, Trash2, Loader2, Download, Lock, Unlock, MessageCircle, ExternalLink, Wrench, Brain, Paperclip, Trophy, Contact, Link2, Share2 } from 'lucide-react';
 import { Language, Property } from '../types';
 import { ChatMessage, GeminiContent, runAgentTurn } from '../services/agentChat';
 import { AgentEffect } from '../agent/executor';
@@ -17,6 +17,10 @@ import { DocumentReviewCard } from './DocumentReviewCard';
 import { AchievementsPanel } from './AchievementsPanel';
 import { logAchievement } from '../services/agentLog';
 import { agencyProfile } from '../data/agencyProfile';
+import { ContactsSheet, addRecentContacts } from './ContactsSheet';
+import { SocialPanel } from './SocialPanel';
+import { contactsFromText, parseVCard, takeSharedPayload } from '../services/contacts';
+import { shareEverywhere } from '../services/social';
 
 const AGENT_NAME = agencyProfile.agentNameAr;
 
@@ -48,6 +52,7 @@ const TOOL_LABELS: Record<string, string> = {
   create_ads: 'تحضير الإعلانات',
   ads_summary: 'نتائج الإعلانات',
   prepare_whatsapp: 'رسالة واتساب',
+  prepare_social_share: 'مشاركة فالشبكات',
   open_page: 'فتح صفحة',
   remember: 'تعلّم',
   forget: 'نسى',
@@ -91,6 +96,15 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
   const [speaking, setSpeaking] = useState(false);
   const [showMemory, setShowMemory] = useState(false);
   const [showWins, setShowWins] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
+  const [showSocial, setShowSocial] = useState(false);
+  // Un seul panneau ouvert à la fois (mémoire, réalisations, numéros, réseaux).
+  const openPanel = (p: 'memory' | 'wins' | 'contacts' | 'social' | null) => {
+    setShowMemory(p === 'memory');
+    setShowWins(p === 'wins');
+    setShowContacts(p === 'contacts');
+    setShowSocial(p === 'social');
+  };
   const [photo, setPhoto] = useState<string | null>(getAvatar());
   const [unlockNote, setUnlockNote] = useState('');
   const [messages, setMessages] = useState<UiMessage[]>([]);
@@ -133,6 +147,21 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
     else setShowUnlock(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Partage reçu depuis une autre application (contact, numéro, texte) : i.wasset est une cible de partage.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (!q.has('shared') && !q.has('text') && !q.has('title')) return;
+    (async () => {
+      const payload = (await takeSharedPayload()) || { text: [q.get('title'), q.get('text'), q.get('url')].filter(Boolean).join('\n'), vcf: '' };
+      const found = [...parseVCard(payload.vcf), ...contactsFromText(payload.text)];
+      if (found.length) {
+        addRecentContacts(found);
+        openPanel('contacts');
+      } else if (payload.text.trim()) setInput(payload.text.trim());
+      window.history.replaceState(null, '', window.location.pathname);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Accolades : dans Chrome récent, scrollIntoView renvoie une promesse (React la prendrait pour un nettoyage).
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -167,7 +196,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
     try {
       const turn = await runAgentTurn(mode, contents, clean, properties);
       setContents(turn.contents);
-      const links = turn.effects.filter((e) => e.type === 'link');
+      const links = turn.effects.filter((e) => e.type === 'link' || e.type === 'share');
       setMessages((prev) => [...prev, newMsg('assistant', turn.reply, { effects: links, tools: [...new Set(turn.toolsUsed)] })]);
       speak(turn.reply);
       const nav = turn.effects.find((e) => e.type === 'navigate') as Extract<AgentEffect, { type: 'navigate' }> | undefined;
@@ -293,28 +322,31 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
       {open && (
         <div className="fixed z-50 inset-0 sm:inset-auto sm:bottom-5 sm:end-5 sm:w-[420px] sm:h-[660px] sm:max-h-[88vh] bg-white sm:rounded-3xl shadow-2xl border border-[#e5e5e5] flex flex-col overflow-hidden">
           {/* En-tête */}
-          <div className={`text-white px-4 py-3 flex items-center gap-2 ${mode === 'manager' ? 'bg-gradient-to-br from-[#111111] to-[#8b0f14]' : 'bg-gradient-to-br from-[#111111] to-[#8b0f14]'}`}>
+          <div className={`text-white px-3 py-3 flex items-center gap-0.5 ${mode === 'manager' ? 'bg-gradient-to-br from-[#111111] to-[#8b0f14]' : 'bg-gradient-to-br from-[#111111] to-[#8b0f14]'}`}>
             <MuneerAvatar photo={mode === 'manager' ? photo : null} speaking={speaking} listening={listening} size={44} />
-            <div className="flex-1 min-w-0" dir="rtl">
-              <div className="text-sm font-black"><bdi>{mode === 'manager' ? AGENT_NAME : 'وكيل الوسيط 777'}</bdi></div>
-              <div className="text-[11px] text-white/75">
+            <div className="flex-1 min-w-0 ms-1.5" dir="rtl">
+              <div className="text-sm font-black truncate"><bdi>{mode === 'manager' ? AGENT_NAME : 'وكيل الوسيط 777'}</bdi></div>
+              <div className="text-[11px] text-white/75 truncate">
                 {mode === 'manager' ? (speaking ? 'كيهضر…' : listening ? 'كيسمع ليك…' : 'وكيلك الشخصي · كيتعلم معاك') : 'مساعد الزبائن · مكتب الوسيط 777'}
               </div>
             </div>
             {mode === 'manager' && (
               <>
-                <button onClick={() => { setShowWins(!showWins); setShowMemory(false); }} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${showWins ? 'bg-white/15' : ''}`} title="إنجازاتي" aria-label="إنجازاتي">
+                <button onClick={() => openPanel(showSocial ? null : 'social')} className={`p-1.5 rounded-xl hover:bg-white/10 cursor-pointer ${showSocial ? 'bg-white/15' : ''}`} title="الربط مع مواقع التواصل" aria-label="الربط مع مواقع التواصل">
+                  <Link2 className="w-4 h-4" />
+                </button>
+                <button onClick={() => openPanel(showWins ? null : 'wins')} className={`p-1.5 rounded-xl hover:bg-white/10 cursor-pointer ${showWins ? 'bg-white/15' : ''}`} title="إنجازاتي" aria-label="إنجازاتي">
                   <Trophy className="w-4 h-4" />
                 </button>
-                <button onClick={() => { setShowMemory(!showMemory); setShowWins(false); }} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${showMemory ? 'bg-white/15' : ''}`} title={`شنو تعلم ${AGENT_NAME}`}>
+                <button onClick={() => openPanel(showMemory ? null : 'memory')} className={`p-1.5 rounded-xl hover:bg-white/10 cursor-pointer ${showMemory ? 'bg-white/15' : ''}`} title={`شنو تعلم ${AGENT_NAME}`}>
                   <Brain className="w-4 h-4" />
                 </button>
               </>
             )}
-            <button onClick={toggleManager} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${mode === 'manager' ? 'text-green-300' : ''}`} title={mode === 'manager' ? 'الخروج من وضع المدير' : 'وضع المدير'}>
+            <button onClick={toggleManager} className={`p-1.5 rounded-xl hover:bg-white/10 cursor-pointer ${mode === 'manager' ? 'text-green-300' : ''}`} title={mode === 'manager' ? 'الخروج من وضع المدير' : 'وضع المدير'}>
               {mode === 'manager' ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
             </button>
-            <button onClick={() => setVoice({ ...voice, speak: !voice.speak })} className="p-2 rounded-xl hover:bg-white/10 cursor-pointer" title="الرد بالصوت">
+            <button onClick={() => setVoice({ ...voice, speak: !voice.speak })} className="p-1.5 rounded-xl hover:bg-white/10 cursor-pointer" title="الرد بالصوت">
               {voice.speak ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
             </button>
             <button
@@ -322,12 +354,12 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                 setMessages([]);
                 setContents([]);
               }}
-              className="p-2 rounded-xl hover:bg-white/10 cursor-pointer"
+              className="p-1.5 rounded-xl hover:bg-white/10 cursor-pointer"
               title="مسح المحادثة"
             >
               <Trash2 className="w-4 h-4" />
             </button>
-            <button onClick={() => setOpen(false)} className="p-2 rounded-xl hover:bg-white/10 cursor-pointer" aria-label="Fermer">
+            <button onClick={() => setOpen(false)} className="p-1.5 rounded-xl hover:bg-white/10 cursor-pointer" aria-label="Fermer">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -343,6 +375,19 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
 
           {mode === 'manager' && showMemory && <MuneerPanel />}
           {mode === 'manager' && showWins && <AchievementsPanel onAsk={(q) => { setShowWins(false); send(q); }} />}
+          {mode === 'manager' && showContacts && (
+            <ContactsSheet
+              onClose={() => setShowContacts(false)}
+              onUse={(t, now) => {
+                setShowContacts(false);
+                if (now) send(t);
+                else setInput((prev) => (prev.trim() ? `${prev.trim()}\n${t}` : t));
+              }}
+            />
+          )}
+          {mode === 'manager' && showSocial && (
+            <SocialPanel onClose={() => setShowSocial(false)} initialText={(() => { for (const m of [...messages].reverse()) { const sh = m.effects?.find((e) => e.type === 'share'); if (sh && sh.type === 'share') return sh.text; } return ''; })()} />
+          )}
           {mode === 'manager' && unlockNote && (
             <div className="mx-3 mt-2 p-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900" dir="rtl">{unlockNote}</div>
           )}
@@ -426,6 +471,10 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                           <MessageCircle className="w-3.5 h-3.5" /> {e.label}
                         </a>
                       )
+                    ) : e.type === 'share' ? (
+                      <button key={i} onClick={() => shareEverywhere(e.text, e.url || '')} className="mt-2 w-full flex items-center justify-center gap-1 py-2 rounded-xl bg-[#111111] text-white text-xs font-extrabold cursor-pointer">
+                        <Share2 className="w-3.5 h-3.5" /> {e.label}
+                      </button>
                     ) : null
                   )}
                 </div>
@@ -488,6 +537,15 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                   aria-label="قرا وثيقة"
                 >
                   <Paperclip className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openPanel(showContacts ? null : 'contacts')}
+                  className={`w-11 h-11 rounded-full flex items-center justify-center cursor-pointer ${showContacts ? 'bg-[#d71920] text-white' : 'bg-[#fdecec] text-[#d71920]'}`}
+                  title="الأرقام ديال الزبناء (الكونطاكت، vCard، لصق)"
+                  aria-label="الأرقام ديال الزبناء"
+                >
+                  <Contact className="w-5 h-5" />
                 </button>
               </>
             )}

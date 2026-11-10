@@ -8,6 +8,8 @@ import { registryStore } from '../services/registryStore';
 import { listInbox, sendToAgency } from '../services/inbox';
 import { forget, getMemory, remember, type MemoryKind } from '../services/muneerMemory';
 import { logAchievement } from '../services/agentLog';
+import { connectedAccounts, defaultShareUrl, SOCIALS, type SocialId } from '../services/social';
+import { loadAgency } from '../services/agencySettings';
 import { formatInternational, isValidWhatsApp, resolveCountry, toWhatsAppNumber } from '../services/phone';
 import {
   AgencyProspect, GROWTH_SCRIPTS, KILL_AFTER_DAYS, MILESTONES_MAD, OBJECTION_REPLIES, PROSPECT_STATUSES, ProspectStatus, RevenueEntry,
@@ -16,7 +18,8 @@ import {
 
 export type AgentEffect =
   | { type: 'link'; label: string; url: string; kind: 'whatsapp' | 'ads' | 'other' }
-  | { type: 'navigate'; page: string };
+  | { type: 'navigate'; page: string }
+  | { type: 'share'; label: string; text: string; url?: string };
 
 export interface ToolContext {
   mode: AgentMode;
@@ -305,6 +308,21 @@ async function runToolInner(name: string, args: any, ctx: ToolContext): Promise<
         leads: published.reduce((a, d) => a + (d.stats.leads || 0), 0),
         byPlatform,
       });
+    }
+
+    case 'prepare_social_share': {
+      const text = String(args.text || '').trim();
+      if (!text) return ok({ error: 'Texte obligatoire' });
+      await loadAgency();
+      const url = String(args.url || '').trim() || defaultShareUrl();
+      const wanted: SocialId[] = Array.isArray(args.platforms) && args.platforms.length ? args.platforms : ['whatsapp', 'facebook', 'telegram', 'x'];
+      effects.push({ type: 'share', label: 'شارك فكاع التطبيقات (Instagram، TikTok، Snapchat…)', text, url });
+      for (const id of wanted) {
+        const p = SOCIALS.find((s) => s.id === id);
+        const link = p?.share?.(text, url);
+        if (p && link) effects.push({ type: 'link', label: `انشر على ${p.name}`, url: link, kind: id === 'whatsapp' ? 'whatsapp' : 'other' });
+      }
+      return ok({ prepared: true, url, accounts: connectedAccounts().map((a) => `${a.name}: ${a.url}`), note: 'Boutons de partage affichés au gérant' });
     }
 
     case 'prepare_whatsapp': {

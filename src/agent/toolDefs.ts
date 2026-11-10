@@ -149,6 +149,20 @@ export const TOOL_DEFS: ToolDef[] = [
     modes: ['manager'],
   },
   {
+    name: 'prepare_social_share',
+    description:
+      "Partager un texte (annonce, publication, lien d'un bien) sur les réseaux : affiche au gérant un bouton « partager dans toutes les applications » (Instagram, TikTok, Snapchat, Messenger… via le téléphone) et des boutons directs (WhatsApp, Facebook, X, Telegram, Threads, LinkedIn). Renvoie aussi les comptes du bureau déjà reliés. Le gérant publie lui-même d'un clic.",
+    parameters: obj(
+      {
+        text: str('Texte complet de la publication'),
+        url: str('Lien à partager (fiche du bien, site). Facultatif'),
+        platforms: { type: 'array', items: { type: 'string', enum: ['whatsapp', 'facebook', 'x', 'telegram', 'threads', 'linkedin'] }, description: 'Boutons directs à afficher (par défaut : whatsapp, facebook, telegram, x)' },
+      },
+      ['text'],
+    ),
+    modes: ['manager'],
+  },
+  {
     name: 'prepare_whatsapp',
     description:
       "Préparer un message WhatsApp pour un client (réponse, relance, proposition de bien). Le gérant l'envoie lui-même d'un clic. Écrire le texte dans le style du bureau.",
