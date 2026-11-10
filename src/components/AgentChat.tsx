@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Send, X, Volume2, VolumeX, Trash2, Loader2, Download, Lock, Unlock, MessageCircle, ExternalLink, Wrench, Brain } from 'lucide-react';
+import { Mic, MicOff, Send, X, Volume2, VolumeX, Trash2, Loader2, Download, Lock, Unlock, MessageCircle, ExternalLink, Wrench, Brain, Paperclip, Trophy } from 'lucide-react';
 import { Language, Property } from '../types';
 import { ChatMessage, GeminiContent, runAgentTurn } from '../services/agentChat';
 import { AgentEffect } from '../agent/executor';
@@ -11,6 +11,14 @@ import { LoginCard } from './AuthGate';
 import { MuneerAvatar } from './MuneerAvatar';
 import { MuneerPanel } from './MuneerPanel';
 import { getAvatar, onMemoryChange } from '../services/muneerMemory';
+import { readDocument, toRegistryFields, ReadDocumentResult, DOC_TYPE_LABELS } from '../services/documentReader';
+import { registryStore, RegistryFields } from '../services/registryStore';
+import { DocumentReviewCard } from './DocumentReviewCard';
+import { AchievementsPanel } from './AchievementsPanel';
+import { logAchievement } from '../services/agentLog';
+import { agencyProfile } from '../data/agencyProfile';
+
+const AGENT_NAME = agencyProfile.agentNameAr;
 
 interface AgentChatProps {
   properties: Property[];
@@ -44,6 +52,12 @@ const TOOL_LABELS: Record<string, string> = {
   remember: 'تعلّم',
   forget: 'نسى',
   list_memory: 'شنو تعلم',
+  growth_summary: 'لوحة النمو',
+  list_agency_prospects: 'الوكالات',
+  save_agency_prospect: 'تحديث وكالة',
+  add_revenue: 'تسجيل مدخول',
+  log_growth_signal: 'إشارات المشروع',
+  growth_script: 'نص جاهز',
 };
 
 const newMsg = (role: ChatMessage['role'], text: string, extra: Partial<UiMessage> = {}): UiMessage => ({
@@ -72,10 +86,11 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
   const mode: AgentMode = wantManager && access.isManager ? 'manager' : 'customer';
 
   // Lien direct vers منير (raccourci de l'application installée) : /?muneer=1
-  const fromShortcut = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('muneer');
+  const fromShortcut = typeof window !== 'undefined' && (new URLSearchParams(window.location.search).has('muneer') || /^\/(iwasset|monymounir)/.test(window.location.pathname));
   const [open, setOpen] = useState(fromShortcut);
   const [speaking, setSpeaking] = useState(false);
   const [showMemory, setShowMemory] = useState(false);
+  const [showWins, setShowWins] = useState(false);
   const [photo, setPhoto] = useState<string | null>(getAvatar());
   const [unlockNote, setUnlockNote] = useState('');
   const [messages, setMessages] = useState<UiMessage[]>([]);
@@ -88,6 +103,9 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
   const [showUnlock, setShowUnlock] = useState(false);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
+  const [docReview, setDocReview] = useState<{ file: File; read: ReadDocumentResult; fields: RegistryFields } | null>(null);
+  const [savingDoc, setSavingDoc] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const recogRef = useRef<any>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -156,6 +174,40 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
       if (nav) goTo(nav.page);
     } finally {
       setBusy(false);
+    }
+  };
+
+  // منير lit un document (CIN, شهادة الملكية, contrat) et propose une fiche du registre à vérifier.
+  const onPickDocument = async (file?: File) => {
+    if (!file || busy) return;
+    setMessages((prev) => [...prev, newMsg('user', `📄 ${file.name}`)]);
+    setBusy(true);
+    try {
+      const read = await readDocument(file);
+      setDocReview({ file, read, fields: toRegistryFields(read) });
+      const reply = `قريت ${DOC_TYPE_LABELS[read.docType] || 'الوثيقة'} 👇 راجع المعلومات قبل ما نسجلها.`;
+      setMessages((prev) => [...prev, newMsg('assistant', reply)]);
+      speak(reply);
+    } catch (err) {
+      setMessages((prev) => [...prev, newMsg('assistant', `⚠️ ${(err as Error).message}`)]);
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const saveDocument = async (fields: RegistryFields) => {
+    if (!docReview) return;
+    setSavingDoc(true);
+    try {
+      await registryStore.add(fields, { photos: [], videos: [], documents: [docReview.file] });
+      logAchievement('read_document', fields.owner);
+      setDocReview(null);
+      setMessages((prev) => [...prev, newMsg('assistant', `✅ تسجلات الفيشة ديال **${fields.owner}** فـ«سجل العقارات» مع الوثيقة.`)]);
+    } catch (err) {
+      setMessages((prev) => [...prev, newMsg('assistant', `⚠️ ما تسجلاتش: ${(err as Error).message}`)]);
+    } finally {
+      setSavingDoc(false);
     }
   };
 
@@ -230,29 +282,34 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-5 end-5 z-50 flex items-center gap-2 ps-3 pe-4 py-3 rounded-full bg-[#281715] text-white shadow-2xl shadow-[#281715]/30 hover:scale-105 transition-transform cursor-pointer"
-          aria-label={mode === 'manager' ? 'منير' : 'وكيل الوسيط 777'}
+          className="fixed bottom-5 end-5 z-50 flex items-center gap-2 ps-3 pe-4 py-3 rounded-full bg-[#111111] text-white shadow-2xl shadow-[#111111]/30 hover:scale-105 transition-transform cursor-pointer"
+          aria-label={mode === 'manager' ? AGENT_NAME : 'وكيل الوسيط 777'}
         >
           <MuneerAvatar photo={mode === 'manager' ? photo : null} size={32} />
-          <span className="text-sm font-extrabold">{mode === 'manager' ? 'منير' : t('Parler à l’agent', 'كلّم الوكيل', 'Talk to agent')}</span>
+          <span className="text-sm font-extrabold">{mode === 'manager' ? AGENT_NAME : t('Parler à l’agent', 'كلّم الوكيل', 'Talk to agent')}</span>
         </button>
       )}
 
       {open && (
-        <div className="fixed z-50 inset-0 sm:inset-auto sm:bottom-5 sm:end-5 sm:w-[420px] sm:h-[660px] sm:max-h-[88vh] bg-white sm:rounded-3xl shadow-2xl border border-[#f0e4e2] flex flex-col overflow-hidden">
+        <div className="fixed z-50 inset-0 sm:inset-auto sm:bottom-5 sm:end-5 sm:w-[420px] sm:h-[660px] sm:max-h-[88vh] bg-white sm:rounded-3xl shadow-2xl border border-[#e5e5e5] flex flex-col overflow-hidden">
           {/* En-tête */}
-          <div className={`text-white px-4 py-3 flex items-center gap-2 ${mode === 'manager' ? 'bg-gradient-to-br from-[#1f3a2e] to-[#281715]' : 'bg-gradient-to-br from-[#281715] to-[#4a2a26]'}`}>
+          <div className={`text-white px-4 py-3 flex items-center gap-2 ${mode === 'manager' ? 'bg-gradient-to-br from-[#111111] to-[#8b0f14]' : 'bg-gradient-to-br from-[#111111] to-[#8b0f14]'}`}>
             <MuneerAvatar photo={mode === 'manager' ? photo : null} speaking={speaking} listening={listening} size={44} />
             <div className="flex-1 min-w-0" dir="rtl">
-              <div className="text-sm font-black">{mode === 'manager' ? 'منير' : 'وكيل الوسيط 777'}</div>
+              <div className="text-sm font-black"><bdi>{mode === 'manager' ? AGENT_NAME : 'وكيل الوسيط 777'}</bdi></div>
               <div className="text-[11px] text-white/75">
                 {mode === 'manager' ? (speaking ? 'كيهضر…' : listening ? 'كيسمع ليك…' : 'وكيلك الشخصي · كيتعلم معاك') : 'مساعد الزبائن · مكتب الوسيط 777'}
               </div>
             </div>
             {mode === 'manager' && (
-              <button onClick={() => setShowMemory(!showMemory)} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${showMemory ? 'bg-white/15' : ''}`} title="شنو تعلم منير">
-                <Brain className="w-4 h-4" />
-              </button>
+              <>
+                <button onClick={() => { setShowWins(!showWins); setShowMemory(false); }} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${showWins ? 'bg-white/15' : ''}`} title="إنجازاتي" aria-label="إنجازاتي">
+                  <Trophy className="w-4 h-4" />
+                </button>
+                <button onClick={() => { setShowMemory(!showMemory); setShowWins(false); }} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${showMemory ? 'bg-white/15' : ''}`} title={`شنو تعلم ${AGENT_NAME}`}>
+                  <Brain className="w-4 h-4" />
+                </button>
+              </>
             )}
             <button onClick={toggleManager} className={`p-2 rounded-xl hover:bg-white/10 cursor-pointer ${mode === 'manager' ? 'text-green-300' : ''}`} title={mode === 'manager' ? 'الخروج من وضع المدير' : 'وضع المدير'}>
               {mode === 'manager' ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
@@ -278,20 +335,21 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
           {installable && !isStandalone() && (
             <button
               onClick={async () => setInstallable(!(await promptInstall()))}
-              className="mx-3 mt-3 flex items-center justify-center gap-2 py-2 rounded-xl bg-[#fff0ed] text-[#ff6f61] text-xs font-extrabold cursor-pointer"
+              className="mx-3 mt-3 flex items-center justify-center gap-2 py-2 rounded-xl bg-[#fdecec] text-[#d71920] text-xs font-extrabold cursor-pointer"
             >
               <Download className="w-4 h-4" /> ثبّت التطبيق على هذا الهاتف
             </button>
           )}
 
           {mode === 'manager' && showMemory && <MuneerPanel />}
+          {mode === 'manager' && showWins && <AchievementsPanel onAsk={(q) => { setShowWins(false); send(q); }} />}
           {mode === 'manager' && unlockNote && (
             <div className="mx-3 mt-2 p-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900" dir="rtl">{unlockNote}</div>
           )}
 
           {/* Déverrouillage du mode gérant */}
           {showUnlock && (
-            <div className="p-3 border-b border-[#f0e4e2] bg-[#fff8f7]" dir="rtl">
+            <div className="p-3 border-b border-[#e5e5e5] bg-[#fafafa]" dir="rtl">
               {access.usesFirebase ? (
                 <LoginCard title="دخول المدير" />
               ) : (
@@ -305,11 +363,11 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                       autoFocus
                       value={pin}
                       onChange={(e) => { setPin(e.target.value); setPinError(false); }}
-                      className="flex-1 p-2 rounded-xl border border-[#f0e4e2] text-sm text-center tracking-widest"
+                      className="flex-1 p-2 rounded-xl border border-[#e5e5e5] text-sm text-center tracking-widest"
                       dir="ltr"
                     />
-                    <button type="submit" className="px-4 rounded-xl bg-[#281715] text-white text-xs font-bold cursor-pointer">دخول</button>
-                    <button type="button" onClick={() => setShowUnlock(false)} className="px-3 rounded-xl border border-[#f0e4e2] text-xs cursor-pointer">إلغاء</button>
+                    <button type="submit" className="px-4 rounded-xl bg-[#111111] text-white text-xs font-bold cursor-pointer">دخول</button>
+                    <button type="button" onClick={() => setShowUnlock(false)} className="px-3 rounded-xl border border-[#e5e5e5] text-xs cursor-pointer">إلغاء</button>
                   </div>
                   {pinError && <div className="text-[11px] text-red-600 font-bold">الرمز غير صحيح</div>}
                 </form>
@@ -318,21 +376,21 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
           )}
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#fff8f7]">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#fafafa]">
             {messages.length === 0 && (
               <div className="text-center space-y-3 pt-6" dir="rtl">
                 {mode === 'manager' && (
                   <div className="flex justify-center"><MuneerAvatar photo={photo} speaking={speaking} size={72} /></div>
                 )}
-                <div className="text-sm font-extrabold">{mode === 'manager' ? 'السلام عليكم السي منير 👋 أنا منير، رهن إشارتك' : 'مرحباً بك في الوسيط 777 👋'}</div>
-                <p className="text-xs text-[#7a5c58]">
+                <div className="text-sm font-extrabold">{mode === 'manager' ? `السلام عليكم السي منير 👋 أنا ${AGENT_NAME}، رهن إشارتك` : 'مرحباً بك في الوسيط 777 👋'}</div>
+                <p className="text-xs text-[#555555]">
                   {mode === 'manager'
-                    ? 'كنسيّر الزبناء والمواعيد، كنوجد الإعلانات، كنقلب على الفرص، وكنكتب ميساجات واتساب. وكلما علّمتيني شي حاجة كنعقل عليها 🧠'
+                    ? 'كنسيّر الزبناء والمواعيد، كنوجد الإعلانات، كنقلب على الفرص، وكنكتب ميساجات واتساب. 📎 صيفط ليا البطاقة ولا شهادة الملكية ولا العقد ونعمّر ليك الفيشة. وكلما علّمتيني شي حاجة كنعقل عليها 🧠'
                     : 'أساعدك تلقى العقار المناسب وتطلب زيارة. اكتب أو اضغط على الميكروفون.'}
                 </p>
                 <div className="flex flex-col gap-2 items-center">
                   {suggestions.map((s) => (
-                    <button key={s} onClick={() => send(s)} className="px-3 py-1.5 rounded-full bg-white border border-[#f0e4e2] text-xs font-bold text-[#5a4340] hover:text-[#ff6f61] cursor-pointer max-w-full truncate">
+                    <button key={s} onClick={() => send(s)} className="px-3 py-1.5 rounded-full bg-white border border-[#e5e5e5] text-xs font-bold text-[#333333] hover:text-[#d71920] cursor-pointer max-w-full truncate">
                       {s}
                     </button>
                   ))}
@@ -344,13 +402,13 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                 <div
                   dir="auto"
                   className={`max-w-[88%] whitespace-pre-wrap px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                    m.role === 'user' ? 'bg-[#ff6f61] text-white rounded-ee-md' : 'bg-white border border-[#f0e4e2] text-[#281715] rounded-es-md'
+                    m.role === 'user' ? 'bg-[#d71920] text-white rounded-ee-md' : 'bg-white border border-[#e5e5e5] text-[#111111] rounded-es-md'
                   }`}
                 >
                   {m.tools && m.tools.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-1.5" dir="rtl">
                       {m.tools.map((tool) => (
-                        <span key={tool} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#f3ece9] text-[10px] font-bold text-[#7a5c58]">
+                        <span key={tool} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#f0f0f0] text-[10px] font-bold text-[#555555]">
                           <Wrench className="w-2.5 h-2.5" /> {TOOL_LABELS[tool] || tool}
                         </span>
                       ))}
@@ -360,11 +418,11 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                   {m.effects?.map((e, i) =>
                     e.type === 'link' ? (
                       e.kind === 'ads' ? (
-                        <button key={i} onClick={() => goTo('ads')} className="mt-2 w-full flex items-center justify-center gap-1 py-2 rounded-xl bg-[#fff0ed] text-[#ff6f61] text-xs font-extrabold cursor-pointer">
+                        <button key={i} onClick={() => goTo('ads')} className="mt-2 w-full flex items-center justify-center gap-1 py-2 rounded-xl bg-[#fdecec] text-[#d71920] text-xs font-extrabold cursor-pointer">
                           <ExternalLink className="w-3.5 h-3.5" /> {e.label}
                         </button>
                       ) : (
-                        <a key={i} href={e.url} target="_blank" rel="noopener noreferrer" className={`mt-2 w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-extrabold ${e.kind === 'whatsapp' ? 'bg-[#25d366] text-white' : 'bg-[#fff0ed] text-[#ff6f61]'}`}>
+                        <a key={i} href={e.url} target="_blank" rel="noopener noreferrer" className={`mt-2 w-full flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-extrabold ${e.kind === 'whatsapp' ? 'bg-[#25d366] text-white' : 'bg-[#fdecec] text-[#d71920]'}`}>
                           <MessageCircle className="w-3.5 h-3.5" /> {e.label}
                         </a>
                       )
@@ -373,10 +431,23 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                 </div>
               </div>
             ))}
+            {docReview && mode === 'manager' && (
+              <DocumentReviewCard
+                fileName={docReview.file.name}
+                read={docReview.read}
+                initial={docReview.fields}
+                saving={savingDoc}
+                onSave={saveDocument}
+                onCancel={() => {
+                  setDocReview(null);
+                  setMessages((prev) => [...prev, newMsg('assistant', 'واخا، ما سجلت والو.')]);
+                }}
+              />
+            )}
             {busy && (
               <div className="flex justify-start">
-                <div className="px-3.5 py-2.5 rounded-2xl bg-white border border-[#f0e4e2] flex items-center gap-2 text-xs text-[#7a5c58]">
-                  <Loader2 className="w-4 h-4 animate-spin text-[#ff6f61]" /> كيخدم…
+                <div className="px-3.5 py-2.5 rounded-2xl bg-white border border-[#e5e5e5] flex items-center gap-2 text-xs text-[#555555]">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#d71920]" /> كيخدم…
                 </div>
               </div>
             )}
@@ -384,13 +455,13 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
           </div>
 
           {/* Saisie */}
-          <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="p-3 border-t border-[#f0e4e2] flex items-end gap-2 bg-white">
+          <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="p-3 border-t border-[#e5e5e5] flex items-end gap-2 bg-white">
             {SpeechRecognitionImpl && (
               <div className="flex flex-col items-center gap-1">
                 <button
                   type="button"
                   onClick={toggleMic}
-                  className={`w-11 h-11 rounded-full flex items-center justify-center cursor-pointer ${listening ? 'bg-red-500 text-white animate-pulse' : 'bg-[#fff0ed] text-[#ff6f61]'}`}
+                  className={`w-11 h-11 rounded-full flex items-center justify-center cursor-pointer ${listening ? 'bg-red-500 text-white animate-pulse' : 'bg-[#fdecec] text-[#d71920]'}`}
                   title="تكلّم"
                 >
                   {listening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
@@ -398,12 +469,27 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                 <button
                   type="button"
                   onClick={() => setVoice({ ...voice, lang: voice.lang === 'ar-MA' ? 'fr-FR' : 'ar-MA' })}
-                  className="text-[10px] font-black text-[#99807d] cursor-pointer"
+                  className="text-[10px] font-black text-[#888888] cursor-pointer"
                   title="لغة الميكروفون"
                 >
                   {voice.lang === 'ar-MA' ? 'عربي' : 'FR'}
                 </button>
               </div>
+            )}
+            {mode === 'manager' && (
+              <>
+                <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => onPickDocument(e.target.files?.[0])} />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={busy}
+                  className="w-11 h-11 rounded-full flex items-center justify-center bg-[#fdecec] text-[#d71920] disabled:opacity-40 cursor-pointer"
+                  title="قرا وثيقة (البطاقة، شهادة الملكية، عقد)"
+                  aria-label="قرا وثيقة"
+                >
+                  <Paperclip className="w-5 h-5" />
+                </button>
+              </>
             )}
             <textarea
               value={input}
@@ -417,9 +503,9 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
               rows={1}
               dir="auto"
               placeholder="اكتب رسالتك…"
-              className="flex-1 resize-none max-h-28 p-3 rounded-2xl bg-[#fff8f7] border border-[#f0e4e2] text-sm focus:outline-none focus:ring-2 focus:ring-[#ff6f61]"
+              className="flex-1 resize-none max-h-28 p-3 rounded-2xl bg-[#fafafa] border border-[#e5e5e5] text-sm focus:outline-none focus:ring-2 focus:ring-[#d71920]"
             />
-            <button type="submit" disabled={!input.trim() || busy} className="w-11 h-11 rounded-full bg-[#ff6f61] text-white flex items-center justify-center disabled:opacity-40 cursor-pointer">
+            <button type="submit" disabled={!input.trim() || busy} className="w-11 h-11 rounded-full bg-[#d71920] text-white flex items-center justify-center disabled:opacity-40 cursor-pointer">
               <Send className="w-5 h-5 rtl:rotate-180" />
             </button>
           </form>
