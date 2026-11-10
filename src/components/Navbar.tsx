@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  Building2, 
   Search, 
   Heart, 
   MessageSquare, 
@@ -74,21 +73,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-6">
             <button
               onClick={() => onTabChange('home')}
-              className="flex items-center gap-3 group text-left cursor-pointer focus:outline-none"
+              className="shrink-0 flex items-center gap-3 group text-left cursor-pointer focus:outline-none"
             >
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#ff6f61] to-[#ff9a8d] flex items-center justify-center text-white shadow-md shadow-[#ff6f61]/25 group-hover:scale-105 transition-transform duration-200">
-                <Building2 className="w-6 h-6" />
-              </div>
-              <div>
+              <img src="/brand/logo-alwasset777.webp" alt={isAr ? 'مجموعة الوسيط' : 'Al Wasset Groupe'} width={44} height={44} className="w-11 h-11 rounded-full object-cover shadow-md shadow-[#ff6f61]/25 group-hover:scale-105 transition-transform duration-200" />
+              <div className="lg:hidden 2xl:block">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-xl tracking-tight text-[#281715]">
-                    {isAr ? 'الوسيط' : 'Al Wassit'}
-                  </span>
-                  <span className="bg-[#ff6f61] text-white text-xs font-black px-1.5 py-0.5 rounded-md">
-                    777
+                  {/* الشعار فيه 777 أصلاً ← ما نكتبوش 777 حداه */}
+                  <span className="font-extrabold text-xl tracking-tight text-[#281715] whitespace-nowrap">
+                    {isAr ? 'الوسيط' : 'Al Wasset'}
                   </span>
                 </div>
-                <p className="hidden sm:block text-[11px] text-[#7a5c58] font-medium tracking-wide">
+                <p className="hidden 2xl:block whitespace-nowrap text-[11px] text-[#7a5c58] font-medium tracking-wide">
                   {isAr ? 'عقارات المغرب الموثوقة' : isEn ? 'Morocco Real Estate Platform' : 'Immobilier de Référence'}
                 </p>
               </div>

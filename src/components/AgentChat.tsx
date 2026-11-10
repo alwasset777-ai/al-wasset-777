@@ -283,7 +283,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
         <button
           onClick={() => setOpen(true)}
           className="fixed bottom-5 end-5 z-50 flex items-center gap-2 ps-3 pe-4 py-3 rounded-full bg-[#111111] text-white shadow-2xl shadow-[#111111]/30 hover:scale-105 transition-transform cursor-pointer"
-          aria-label={mode === 'manager' ? AGENT_NAME : 'وكيل الوسيط 777'}
+          aria-label={mode === 'manager' ? AGENT_NAME : 'وكيل مجموعة الوسيط'}
         >
           <MuneerAvatar photo={mode === 'manager' ? photo : null} size={32} />
           <span className="text-sm font-extrabold">{mode === 'manager' ? AGENT_NAME : t('Parler à l’agent', 'كلّم الوكيل', 'Talk to agent')}</span>
@@ -296,9 +296,9 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
           <div className={`text-white px-4 py-3 flex items-center gap-2 ${mode === 'manager' ? 'bg-gradient-to-br from-[#111111] to-[#8b0f14]' : 'bg-gradient-to-br from-[#111111] to-[#8b0f14]'}`}>
             <MuneerAvatar photo={mode === 'manager' ? photo : null} speaking={speaking} listening={listening} size={44} />
             <div className="flex-1 min-w-0" dir="rtl">
-              <div className="text-sm font-black"><bdi>{mode === 'manager' ? AGENT_NAME : 'وكيل الوسيط 777'}</bdi></div>
+              <div className="text-sm font-black"><bdi>{mode === 'manager' ? AGENT_NAME : 'وكيل مجموعة الوسيط'}</bdi></div>
               <div className="text-[11px] text-white/75">
-                {mode === 'manager' ? (speaking ? 'كيهضر…' : listening ? 'كيسمع ليك…' : 'وكيلك الشخصي · كيتعلم معاك') : 'مساعد الزبائن · مكتب الوسيط 777'}
+                {mode === 'manager' ? (speaking ? 'كيهضر…' : listening ? 'كيسمع ليك…' : 'وكيلك الشخصي · كيتعلم معاك') : 'مساعد الزبائن · مجموعة الوسيط'}
               </div>
             </div>
             {mode === 'manager' && (
@@ -382,7 +382,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({ properties, language, onNa
                 {mode === 'manager' && (
                   <div className="flex justify-center"><MuneerAvatar photo={photo} speaking={speaking} size={72} /></div>
                 )}
-                <div className="text-sm font-extrabold">{mode === 'manager' ? `السلام عليكم السي منير 👋 أنا ${AGENT_NAME}، رهن إشارتك` : 'مرحباً بك في الوسيط 777 👋'}</div>
+                <div className="text-sm font-extrabold">{mode === 'manager' ? `السلام عليكم السي منير 👋 أنا ${AGENT_NAME}، رهن إشارتك` : 'مرحباً بك في مجموعة الوسيط 👋'}</div>
                 <p className="text-xs text-[#555555]">
                   {mode === 'manager'
                     ? 'كنسيّر الزبناء والمواعيد، كنوجد الإعلانات، كنقلب على الفرص، وكنكتب ميساجات واتساب. 📎 صيفط ليا البطاقة ولا شهادة الملكية ولا العقد ونعمّر ليك الفيشة. وكلما علّمتيني شي حاجة كنعقل عليها 🧠'
