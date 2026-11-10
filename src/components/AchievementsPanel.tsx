@@ -48,19 +48,19 @@ export const AchievementsPanel: React.FC<{ onAsk: (q: string) => void }> = ({ on
   ];
 
   return (
-    <div dir="rtl" className="mx-3 mt-3 p-3 rounded-2xl bg-gradient-to-br from-[#1f3a2e] to-[#281715] text-white space-y-3 max-h-[60vh] overflow-y-auto">
+    <div dir="rtl" className="mx-3 mt-3 p-3 rounded-2xl bg-[#111111] border-2 border-[#d71920] text-white space-y-3 max-h-[60vh] overflow-y-auto">
       <div className="flex items-center gap-2 text-sm font-black">
-        <Trophy className="w-4 h-4 text-amber-300" /> إنجازات <span dir="ltr">{agencyProfile.agentNameAr}</span>
+        <Trophy className="w-4 h-4 text-red-400" /> إنجازات <span dir="ltr">{agencyProfile.agentNameAr}</span>
         <span className="ms-auto text-[10px] font-bold text-white/60">{done} عمل منذ {new Date(log.since).toLocaleDateString('fr-FR')}</span>
       </div>
 
       <div className="rounded-xl bg-white/10 p-2.5 space-y-1.5">
         <div className="flex items-baseline justify-between text-xs font-bold">
           <span>💰 المداخيل «النمو»</span>
-          <span className="text-lg font-black text-amber-300" dir="ltr">{fmt(g.totalMad)} MAD</span>
+          <span className="text-lg font-black text-red-400" dir="ltr">{fmt(g.totalMad)} MAD</span>
         </div>
         <div className="h-2 rounded-full bg-white/15 overflow-hidden">
-          <div className="h-full bg-amber-300 rounded-full transition-all" style={{ width: `${pct}%` }} />
+          <div className="h-full bg-[#d71920] rounded-full transition-all" style={{ width: `${pct}%` }} />
         </div>
         <div className="text-[10px] text-white/70">
           {next === null
@@ -82,7 +82,7 @@ export const AchievementsPanel: React.FC<{ onAsk: (q: string) => void }> = ({ on
 
       <div className="grid grid-cols-2 gap-2 text-[11px]">
         <div className="rounded-xl bg-white/10 p-2">🏢 وكالات تواصلنا معها: <b>{contacted}</b> / {g.prospects.total}</div>
-        <div className="rounded-xl bg-white/10 p-2">⏰ تذكيرات فاتو: <b className={g.followUpsDue.length ? 'text-amber-300' : ''}>{g.followUpsDue.length}</b></div>
+        <div className="rounded-xl bg-white/10 p-2">⏰ تذكيرات فاتو: <b className={g.followUpsDue.length ? 'text-red-400' : ''}>{g.followUpsDue.length}</b></div>
         <div className="rounded-xl bg-white/10 p-2">👥 الزبناء فالمكتب: <b>{clients.length}</b></div>
         <div className="rounded-xl bg-white/10 p-2">📅 مواعيد جاية: <b>{upcoming}</b></div>
         <div className="rounded-xl bg-white/10 p-2 col-span-2">🗂️ العقارات فالسجل: <b>{registryCount ?? '…'}</b></div>
