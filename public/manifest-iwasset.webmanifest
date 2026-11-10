@@ -12,8 +12,43 @@
   "lang": "ar",
   "dir": "rtl",
   "icons": [
-    { "src": "/icons/iwasset-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/iwasset-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/iwasset-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
+    {
+      "src": "/icons/iwasset-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/iwasset-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/iwasset-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "share_target": {
+    "action": "/iwasset/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "contact",
+          "accept": [
+            "text/vcard",
+            "text/x-vcard",
+            ".vcf"
+          ]
+        }
+      ]
+    }
+  }
 }

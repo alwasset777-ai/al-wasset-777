@@ -69,6 +69,7 @@ export const TOOL_DEFS: ToolDef[] = [
       {
         name: str('Nom complet'),
         phone: str('Téléphone'),
+        country: str('Pays du numéro si client étranger / MRE (indicatif ou nom). Vide = pays par défaut'),
         requestType: { type: 'string', enum: ['شراء', 'كراء', 'بيع', 'استثمار'], description: 'Achat, location, vente ou investissement' },
         propType: { type: 'string', enum: ['شقة', 'فيلا', 'أرض', 'محل تجاري', 'منزل', 'مكتب', 'رياض', 'ضيعة'] },
         budget: num('Budget en MAD (0 si inconnu)'),
@@ -148,10 +149,31 @@ export const TOOL_DEFS: ToolDef[] = [
     modes: ['manager'],
   },
   {
+    name: 'prepare_social_share',
+    description:
+      "Partager un texte (annonce, publication, lien d'un bien) sur les réseaux : affiche au gérant un bouton « partager dans toutes les applications » (Instagram, TikTok, Snapchat, Messenger… via le téléphone) et des boutons directs (WhatsApp, Facebook, X, Telegram, Threads, LinkedIn). Renvoie aussi les comptes du bureau déjà reliés. Le gérant publie lui-même d'un clic.",
+    parameters: obj(
+      {
+        text: str('Texte complet de la publication'),
+        url: str('Lien à partager (fiche du bien, site). Facultatif'),
+        platforms: { type: 'array', items: { type: 'string', enum: ['whatsapp', 'facebook', 'x', 'telegram', 'threads', 'linkedin'] }, description: 'Boutons directs à afficher (par défaut : whatsapp, facebook, telegram, x)' },
+      },
+      ['text'],
+    ),
+    modes: ['manager'],
+  },
+  {
     name: 'prepare_whatsapp',
     description:
       "Préparer un message WhatsApp pour un client (réponse, relance, proposition de bien). Le gérant l'envoie lui-même d'un clic. Écrire le texte dans le style du bureau.",
-    parameters: obj({ phone: str('Téléphone du client'), text: str('Message complet') }, ['phone', 'text']),
+    parameters: obj(
+      {
+        phone: str('Téléphone du client (local « 06… » ou international « +33… »)'),
+        text: str('Message complet'),
+        country: str("Pays du numéro si client étranger / MRE : indicatif (33, 34, 39…) ou nom (France, Espagne…). Vide = pays par défaut du bureau"),
+      },
+      ['phone', 'text'],
+    ),
     modes: ['manager'],
   },
   {
