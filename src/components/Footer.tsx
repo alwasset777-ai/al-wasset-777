@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, ShieldCheck, Scale, Phone, Mail, MapPin, Globe } from 'lucide-react';
+import { ShieldCheck, Scale, Phone, Mail, MapPin, Globe } from 'lucide-react';
 import { Language } from '../types';
 
 interface FooterProps {
@@ -20,17 +20,11 @@ export const Footer: React.FC<FooterProps> = ({ language, onNavigate }) => {
           {/* Brand Col */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#ff6f61] to-[#ff9a8d] flex items-center justify-center text-white shadow-md">
-                <Building2 className="w-5 h-5" />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-xl tracking-tight text-white">
-                  {isAr ? 'الوسيط' : 'Al Wassit'}
-                </span>
-                <span className="bg-[#ff6f61] text-white text-xs font-black px-1.5 py-0.5 rounded-md">
-                  777
-                </span>
-              </div>
+              <img src="/brand/logo-alwasset777.webp" alt={isAr ? 'مجموعة الوسيط' : 'Al Wasset Groupe'} width={40} height={40} loading="lazy" className="w-10 h-10 rounded-full object-cover shadow-md" />
+              {/* الشعار فيه 777 أصلاً ← ما نكتبوش 777 حداه */}
+              <span className="font-extrabold text-xl tracking-tight text-white">
+                {isAr ? 'مجموعة الوسيط' : 'Al Wasset Groupe'}
+              </span>
             </div>
 
             <p className="text-xs text-[#d1b8b4] leading-relaxed max-w-sm">
