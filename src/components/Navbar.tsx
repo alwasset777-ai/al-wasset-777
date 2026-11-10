@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Search, 
   Heart, 
@@ -12,7 +12,8 @@ import {
   X,
   Compass,
   Megaphone,
-  Rocket
+  Rocket,
+  ChevronDown
 } from 'lucide-react';
 import { Language } from '../types';
 
@@ -43,6 +44,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLangDropdown, setShowLangDropdown] = useState(false);
+  // «المزيد»: الأدوات (القانوني، الوكالة، الإعلانات، الاستوديو) فقائمة صغيرة باش ما تتزاحمش القائمة
+  const [showMore, setShowMore] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showMore) return;
+    const close = (e: MouseEvent) => { if (moreRef.current && !moreRef.current.contains(e.target as Node)) setShowMore(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowMore(false); };
+    document.addEventListener('mousedown', close); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [showMore]);
 
   const isAr = language === 'ar';
   const isEn = language === 'en';
@@ -57,6 +68,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'ads', labelFr: 'Publicités', labelAr: 'الإعلانات', labelEn: 'Ads Agent', icon: Megaphone },
     { id: 'studio', labelFr: 'Studio', labelAr: 'استوديو النشر', labelEn: 'Studio', icon: Rocket }
   ];
+
+  const MAIN_LINKS = 4; // الروابط الرئيسية؛ الباقي فـ«المزيد»
+  const moreLinks = navLinks.slice(MAIN_LINKS);
 
   const getLinkLabel = (link: typeof navLinks[0]) => {
     if (isAr) return link.labelAr;
@@ -76,14 +90,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="shrink-0 flex items-center gap-3 group text-left cursor-pointer focus:outline-none"
             >
               <img src="/brand/logo-alwasset777.webp" alt={isAr ? 'مجموعة الوسيط' : 'Al Wasset Groupe'} width={44} height={44} className="w-11 h-11 rounded-full object-cover shadow-md shadow-[#ff6f61]/25 group-hover:scale-105 transition-transform duration-200" />
-              <div className="lg:hidden 2xl:block">
+              <div className="sm:hidden">
                 <div className="flex items-center gap-1.5">
                   {/* الشعار فيه 777 أصلاً ← ما نكتبوش 777 حداه */}
                   <span className="font-extrabold text-xl tracking-tight text-[#281715] whitespace-nowrap">
                     {isAr ? 'الوسيط' : 'Al Wasset'}
                   </span>
                 </div>
-                <p className="hidden 2xl:block whitespace-nowrap text-[11px] text-[#7a5c58] font-medium tracking-wide">
+                <p className="hidden sm:block md:hidden whitespace-nowrap text-[11px] text-[#7a5c58] font-medium tracking-wide">
                   {isAr ? 'عقارات المغرب الموثوقة' : isEn ? 'Morocco Real Estate Platform' : 'Immobilier de Référence'}
                 </p>
               </div>
@@ -91,7 +105,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Desktop Navigation Links */}
             <nav className="hidden lg:flex items-center gap-1">
-              {navLinks.map((link) => {
+              {navLinks.map((link, i) => {
+                if (i >= MAIN_LINKS) return null;
                 const isActive = currentTab === link.id;
                 const IconComponent = link.icon;
                 return (
@@ -105,10 +120,46 @@ export const Navbar: React.FC<NavbarProps> = ({
                     }`}
                   >
                     {IconComponent && <IconComponent className="w-4 h-4" />}
-                    <span>{getLinkLabel(link)}</span>
+                    <span className="whitespace-nowrap">{getLinkLabel(link)}</span>
                   </button>
                 );
               })}
+              <div ref={moreRef} className="relative">
+                <button
+                  onClick={() => setShowMore((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={showMore}
+                  className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all duration-150 flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                    moreLinks.some((l) => l.id === currentTab) || showMore
+                      ? 'bg-[#fff0ed] text-[#ff6f61] shadow-xs'
+                      : 'text-[#5a4340] hover:text-[#281715] hover:bg-[#fff8f7]'
+                  }`}
+                >
+                  {isAr ? 'المزيد' : isEn ? 'More' : 'Plus'}
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showMore ? 'rotate-180' : ''}`} />
+                </button>
+                {showMore && (
+                  <div role="menu" className="absolute top-full mt-2 start-0 w-60 bg-white rounded-2xl shadow-xl border border-[#f2e6e4] p-1.5 z-50">
+                    {moreLinks.map((link) => {
+                      const IconComponent = link.icon;
+                      const isActive = currentTab === link.id;
+                      return (
+                        <button
+                          key={link.id}
+                          role="menuitem"
+                          onClick={() => { onTabChange(link.id); setShowMore(false); }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold text-start cursor-pointer ${
+                            isActive ? 'bg-[#fff0ed] text-[#ff6f61]' : 'text-[#5a4340] hover:bg-[#fff8f7] hover:text-[#281715]'
+                          }`}
+                        >
+                          {IconComponent && <IconComponent className="w-4 h-4 shrink-0" />}
+                          <span>{getLinkLabel(link)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </nav>
           </div>
 
@@ -116,13 +167,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-2 sm:gap-3">
             
             {/* Quick Search on larger screens */}
-            <div className="hidden md:flex relative items-center">
+            <div className="hidden md:flex lg:hidden xl:flex relative items-center">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder={isAr ? 'بحث بالمدينة، الحي، السعر...' : isEn ? 'City, district, price...' : 'Ville, quartier, budget...'}
-                className="w-48 xl:w-60 pl-9 pr-3 py-2 text-xs rounded-xl bg-[#fff8f7] border border-[#f0e4e2] text-[#281715] placeholder-[#99807d] focus:outline-none focus:ring-2 focus:ring-[#ff6f61] focus:bg-white transition-all"
+                className="w-48 pl-9 pr-3 py-2 text-xs rounded-xl bg-[#fff8f7] border border-[#f0e4e2] text-[#281715] placeholder-[#99807d] focus:outline-none focus:ring-2 focus:ring-[#ff6f61] focus:bg-white transition-all"
               />
               <Search className="w-4 h-4 text-[#99807d] absolute left-3 pointer-events-none" />
             </div>
@@ -195,7 +246,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="w-7 h-7 rounded-full bg-[#e8d5d3] overflow-hidden flex items-center justify-center text-[#ff6f61] font-bold text-xs">
                 <User className="w-4 h-4" />
               </div>
-              <span className="hidden xl:inline text-xs font-bold text-[#281715]">
+              <span className="hidden text-xs font-bold text-[#281715] whitespace-nowrap">
                 {isAr ? 'حسابي' : isEn ? 'Account' : 'Mon Compte'}
               </span>
             </button>
@@ -206,11 +257,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="hidden sm:flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#ff6f61] hover:bg-[#e8584a] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#ff6f61]/25 hover:shadow-lg transition-all duration-150 cursor-pointer active:scale-95"
             >
               <PlusCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">
+              <span className="hidden whitespace-nowrap">
                 {isAr ? 'نشر إعلان' : isEn ? 'Post Listing' : 'Déposer une annonce'}
               </span>
-              <span className="sm:hidden">
-                {isAr ? 'إعلان' : isEn ? 'Post' : 'Publier'}
+              <span className="whitespace-nowrap">
+                {isAr ? 'نشر إعلان' : isEn ? 'Post' : 'Publier'}
               </span>
             </button>
 
